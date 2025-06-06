@@ -13,7 +13,13 @@ def runner():
 @pytest.fixture
 def mock_gh_command(mocker):
     """Mock the subprocess calls to gh CLI with realistic return values."""
-    from unittest.mock import MagicMock
+"""Shared pytest fixtures and configuration."""
+
+import pytest
+from unittest.mock import MagicMock
+from click.testing import CliRunner
+
+# ...rest of your fixtures...
 
     # Create a mock CompletedProcess instance with default successful behavior
     mock_result = MagicMock()
