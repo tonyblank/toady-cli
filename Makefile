@@ -41,7 +41,7 @@ pre-commit:
 	pre-commit run --all-files
 
 # Main target for running all checks
-check: format-check lint type-check test
+check: pre-commit test
 	@echo "✅ All checks passed!"
 
 clean:
