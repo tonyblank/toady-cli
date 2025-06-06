@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial project setup with modern Python packaging
 - Core CLI commands: `fetch`, `reply`, and `resolve`
 - Integration with GitHub CLI (`gh`) for API access
@@ -19,12 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation and README
 
 ### Security
+
 - Secure authentication via GitHub CLI
 - No token storage in the application
 
 ## [0.1.0] - 2024-01-XX
 
 ### Added
+
 - First release of toady-cli
 - Basic functionality for PR review management
 

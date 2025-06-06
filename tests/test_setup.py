@@ -95,7 +95,10 @@ class TestPackageMetadata:
         root = pathlib.Path(__file__).parent.parent
 
         # Try to read and parse pyproject.toml
-        import tomllib
+        try:
+            import tomllib  # Python 3.11+
+        except ImportError:
+            import tomli as tomllib  # Python < 3.11
 
         with open(root / "pyproject.toml", "rb") as f:
             data = tomllib.load(f)
@@ -113,7 +116,7 @@ class TestDevelopmentTools:
         """Test that Makefile has all expected targets."""
         root = pathlib.Path(__file__).parent.parent
 
-        with open(root / "Makefile") as f:
+        with open(root / "Makefile", encoding="utf-8") as f:
             makefile_content = f.read()
 
         expected_targets = [

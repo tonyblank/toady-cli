@@ -50,7 +50,7 @@ def resolve(thread_id: str, undo: bool) -> None:
 
 def main() -> None:
     """Entry point for the CLI."""
-    cli()
+    cli(prog_name="toady")
 
 
 if __name__ == "__main__":

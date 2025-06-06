@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test lint format type-check pre-commit check clean build
+.PHONY: help install install-dev test lint format format-check type-check pre-commit check clean build
 
 # Default target
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "  make test         Run all tests with coverage"
 	@echo "  make lint         Run linting (ruff)"
 	@echo "  make format       Format code with black"
+	@echo "  make format-check Check code formatting with black"
 	@echo "  make type-check   Run type checking with mypy"
 	@echo "  make pre-commit   Run all pre-commit hooks"
 	@echo "  make check        Run ALL checks (lint, format check, type check, tests)"

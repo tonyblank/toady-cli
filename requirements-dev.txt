@@ -10,7 +10,7 @@ pytest-mock>=3.11.0
 black>=23.0.0
 ruff>=0.1.0
 mypy>=1.5.0
-types-click
+types-click>=8.1.0
 
 # Pre-commit hooks
 pre-commit>=3.4.0
@@ -19,3 +19,6 @@ pre-commit>=3.4.0
 build>=1.0.0
 twine>=4.0.0
 tox>=4.0.0
+
+# TOML parsing for older Python versions
+tomli>=2.0.0;python_version<'3.11'
