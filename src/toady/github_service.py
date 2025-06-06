@@ -129,7 +129,7 @@ class GitHubService:
 
         return current_parts >= min_parts
 
-    def run_gh_command(self, args: List[str]) -> subprocess.CompletedProcess[str]:
+    def run_gh_command(self, args: List[str]) -> Any:
         """Run a gh CLI command with error handling.
 
         Args:
