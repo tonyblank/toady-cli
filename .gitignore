@@ -215,4 +215,22 @@ node_modules/
 .DS_Store
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# IDE and Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Pre-commit
+.pre-commit-config.yaml.lock
+
+# Local development
+.python-version
+local/
+scratch/ 

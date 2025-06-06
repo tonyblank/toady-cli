@@ -3,6 +3,9 @@
 ## Project Overview
 Toady is a Python CLI tool for managing GitHub PR code reviews efficiently. It integrates with GitHub CLI (`gh`) to fetch unresolved comments, post replies, and manage review thread resolution status.
 
+## Task Management
+Tasks are located in `.taskmaster/tasks/` directory (task_001.txt through task_012.txt). Task progress is tracked externally - do not modify task files.
+
 ## Core Commands
 1. `toady fetch --pr <PR_NUMBER>` - Fetch unresolved review threads
 2. `toady reply --comment-id <COMMENT_ID> --body "message"` - Reply to comments
@@ -98,7 +101,12 @@ def test_real_github_api():
 2. Write failing tests for the feature
 3. Implement minimal code to pass tests
 4. Refactor for clarity and efficiency
-5. Update task: `task-master set-status --id=<id> --status=done`
+5. Run `make check` to ensure all tests and checks pass
+6. Review and update documentation:
+   - Check if CHANGELOG.md needs updating for the feature
+   - Update README.md if new functionality or usage changes
+   - Update any relevant docstrings or comments
+7. Update task: `task-master set-status --id=<id> --status=done`
 
 ### Key Dependencies
 - Python 3.7+
