@@ -10,7 +10,7 @@ pytest-mock>=3.11.0
 black>=23.0.0
 ruff>=0.1.0
 mypy>=1.5.0
-types-click>=8.1.0
+types-click>=7.1.0
 
 # Pre-commit hooks
 pre-commit>=3.4.0
