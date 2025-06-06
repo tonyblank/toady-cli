@@ -1,0 +1,183 @@
+Product Requirements Document (PRD): Toady CLI Tool
+
+Overview
+
+Toady is a command-line interface (CLI) tool developed in Python to assist developers in managing GitHub pull request (PR) code reviews efficiently. It leverages the GitHub CLI (gh) to fetch unresolved review comments, post replies, and mark threads as resolved or unresolved. Toady aims to automate and simplify the code review process, enhancing developer productivity and ensuring timely feedback resolution.
+
+Problem Statement: Developers often face challenges in managing code reviews, especially when dealing with multiple unresolved comments across various pull requests. Manually tracking, replying, and resolving these comments can be time-consuming and error-prone.
+
+Target Users:
+	•	Developers: Individuals involved in code reviews who prefer CLI tools for efficiency.
+	•	AI Integration: Tools like Claude that can automate code review processes.
+	•	CI/CD Pipelines: Automated systems that can integrate Toady for managing PR reviews.
+
+Value Proposition: By automating the retrieval and management of PR review comments, Toady reduces manual overhead, ensures consistent code review practices, and integrates seamlessly into existing developer workflows.
+
+⸻
+
+Core Features
+
+1. Fetch Unresolved Review Threads
+	•	What it does: Retrieves all unresolved review threads from a specified pull request.
+	•	Why it’s important: Allows developers to quickly identify pending review comments that need attention.
+	•	How it works: Utilizes GitHub’s GraphQL API via gh to fetch review threads where isResolved == false. Outputs data in JSON format by default, with an option for human-readable output.
+
+2. Reply to a Review Comment
+	•	What it does: Posts a reply to a specific review comment using its ID.
+	•	Why it’s important: Enables developers to address feedback directly from the CLI, streamlining the review process.
+	•	How it works: Uses GitHub’s REST API via gh to post a reply to the specified comment. Does not mark the thread as resolved by default.
+
+3. Resolve or Unresolve a Review Thread
+	•	What it does: Marks a review thread as resolved or unresolved based on the provided flag.
+	•	Why it’s important: Helps in managing the state of review threads, indicating which comments have been addressed.
+	•	How it works: Executes GraphQL mutations (resolveReviewThread or unresolveReviewThread) via gh to update the thread’s status.
+
+⸻
+
+User Experience
+
+User Personas
+	1.	CLI-Savvy Developers: Developers who prefer using command-line tools for efficiency and automation.
+	2.	AI Tools: Systems like Claude that can automate code review processes and require programmatic access to review comments.
+	3.	CI/CD Systems: Automated pipelines that integrate code review management into the deployment process.
+
+Key User Flows
+	1.	Fetching Unresolved Comments:
+	•	User runs toady fetch --pr <PR_NUMBER>.
+	•	Toady retrieves and displays unresolved review threads.
+	2.	Replying to a Comment:
+	•	User runs toady reply --comment-id <COMMENT_ID> --body "Your reply message".
+	•	Toady posts the reply to the specified comment.
+	3.	Resolving a Thread:
+	•	User runs toady resolve --thread-id <THREAD_ID>.
+	•	Toady marks the thread as resolved.
+	4.	Unresolving a Thread:
+	•	User runs toady resolve --thread-id <THREAD_ID> --undo.
+	•	Toady marks the thread as unresolved.
+
+UI/UX Considerations
+	•	Consistency: Command syntax and options should follow standard CLI conventions.
+	•	Feedback: Provide clear success or error messages after each operation.
+	•	Help Documentation: Include comprehensive help commands (toady --help) detailing usage.
+
+⸻
+
+Technical Architecture
+
+System Components
+	1.	CLI Interface: Built using Python’s click library to handle command parsing and user interactions.
+	2.	GitHub Integration: Utilizes the gh CLI to interact with GitHub’s REST and GraphQL APIs.
+	3.	Output Formatter: Handles JSON and human-readable outputs based on user preferences.
+
+Data Models
+	•	ReviewThread:
+	•	id: Unique identifier.
+	•	isResolved: Boolean indicating resolution status.
+	•	comments: List of associated comments.
+	•	Comment:
+	•	id: Unique identifier.
+	•	body: Content of the comment.
+	•	author: Username of the commenter.
+	•	url: Direct link to the comment.
+
+APIs and Integrations
+	•	GitHub CLI (gh):
+	•	GraphQL API: For fetching review threads and resolving/unresolving them.
+	•	REST API: For posting replies to comments.
+
+Infrastructure Requirements
+	•	Python Environment: Python 3.7 or higher.
+	•	GitHub CLI: Installed and authenticated on the user’s system.
+	•	Operating Systems: Cross-platform compatibility (Windows, macOS, Linux).
+
+⸻
+
+Development Roadmap
+
+MVP Requirements
+	1.	Command: fetch
+	•	Fetch unresolved review threads.
+	•	Output in JSON format.
+	•	Optional --pretty flag for human-readable output.
+	2.	Command: reply
+	•	Post a reply to a specific comment using its ID.
+	•	Accepts --comment-id and --body parameters.
+	3.	Command: resolve
+	•	Mark a review thread as resolved or unresolved.
+	•	Accepts --thread-id and optional --undo flag.
+	4.	Error Handling
+	•	Graceful handling of API errors and invalid inputs.
+	5.	Help Documentation
+	•	Comprehensive help messages for each command.
+
+Future Enhancements
+	1.	Batch Operations
+	•	Ability to reply to or resolve multiple comments/threads simultaneously.
+	2.	Configuration File
+	•	Support for a config file to set default behaviors and preferences.
+	3.	Integration with AI Tools
+	•	APIs or hooks to allow AI tools like Claude to interact with Toady.
+	4.	Logging
+	•	Implement logging for audit trails and debugging.
+	5.	Plugin System
+	•	Allow users to extend Toady’s functionality through plugins.
+
+⸻
+
+Logical Dependency Chain
+	1.	Setup and Initialization
+	•	Ensure Python environment and gh CLI are properly set up.
+	•	Initialize project structure and version control.
+	2.	Implement fetch Command
+	•	Core functionality to retrieve unresolved review threads.
+	3.	Implement reply Command
+	•	Ability to post replies to specific comments.
+	4.	Implement resolve Command
+	•	Functionality to mark threads as resolved or unresolved.
+	5.	Error Handling and Validation
+	•	Implement robust error handling across all commands.
+	6.	Help and Documentation
+	•	Provide detailed help messages and usage examples.
+	7.	Testing
+	•	Develop unit and integration tests for all functionalities.
+	8.	Packaging and Distribution
+	•	Prepare the tool for distribution via PyPI.
+	9.	Future Enhancements
+	•	Implement additional features as outlined in the roadmap.
+
+⸻
+
+Risks and Mitigations
+
+Technical Challenges
+	•	API Changes: GitHub’s APIs may change over time.
+	•	Mitigation: Regularly monitor GitHub API updates and adjust Toady accordingly.
+	•	Authentication Issues: Users may face issues with gh CLI authentication.
+	•	Mitigation: Provide clear instructions for setting up and verifying gh authentication.
+
+MVP Scope Definition
+	•	Overengineering: Risk of adding too many features in the initial version.
+	•	Mitigation: Focus on core functionalities for the MVP and defer additional features to future versions.
+
+Resource Constraints
+	•	Development Bandwidth: Limited resources may delay development.
+	•	Mitigation: Prioritize features based on impact and feasibility.
+
+⸻
+
+Appendix
+
+Research Findings
+	•	User Preferences: Developers prefer CLI tools that integrate seamlessly with existing workflows.
+	•	Automation Needs: There’s a growing demand for tools that can automate repetitive tasks in the code review process.
+
+Technical Specifications
+	•	Programming Language: Python 3.7+
+	•	Dependencies:
+	•	click for CLI interactions.
+	•	subprocess for interfacing with the gh CLI.
+	•	Distribution: Package available via PyPI for easy installation.
+
+⸻
+
+This PRD provides a comprehensive guide for the engineering team to develop the Toady CLI tool, ensuring clarity in objectives, functionalities, and implementation strategies.
