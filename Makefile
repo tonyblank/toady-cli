@@ -23,7 +23,7 @@ install-dev:
 	pre-commit install
 
 test:
-	pytest -v --cov=toady --cov-report=term-missing --cov-report=html
+	pytest -v
 
 lint:
 	ruff check src tests

@@ -1,7 +1,7 @@
 # Toady CLI 🐸
 
-[![CI](https://github.com/yourusername/toady-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/toady-cli/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/yourusername/toady-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/toady-cli)
+[![CI](https://github.com/tonyblank/toady-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/tonyblank/toady-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/tonyblank/toady-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/tonyblank/toady-cli)
 [![PyPI version](https://badge.fury.io/py/toady-cli.svg)](https://badge.fury.io/py/toady-cli)
 [![Python versions](https://img.shields.io/pypi/pyversions/toady-cli.svg)](https://pypi.org/project/toady-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -35,7 +35,7 @@ pip install toady-cli
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/toady-cli.git
+git clone https://github.com/tonyblank/toady-cli.git
 cd toady-cli
 pip install -e .
 ```
@@ -43,7 +43,7 @@ pip install -e .
 ### Development Installation
 
 ```bash
-git clone https://github.com/yourusername/toady-cli.git
+git clone https://github.com/tonyblank/toady-cli.git
 cd toady-cli
 make install-dev
 ```
@@ -82,7 +82,7 @@ toady resolve --thread-id abc123def --undo
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/toady-cli.git
+git clone https://github.com/tonyblank/toady-cli.git
 cd toady-cli
 
 # Install in development mode with all dependencies
@@ -159,8 +159,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📚 Documentation
 
-For more detailed documentation, visit our [GitHub Wiki](https://github.com/yourusername/toady-cli/wiki).
+For more detailed documentation, visit our [GitHub Wiki](https://github.com/tonyblank/toady-cli/wiki).
 
 ## 🐛 Bug Reports
 
-Found a bug? Please [open an issue](https://github.com/yourusername/toady-cli/issues/new) with a clear description and steps to reproduce.
+Found a bug? Please [open an issue](https://github.com/tonyblank/toady-cli/issues/new) with a clear description and steps to reproduce.

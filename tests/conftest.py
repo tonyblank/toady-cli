@@ -1,5 +1,7 @@
 """Shared pytest fixtures and configuration."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from click.testing import CliRunner
 
@@ -13,14 +15,6 @@ def runner():
 @pytest.fixture
 def mock_gh_command(mocker):
     """Mock the subprocess calls to gh CLI with realistic return values."""
-"""Shared pytest fixtures and configuration."""
-
-import pytest
-from unittest.mock import MagicMock
-from click.testing import CliRunner
-
-# ...rest of your fixtures...
-
     # Create a mock CompletedProcess instance with default successful behavior
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -32,23 +26,29 @@ from click.testing import CliRunner
     mock = mocker.patch("subprocess.run", return_value=mock_result)
 
     # Add helper methods to easily configure different scenarios
-    mock.configure_success = (
-        lambda stdout="", stderr="": setattr(mock_result, "stdout", stdout)
-        or setattr(mock_result, "stderr", stderr)
-        or setattr(mock_result, "returncode", 0)
-    )
-    mock.configure_failure = (
-        lambda returncode=1, stderr="Command failed": setattr(
-            mock_result, "returncode", returncode
-        )
-        or setattr(mock_result, "stderr", stderr)
-        or setattr(mock_result, "stdout", "")
-    )
-    mock.configure_gh_auth_error = lambda: mock.configure_failure(
-        returncode=1, stderr="gh: Not logged into any GitHub hosts"
-    )
-    mock.configure_gh_not_found = lambda: mock.configure_failure(
-        returncode=127, stderr="gh: command not found"
-    )
+    def configure_success(stdout="", stderr=""):
+        """Configure mock for successful command execution."""
+        mock_result.stdout = stdout
+        mock_result.stderr = stderr
+        mock_result.returncode = 0
+
+    def configure_failure(returncode=1, stderr="Command failed"):
+        """Configure mock for failed command execution."""
+        mock_result.returncode = returncode
+        mock_result.stderr = stderr
+        mock_result.stdout = ""
+
+    def configure_gh_auth_error():
+        """Configure mock for GitHub authentication error."""
+        configure_failure(returncode=1, stderr="gh: Not logged into any GitHub hosts")
+
+    def configure_gh_not_found():
+        """Configure mock for GitHub CLI not found error."""
+        configure_failure(returncode=127, stderr="gh: command not found")
+
+    mock.configure_success = configure_success
+    mock.configure_failure = configure_failure
+    mock.configure_gh_auth_error = configure_gh_auth_error
+    mock.configure_gh_not_found = configure_gh_not_found
 
     return mock

@@ -224,9 +224,6 @@ tasks/
 *.swo
 *~
 
-# macOS
-.DS_Store
-
 # Pre-commit
 .pre-commit-config.yaml.lock
 

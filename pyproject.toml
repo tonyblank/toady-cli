@@ -9,10 +9,10 @@ description = "A CLI tool for managing GitHub PR code reviews efficiently"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Tony Blank", email = "guillotine@lawnfucker.com"},
 ]
 maintainers = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Tony Blank", email = "guillotine@lawnfucker.com"},
 ]
 keywords = ["github", "cli", "code-review", "pull-request", "automation"]
 classifiers = [
@@ -53,10 +53,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/toady-cli"
-Documentation = "https://github.com/yourusername/toady-cli#readme"
-Repository = "https://github.com/yourusername/toady-cli.git"
-"Bug Tracker" = "https://github.com/yourusername/toady-cli/issues"
+Homepage = "https://github.com/tonyblank/toady-cli"
+Documentation = "https://github.com/tonyblank/toady-cli#readme"
+Repository = "https://github.com/tonyblank/toady-cli.git"
+"Bug Tracker" = "https://github.com/tonyblank/toady-cli/issues"
 
 [project.scripts]
 toady = "toady.cli:main"

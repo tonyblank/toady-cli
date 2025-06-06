@@ -31,5 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First release of toady-cli
 - Basic functionality for PR review management
 
-[Unreleased]: https://github.com/yourusername/toady-cli/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/yourusername/toady-cli/releases/tag/v0.1.0
+[Unreleased]: https://github.com/tonyblank/toady-cli/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/tonyblank/toady-cli/releases/tag/v0.1.0
