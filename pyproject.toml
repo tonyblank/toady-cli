@@ -1,0 +1,163 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toady-cli"
+version = "0.1.0"
+description = "A CLI tool for managing GitHub PR code reviews efficiently"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Tony Blank", email = "guillotine@lawnfucker.com"},
+]
+maintainers = [
+    {name = "Tony Blank", email = "guillotine@lawnfucker.com"},
+]
+keywords = ["github", "cli", "code-review", "pull-request", "automation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Version Control :: Git",
+    "Topic :: Software Development :: Quality Assurance",
+    "Environment :: Console",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",  # For pretty output formatting
+    "typing-extensions>=4.0.0;python_version<'3.10'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.4.0",
+    "tox>=4.0.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
+    "tomli>=2.0.0;python_version<'3.11'",
+]
+
+[project.urls]
+Homepage = "https://github.com/tonyblank/toady-cli"
+Documentation = "https://github.com/tonyblank/toady-cli#readme"
+Repository = "https://github.com/tonyblank/toady-cli.git"
+"Bug Tracker" = "https://github.com/tonyblank/toady-cli/issues"
+
+[project.scripts]
+toady = "toady.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+toady = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.ruff]
+target-version = "py38"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "ARG",  # flake8-unused-arguments
+    "SIM",  # flake8-simplify
+]
+ignore = []
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG001", "ARG002"]
+"src/toady/cli.py" = ["ARG001"]  # Ignore unused arguments in CLI stubs
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--cov=toady",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38,py39,py310,py311,py312,lint,type
+
+[testenv]
+deps =
+    pytest
+    pytest-cov
+    pytest-mock
+commands =
+    pytest {posargs}
+
+[testenv:lint]
+deps =
+    black
+    ruff
+commands =
+    black --check src tests
+    ruff check src tests
+
+[testenv:type]
+deps =
+    mypy
+    types-click
+commands =
+    mypy src
+"""

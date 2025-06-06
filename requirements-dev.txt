@@ -1,0 +1,24 @@
+# Include base requirements
+-r requirements.txt
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+
+# Code quality
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.5.0
+types-click>=7.1.0
+
+# Pre-commit hooks
+pre-commit>=3.4.0
+
+# Build and release
+build>=1.0.0
+twine>=4.0.0
+tox>=4.0.0
+
+# TOML parsing for older Python versions
+tomli>=2.0.0;python_version<'3.11'
