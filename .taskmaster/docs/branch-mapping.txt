@@ -45,4 +45,4 @@ Task 12: tony/bur-34-task-12-package-and-prepare-for-pypi-distribution
 Task 12.1: tony/bur-67-task-121-configure-setuppypyprojecttoml-with-metadata-and
 Task 12.2: tony/bur-68-task-122-create-distribution-files-and-test-packaging
 Task 12.3: tony/bur-69-task-123-test-installation-in-clean-environments-and
-Task 12.4: tony/bur-70-task-124-publish-to-testpypi-and-then-pypi-with 
+Task 12.4: tony/bur-70-task-124-publish-to-testpypi-and-then-pypi-with
