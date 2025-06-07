@@ -261,7 +261,7 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
     # Execute the resolve/unresolve operation using the resolve service
     try:
         resolve_service = ResolveService()
-        
+
         if undo:
             result = resolve_service.unresolve_thread(thread_id)
         else:
