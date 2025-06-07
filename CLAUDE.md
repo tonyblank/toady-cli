@@ -191,3 +191,23 @@ mypy toady/
 6. Published to PyPI
 
 This guide ensures elegant, maintainable, and well-tested development of toady-cli.
+
+## Git Commit and PR Guidelines
+
+### Commit Messages and PR Descriptions
+- Write all commit messages and PR descriptions in first person as Tony Blank
+- Do NOT reference Claude or AI assistance in any commit messages or PR descriptions
+- Focus on the technical changes and their purpose
+- Use conventional commit format when applicable (feat:, fix:, docs:, etc.)
+- Keep the tone professional and direct
+
+### Examples:
+**Good:**
+- "Fix exception chaining in ReviewThread validation"
+- "Add trailing whitespace cleanup to models and tests"
+- "Update CI pipeline to match local development checks"
+
+**Avoid:**
+- "Claude fixed the exception handling"
+- "AI-generated improvements to error handling"
+- "Changes suggested by Claude Code"

@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import pytest
 
-from toady.models import ReviewThread
+from toady.models import Comment, ReviewThread
 
 
 class TestReviewThread:
@@ -324,3 +324,256 @@ class TestReviewThread:
         """Test handling of completely unparseable datetime."""
         with pytest.raises(ValueError, match="Unable to parse datetime"):
             ReviewThread._parse_datetime("not a date")
+
+
+class TestComment:
+    """Test the Comment dataclass."""
+
+    def test_create_valid_comment(self) -> None:
+        """Test creating a valid Comment instance."""
+        comment = Comment(
+            comment_id="C_456",
+            content="This looks good to me!",
+            author="janedoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 5, 0),
+            parent_id=None,
+            thread_id="RT_123",
+        )
+
+        assert comment.comment_id == "C_456"
+        assert comment.content == "This looks good to me!"
+        assert comment.author == "janedoe"
+        assert comment.created_at == datetime(2024, 1, 1, 12, 0, 0)
+        assert comment.updated_at == datetime(2024, 1, 1, 12, 5, 0)
+        assert comment.parent_id is None
+        assert comment.thread_id == "RT_123"
+
+    def test_comment_id_validation(self) -> None:
+        """Test that comment_id cannot be empty."""
+        with pytest.raises(ValueError, match="comment_id cannot be empty"):
+            Comment(
+                comment_id="",
+                content="Test content",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            )
+
+    def test_content_validation_empty(self) -> None:
+        """Test that content cannot be empty."""
+        with pytest.raises(ValueError, match="content cannot be empty"):
+            Comment(
+                comment_id="C_456",
+                content="",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            )
+
+    def test_content_validation_too_long(self) -> None:
+        """Test that content cannot exceed maximum length."""
+        long_content = "x" * 65537  # Exceed the 65536 character limit
+        with pytest.raises(ValueError, match="content cannot exceed 65536 characters"):
+            Comment(
+                comment_id="C_456",
+                content=long_content,
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            )
+
+    def test_author_validation(self) -> None:
+        """Test that author cannot be empty."""
+        with pytest.raises(ValueError, match="author cannot be empty"):
+            Comment(
+                comment_id="C_456",
+                content="Test content",
+                author="",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            )
+
+    def test_thread_id_validation(self) -> None:
+        """Test that thread_id cannot be empty."""
+        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+            Comment(
+                comment_id="C_456",
+                content="Test content",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="",
+            )
+
+    def test_date_validation(self) -> None:
+        """Test that updated_at cannot be before created_at."""
+        created = datetime(2024, 1, 2, 12, 0, 0)
+        updated = datetime(2024, 1, 1, 12, 0, 0)  # Before created
+
+        with pytest.raises(ValueError, match="updated_at cannot be before created_at"):
+            Comment(
+                comment_id="C_456",
+                content="Test content",
+                author="user",
+                created_at=created,
+                updated_at=updated,
+                parent_id=None,
+                thread_id="RT_123",
+            )
+
+    def test_to_dict(self) -> None:
+        """Test converting Comment to dictionary."""
+        comment = Comment(
+            comment_id="C_456",
+            content="This looks good!",
+            author="janedoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 5, 0),
+            parent_id="C_123",
+            thread_id="RT_123",
+        )
+
+        result = comment.to_dict()
+
+        expected = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            "author": "janedoe",
+            "created_at": "2024-01-01T12:00:00",
+            "updated_at": "2024-01-01T12:05:00",
+            "parent_id": "C_123",
+            "thread_id": "RT_123",
+        }
+
+        assert result == expected
+
+    def test_to_dict_with_none_parent(self) -> None:
+        """Test converting Comment with None parent_id to dictionary."""
+        comment = Comment(
+            comment_id="C_456",
+            content="This looks good!",
+            author="janedoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 5, 0),
+            parent_id=None,
+            thread_id="RT_123",
+        )
+
+        result = comment.to_dict()
+
+        expected = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            "author": "janedoe",
+            "created_at": "2024-01-01T12:00:00",
+            "updated_at": "2024-01-01T12:05:00",
+            "parent_id": None,
+            "thread_id": "RT_123",
+        }
+
+        assert result == expected
+
+    def test_from_dict_valid(self) -> None:
+        """Test creating Comment from valid dictionary."""
+        data = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            "author": "janedoe",
+            "created_at": "2024-01-01T12:00:00",
+            "updated_at": "2024-01-01T12:05:00",
+            "parent_id": "C_123",
+            "thread_id": "RT_123",
+        }
+
+        comment = Comment.from_dict(data)
+
+        assert comment.comment_id == "C_456"
+        assert comment.content == "This looks good!"
+        assert comment.author == "janedoe"
+        assert comment.created_at == datetime(2024, 1, 1, 12, 0, 0)
+        assert comment.updated_at == datetime(2024, 1, 1, 12, 5, 0)
+        assert comment.parent_id == "C_123"
+        assert comment.thread_id == "RT_123"
+
+    def test_from_dict_with_none_parent(self) -> None:
+        """Test creating Comment from dictionary with None parent_id."""
+        data = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            "author": "janedoe",
+            "created_at": "2024-01-01T12:00:00",
+            "updated_at": "2024-01-01T12:05:00",
+            "parent_id": None,
+            "thread_id": "RT_123",
+        }
+
+        comment = Comment.from_dict(data)
+
+        assert comment.comment_id == "C_456"
+        assert comment.parent_id is None
+
+    def test_from_dict_missing_fields(self) -> None:
+        """Test from_dict with missing required fields."""
+        data = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            # Missing author, created_at, updated_at, thread_id
+        }
+
+        with pytest.raises(ValueError, match="Missing required field"):
+            Comment.from_dict(data)
+
+    def test_from_dict_invalid_date_format(self) -> None:
+        """Test from_dict with invalid date formats."""
+        data = {
+            "comment_id": "C_456",
+            "content": "This looks good!",
+            "author": "janedoe",
+            "created_at": "invalid-date",
+            "updated_at": "2024-01-01T12:05:00",
+            "parent_id": None,
+            "thread_id": "RT_123",
+        }
+
+        with pytest.raises(ValueError, match="Invalid date format for created_at"):
+            Comment.from_dict(data)
+
+    def test_str_representation(self) -> None:
+        """Test string representation of Comment."""
+        comment = Comment(
+            comment_id="C_456",
+            content="This looks good to me!",
+            author="janedoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 5, 0),
+            parent_id=None,
+            thread_id="RT_123",
+        )
+
+        expected = "Comment(id=C_456, author=janedoe, thread=RT_123, parent=None)"
+        assert str(comment) == expected
+
+    def test_str_representation_with_parent(self) -> None:
+        """Test string representation of Comment with parent."""
+        comment = Comment(
+            comment_id="C_456",
+            content="This looks good to me!",
+            author="janedoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 5, 0),
+            parent_id="C_123",
+            thread_id="RT_123",
+        )
+
+        expected = "Comment(id=C_456, author=janedoe, thread=RT_123, parent=C_123)"
+        assert str(comment) == expected
