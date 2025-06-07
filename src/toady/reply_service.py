@@ -72,7 +72,10 @@ class ReplyService:
             pull_number = request.pull_number
 
         # Construct the API endpoint
-        endpoint = f"repos/{owner}/{repo}/pulls/{pull_number}/comments/{request.comment_id}/replies"
+        endpoint = (
+            f"repos/{owner}/{repo}/pulls/{pull_number}/comments/"
+            f"{request.comment_id}/replies"
+        )
 
         # Prepare the request payload (for reference)
         # payload = {"body": request.reply_body}
@@ -136,7 +139,7 @@ class ReplyService:
 
         return parts[0], parts[1]
 
-    def _get_pull_number_from_comment(self, comment_id: str) -> int:
+    def _get_pull_number_from_comment(self, comment_id: str) -> int:  # noqa: ARG002
         """Get the pull request number associated with a comment.
 
         This is a simplified implementation that would need to be enhanced
