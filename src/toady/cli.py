@@ -3,6 +3,8 @@
 import click
 
 from toady import __version__
+from toady.github_service import GitHubAPIError, GitHubAuthenticationError
+from toady.reply_service import CommentNotFoundError, ReplyService, ReplyServiceError
 
 
 @click.group()
@@ -168,23 +170,76 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         # For JSON output, we'll just return the result without progress messages
         pass
 
-    # TODO: Implement actual reply posting logic in subsequent tasks
-    # For now, show placeholder behavior
-    if pretty:
-        click.echo("✅ Reply posted successfully")
-        click.echo(
-            f"🔗 View reply at: https://github.com/owner/repo/pull/123#discussion_r{comment_id}"
-        )
-    else:
-        # Return minimal JSON response
-        import json
+    # Post the reply using the reply service
+    try:
+        reply_service = ReplyService()
+        reply_info = reply_service.post_reply(comment_id, body)
 
-        result = {
-            "comment_id": comment_id,
-            "reply_posted": True,
-            "reply_url": f"https://github.com/owner/repo/pull/123#discussion_r{comment_id}",
-        }
-        click.echo(json.dumps(result))
+        if pretty:
+            click.echo("✅ Reply posted successfully")
+            if reply_info["reply_url"]:
+                click.echo(f"🔗 View reply at: {reply_info['reply_url']}")
+            if reply_info["reply_id"]:
+                click.echo(f"📝 Reply ID: {reply_info['reply_id']}")
+        else:
+            # Return JSON response with actual reply information
+            import json
+
+            result = {
+                "comment_id": comment_id,
+                "reply_posted": True,
+                "reply_id": reply_info["reply_id"],
+                "reply_url": reply_info["reply_url"],
+                "created_at": reply_info["created_at"],
+                "author": reply_info["author"],
+            }
+            click.echo(json.dumps(result))
+
+    except CommentNotFoundError as e:
+        if pretty:
+            click.echo(f"❌ Comment not found: {e}", err=True)
+        else:
+            import json
+
+            error_result = {
+                "comment_id": comment_id,
+                "reply_posted": False,
+                "error": "comment_not_found",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except GitHubAuthenticationError as e:
+        if pretty:
+            click.echo(f"❌ Authentication failed: {e}", err=True)
+            click.echo("💡 Try running: gh auth login", err=True)
+        else:
+            import json
+
+            error_result = {
+                "comment_id": comment_id,
+                "reply_posted": False,
+                "error": "authentication_failed",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except (ReplyServiceError, GitHubAPIError) as e:
+        if pretty:
+            click.echo(f"❌ Failed to post reply: {e}", err=True)
+        else:
+            import json
+
+            error_result = {
+                "comment_id": comment_id,
+                "reply_posted": False,
+                "error": "api_error",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
 
 
 @cli.command()

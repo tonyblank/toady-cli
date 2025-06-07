@@ -1,5 +1,7 @@
 """Tests for the CLI interface."""
 
+from unittest.mock import Mock, patch
+
 from click.testing import CliRunner
 
 from toady import __version__
@@ -148,17 +150,46 @@ class TestReplyCommand:
         assert result.exit_code != 0
         assert "Missing option '--comment-id'" in result.output
 
-    def test_reply_with_valid_numeric_id(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_valid_numeric_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with valid numeric comment ID."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 0
         assert '"comment_id": "123456789"' in result.output
         assert '"reply_posted": true' in result.output
+        assert '"reply_id": "987654321"' in result.output
 
-    def test_reply_with_valid_node_id(self, runner: CliRunner) -> None:
+        mock_service.post_reply.assert_called_once_with("123456789", "Test reply")
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_valid_node_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with valid GitHub node ID."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "IC_kwDOABcD12MAAAABcDE3fg",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli,
             [
@@ -172,8 +203,25 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert '"comment_id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
 
-    def test_reply_with_pretty_output(self, runner: CliRunner) -> None:
+        mock_service.post_reply.assert_called_once_with(
+            "IC_kwDOABcD12MAAAABcDE3fg", "Test reply"
+        )
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_pretty_output(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with pretty output format."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli,
             ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
@@ -182,6 +230,7 @@ class TestReplyCommand:
         assert "💬 Posting reply to comment 123456789" in result.output
         assert "📝 Reply: Test reply" in result.output
         assert "✅ Reply posted successfully" in result.output
+        assert "🔗 View reply at: https://github.com/owner/repo/pull/1" in result.output
 
     def test_reply_empty_comment_id(self, runner: CliRunner) -> None:
         """Test reply with empty comment ID."""
@@ -237,8 +286,21 @@ class TestReplyCommand:
         assert result.exit_code != 0
         assert "Reply body cannot exceed 65,536 characters" in result.output
 
-    def test_reply_body_at_maximum_length(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_body_at_maximum_length(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with body at maximum length."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         max_body = "x" * 65536  # Exactly at the limit
         result = runner.invoke(
             cli, ["reply", "--comment-id", "123456789", "--body", max_body]
@@ -246,8 +308,21 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert '"reply_posted": true' in result.output
 
-    def test_reply_body_with_mention_warning(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_body_with_mention_warning(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with body starting with @ shows warning."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli,
             [
@@ -264,16 +339,42 @@ class TestReplyCommand:
             "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
         )
 
-    def test_reply_body_with_mention_no_warning_json(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_body_with_mention_no_warning_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with @ mention doesn't show warning in JSON mode."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli, ["reply", "--comment-id", "123456789", "--body", "@user thanks!"]
         )
         assert result.exit_code == 0
         assert "⚠️" not in result.output
 
-    def test_reply_long_body_truncation_in_pretty_mode(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_long_body_truncation_in_pretty_mode(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test that long reply body is truncated in pretty output."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         long_body = (
             "This is a very long reply body that should be truncated in the "
             "pretty output mode to avoid cluttering the terminal with too much text"
@@ -289,8 +390,21 @@ class TestReplyCommand:
         )
         assert "..." in result.output
 
-    def test_reply_various_comment_id_formats(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_various_comment_id_formats(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test reply with various valid comment ID formats."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "test_id",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         test_cases = [
             "1",
             "123",
@@ -325,8 +439,21 @@ class TestReplyCommand:
                 result.exit_code != 0
             ), f"Should have failed for comment ID: {comment_id}"
 
-    def test_reply_json_output_structure(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ReplyService")
+    def test_reply_json_output_structure(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test that JSON output has correct structure."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
         )
@@ -338,8 +465,13 @@ class TestReplyCommand:
         assert "comment_id" in output
         assert "reply_posted" in output
         assert "reply_url" in output
+        assert "reply_id" in output
+        assert "created_at" in output
+        assert "author" in output
         assert output["comment_id"] == "123456789"
         assert output["reply_posted"] is True
+        assert output["reply_id"] == "987654321"
+        assert output["author"] == "testuser"
         assert "https://github.com/" in output["reply_url"]
 
     def test_reply_help_content(self, runner: CliRunner) -> None:
@@ -360,6 +492,137 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert "ID" in result.output  # metavar for comment-id
         assert "TEXT" in result.output  # metavar for body
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_comment_not_found_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with comment not found error in pretty mode."""
+        from toady.reply_service import CommentNotFoundError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = CommentNotFoundError(
+            "Comment 999 not found in PR #1"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "999", "--body", "Test reply", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Comment not found: Comment 999 not found in PR #1" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_comment_not_found_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with comment not found error in JSON mode."""
+        from toady.reply_service import CommentNotFoundError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = CommentNotFoundError(
+            "Comment 999 not found in PR #1"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "999", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["reply_posted"] is False
+        assert output["error"] == "comment_not_found"
+        assert "Comment 999 not found" in output["error_message"]
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_authentication_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with authentication error in pretty mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = GitHubAuthenticationError(
+            "Authentication failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 1
+        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert "💡 Try running: gh auth login" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_authentication_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with authentication error in JSON mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = GitHubAuthenticationError(
+            "Authentication failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["reply_posted"] is False
+        assert output["error"] == "authentication_failed"
+        assert "Authentication failed" in output["error_message"]
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_api_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with API error in pretty mode."""
+        from toady.reply_service import ReplyServiceError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = ReplyServiceError("API request failed")
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 1
+        assert "❌ Failed to post reply: API request failed" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_api_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with API error in JSON mode."""
+        from toady.reply_service import ReplyServiceError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = ReplyServiceError("API request failed")
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["reply_posted"] is False
+        assert output["error"] == "api_error"
+        assert "API request failed" in output["error_message"]
 
 
 class TestResolveCommand:
