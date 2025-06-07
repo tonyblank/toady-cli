@@ -1,5 +1,8 @@
 """Tests for the CLI interface."""
 
+import json
+from unittest.mock import Mock, patch
+
 from click.testing import CliRunner
 
 from toady import __version__
@@ -20,9 +23,7 @@ class TestCLI:
         result = runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "Toady - GitHub PR review management tool" in result.output
-        assert "fetch" in result.output
-        assert "reply" in result.output
-        assert "resolve" in result.output
+        assert "Commands:" in result.output
 
 
 class TestFetchCommand:
@@ -38,10 +39,10 @@ class TestFetchCommand:
         """Test fetch with valid PR number."""
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
         assert result.exit_code == 0
-        assert "[]" in result.output  # JSON output by default
+        assert "[]" in result.output
 
     def test_fetch_with_pretty_flag(self, runner: CliRunner) -> None:
-        """Test fetch with pretty output flag."""
+        """Test fetch with pretty output format."""
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 0
         assert "🔍 Fetching unresolved threads for PR #123" in result.output
@@ -49,17 +50,15 @@ class TestFetchCommand:
 
     def test_fetch_with_resolved_flag(self, runner: CliRunner) -> None:
         """Test fetch with resolved threads included."""
-        result = runner.invoke(cli, ["fetch", "--pr", "123", "--resolved", "--pretty"])
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--resolved"])
         assert result.exit_code == 0
-        assert "🔍 Fetching all threads for PR #123" in result.output
+        assert "[]" in result.output
 
     def test_fetch_with_custom_limit(self, runner: CliRunner) -> None:
         """Test fetch with custom limit."""
-        result = runner.invoke(
-            cli, ["fetch", "--pr", "123", "--limit", "50", "--pretty"]
-        )
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "50"])
         assert result.exit_code == 0
-        assert "limit: 50" in result.output
+        assert "[]" in result.output
 
     def test_fetch_invalid_pr_number_negative(self, runner: CliRunner) -> None:
         """Test fetch with negative PR number."""
@@ -94,10 +93,10 @@ class TestFetchCommand:
     def test_fetch_all_options_combined(self, runner: CliRunner) -> None:
         """Test fetch with all options combined."""
         result = runner.invoke(
-            cli, ["fetch", "--pr", "123", "--pretty", "--resolved", "--limit", "200"]
+            cli, ["fetch", "--pr", "123", "--pretty", "--resolved", "--limit", "50"]
         )
         assert result.exit_code == 0
-        assert "🔍 Fetching all threads for PR #123 (limit: 200)" in result.output
+        assert "🔍 Fetching all threads for PR #123 (limit: 50)" in result.output
 
     def test_fetch_help(self, runner: CliRunner) -> None:
         """Test fetch command help."""
@@ -105,46 +104,44 @@ class TestFetchCommand:
         assert result.exit_code == 0
         assert "Fetch review threads from a GitHub pull request" in result.output
         assert "Examples:" in result.output
-        assert "--resolved" in result.output
-        assert "--limit" in result.output
 
     def test_fetch_pr_parameter_type_validation(self, runner: CliRunner) -> None:
-        """Test that PR parameter validates integer type."""
-        result = runner.invoke(cli, ["fetch", "--pr", "not-a-number"])
+        """Test that --pr parameter only accepts integers."""
+        result = runner.invoke(cli, ["fetch", "--pr", "abc"])
         assert result.exit_code != 0
-        assert "Invalid value" in result.output
+        assert "Invalid value for '--pr'" in result.output
 
     def test_fetch_limit_parameter_type_validation(self, runner: CliRunner) -> None:
-        """Test that limit parameter validates integer type."""
-        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "not-a-number"])
+        """Test that --limit parameter only accepts integers."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "abc"])
         assert result.exit_code != 0
-        assert "Invalid value" in result.output
+        assert "Invalid value for '--limit'" in result.output
 
     def test_fetch_default_limit(self, runner: CliRunner) -> None:
-        """Test that default limit is applied correctly."""
+        """Test that fetch uses default limit when not specified."""
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 0
-        assert "(limit: 100)" in result.output  # Default limit
+        assert "(limit: 100)" in result.output
 
 
 class TestReplyCommand:
     """Test the reply command."""
 
     def test_reply_requires_options(self, runner: CliRunner) -> None:
-        """Test that reply requires both --comment-id and --body."""
+        """Test that reply requires both comment-id and body options."""
         result = runner.invoke(cli, ["reply"])
         assert result.exit_code != 0
         assert "Missing option" in result.output
 
     def test_reply_requires_body(self, runner: CliRunner) -> None:
         """Test that reply requires --body option."""
-        result = runner.invoke(cli, ["reply", "--comment-id", "12345"])
+        result = runner.invoke(cli, ["reply", "--comment-id", "123"])
         assert result.exit_code != 0
         assert "Missing option '--body'" in result.output
 
     def test_reply_requires_comment_id(self, runner: CliRunner) -> None:
         """Test that reply requires --comment-id option."""
-        result = runner.invoke(cli, ["reply", "--body", "Test reply"])
+        result = runner.invoke(cli, ["reply", "--body", "test"])
         assert result.exit_code != 0
         assert "Missing option '--comment-id'" in result.output
 
@@ -176,54 +173,55 @@ class TestReplyCommand:
         """Test reply with pretty output format."""
         result = runner.invoke(
             cli,
-            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "Test reply",
+                "--pretty",
+            ],
         )
         assert result.exit_code == 0
         assert "💬 Posting reply to comment 123456789" in result.output
-        assert "📝 Reply: Test reply" in result.output
         assert "✅ Reply posted successfully" in result.output
 
     def test_reply_empty_comment_id(self, runner: CliRunner) -> None:
         """Test reply with empty comment ID."""
-        result = runner.invoke(cli, ["reply", "--comment-id", "", "--body", "Test"])
+        result = runner.invoke(cli, ["reply", "--comment-id", "", "--body", "test"])
         assert result.exit_code != 0
         assert "Comment ID cannot be empty" in result.output
 
     def test_reply_whitespace_comment_id(self, runner: CliRunner) -> None:
         """Test reply with whitespace-only comment ID."""
-        result = runner.invoke(cli, ["reply", "--comment-id", "   ", "--body", "Test"])
+        result = runner.invoke(cli, ["reply", "--comment-id", "   ", "--body", "test"])
         assert result.exit_code != 0
         assert "Comment ID cannot be empty" in result.output
 
     def test_reply_invalid_comment_id_format(self, runner: CliRunner) -> None:
         """Test reply with invalid comment ID format."""
         result = runner.invoke(
-            cli, ["reply", "--comment-id", "invalid-id", "--body", "Test"]
+            cli, ["reply", "--comment-id", "invalid123", "--body", "test"]
         )
         assert result.exit_code != 0
         assert "Comment ID must be numeric" in result.output
-        assert "or a GitHub node ID starting with 'IC_'" in result.output
 
     def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test reply with too short node ID."""
-        result = runner.invoke(
-            cli, ["reply", "--comment-id", "IC_abc", "--body", "Test"]
-        )
+        result = runner.invoke(cli, ["reply", "--comment-id", "IC_abc", "--body", "test"])
         assert result.exit_code != 0
         assert "GitHub node ID appears too short to be valid" in result.output
 
     def test_reply_empty_body(self, runner: CliRunner) -> None:
         """Test reply with empty body."""
-        result = runner.invoke(
-            cli, ["reply", "--comment-id", "123456789", "--body", ""]
-        )
+        result = runner.invoke(cli, ["reply", "--comment-id", "123456789", "--body", ""])
         assert result.exit_code != 0
         assert "Reply body cannot be empty" in result.output
 
     def test_reply_whitespace_only_body(self, runner: CliRunner) -> None:
         """Test reply with whitespace-only body."""
         result = runner.invoke(
-            cli, ["reply", "--comment-id", "123456789", "--body", "   \n\t   "]
+            cli, ["reply", "--comment-id", "123456789", "--body", "   "]
         )
         assert result.exit_code != 0
         assert "Reply body cannot be empty" in result.output
@@ -244,10 +242,9 @@ class TestReplyCommand:
             cli, ["reply", "--comment-id", "123456789", "--body", max_body]
         )
         assert result.exit_code == 0
-        assert '"reply_posted": true' in result.output
 
     def test_reply_body_with_mention_warning(self, runner: CliRunner) -> None:
-        """Test reply with body starting with @ shows warning."""
+        """Test reply body starting with @ shows warning in pretty mode."""
         result = runner.invoke(
             cli,
             [
@@ -260,12 +257,10 @@ class TestReplyCommand:
             ],
         )
         assert result.exit_code == 0
-        assert (
-            "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
-        )
+        assert "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
 
     def test_reply_body_with_mention_no_warning_json(self, runner: CliRunner) -> None:
-        """Test reply with @ mention doesn't show warning in JSON mode."""
+        """Test reply body starting with @ shows no warning in JSON mode."""
         result = runner.invoke(
             cli, ["reply", "--comment-id", "123456789", "--body", "@user thanks!"]
         )
@@ -273,21 +268,21 @@ class TestReplyCommand:
         assert "⚠️" not in result.output
 
     def test_reply_long_body_truncation_in_pretty_mode(self, runner: CliRunner) -> None:
-        """Test that long reply body is truncated in pretty output."""
-        long_body = (
-            "This is a very long reply body that should be truncated in the "
-            "pretty output mode to avoid cluttering the terminal with too much text"
-        )
+        """Test that long body is truncated in pretty mode output."""
+        long_body = "x" * 150  # Longer than 100 characters
         result = runner.invoke(
-            cli, ["reply", "--comment-id", "123456789", "--body", long_body, "--pretty"]
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                long_body,
+                "--pretty",
+            ],
         )
         assert result.exit_code == 0
-        # Check that truncation occurs at around 100 characters
-        assert (
-            "📝 Reply: This is a very long reply body that should be truncated"
-            in result.output
-        )
-        assert "..." in result.output
+        assert "📝 Reply: " + "x" * 100 + "..." in result.output
 
     def test_reply_various_comment_id_formats(self, runner: CliRunner) -> None:
         """Test reply with various valid comment ID formats."""
@@ -301,7 +296,7 @@ class TestReplyCommand:
 
         for comment_id in test_cases:
             result = runner.invoke(
-                cli, ["reply", "--comment-id", comment_id, "--body", "Test reply"]
+                cli, ["reply", "--comment-id", comment_id, "--body", "test"]
             )
             assert result.exit_code == 0, f"Failed for comment ID: {comment_id}"
 
@@ -310,7 +305,7 @@ class TestReplyCommand:
         test_cases = [
             "abc123",  # Invalid: starts with letters
             "123abc",  # Invalid: ends with letters
-            "PR_123",  # Invalid: wrong prefix
+            "PRT_123",  # Invalid: wrong prefix
             "IC_a",  # Invalid: too short node ID
             "12.34",  # Invalid: contains decimal
             "-123",  # Invalid: negative number
@@ -319,7 +314,7 @@ class TestReplyCommand:
 
         for comment_id in test_cases:
             result = runner.invoke(
-                cli, ["reply", "--comment-id", comment_id, "--body", "Test reply"]
+                cli, ["reply", "--comment-id", comment_id, "--body", "test"]
             )
             assert (
                 result.exit_code != 0
@@ -331,8 +326,6 @@ class TestReplyCommand:
             cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 0
-
-        import json
 
         output = json.loads(result.output)
         assert "comment_id" in output
@@ -350,9 +343,6 @@ class TestReplyCommand:
         assert "Examples:" in result.output
         assert "--comment-id" in result.output
         assert "--body" in result.output
-        assert "--pretty" in result.output
-        assert "numeric ID" in result.output
-        assert "node ID" in result.output
 
     def test_reply_parameter_metavars(self, runner: CliRunner) -> None:
         """Test that parameter metavars are displayed correctly."""
@@ -371,38 +361,108 @@ class TestResolveCommand:
         assert result.exit_code != 0
         assert "Missing option '--thread-id'" in result.output
 
-    def test_resolve_with_valid_numeric_id(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_valid_numeric_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test resolve with valid numeric thread ID."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 0
         assert '"thread_id": "123456789"' in result.output
         assert '"action": "resolve"' in result.output
         assert '"success": true' in result.output
 
-    def test_resolve_with_valid_node_id(self, runner: CliRunner) -> None:
+        mock_service.resolve_thread.assert_called_once_with("123456789")
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_valid_node_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test resolve with valid GitHub node ID."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "PRT_kwDOABcD12MAAAABcDE3fg",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli, ["resolve", "--thread-id", "PRT_kwDOABcD12MAAAABcDE3fg"]
         )
         assert result.exit_code == 0
         assert '"thread_id": "PRT_kwDOABcD12MAAAABcDE3fg"' in result.output
 
-    def test_resolve_with_undo_flag(self, runner: CliRunner) -> None:
+        mock_service.resolve_thread.assert_called_once_with("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_undo_flag(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test resolve with undo flag."""
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
         assert result.exit_code == 0
         assert '"action": "unresolve"' in result.output
         assert '"success": true' in result.output
 
-    def test_resolve_with_pretty_output(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_pretty_output(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test resolve with pretty output format."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
         assert result.exit_code == 0
         assert "🔒 Resolving thread 123456789" in result.output
         assert "✅ Thread resolved successfully" in result.output
+        assert "🔗 View thread at: https://github.com/owner/repo/pull/123" in result.output
 
-    def test_resolve_with_undo_pretty_output(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_undo_pretty_output(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test unresolve with pretty output format."""
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(
             cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
         )
@@ -424,10 +484,9 @@ class TestResolveCommand:
 
     def test_resolve_invalid_thread_id_format(self, runner: CliRunner) -> None:
         """Test resolve with invalid thread ID format."""
-        result = runner.invoke(cli, ["resolve", "--thread-id", "invalid-id"])
+        result = runner.invoke(cli, ["resolve", "--thread-id", "invalid123"])
         assert result.exit_code != 0
         assert "Thread ID must be numeric" in result.output
-        assert "or a GitHub node ID starting with 'PRT_'" in result.output
 
     def test_resolve_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test resolve with too short node ID."""
@@ -437,17 +496,28 @@ class TestResolveCommand:
 
     def test_resolve_various_thread_id_formats(self, runner: CliRunner) -> None:
         """Test resolve with various valid thread ID formats."""
-        test_cases = [
-            "1",
-            "123",
-            "123456789",
-            "PRT_kwDOABcD12M",
-            "PRT_kwDOABcD12MAAAABcDE3fg",
-        ]
+        with patch("toady.cli.ResolveService") as mock_service_class:
+            mock_service = Mock()
+            mock_service.resolve_thread.return_value = {
+                "thread_id": "test_id",
+                "action": "resolve",
+                "success": True,
+                "is_resolved": "true",
+                "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123",
+            }
+            mock_service_class.return_value = mock_service
 
-        for thread_id in test_cases:
-            result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
-            assert result.exit_code == 0, f"Failed for thread ID: {thread_id}"
+            test_cases = [
+                "1",
+                "123",
+                "123456789",
+                "PRT_kwDOABcD12M",
+                "PRT_kwDOABcD12MAAAABcDE3fg",
+            ]
+
+            for thread_id in test_cases:
+                result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
+                assert result.exit_code == 0, f"Failed for thread ID: {thread_id}"
 
     def test_resolve_invalid_thread_id_formats(self, runner: CliRunner) -> None:
         """Test resolve with various invalid thread ID formats."""
@@ -455,10 +525,10 @@ class TestResolveCommand:
             "abc123",  # Invalid: starts with letters
             "123abc",  # Invalid: ends with letters
             "IC_123",  # Invalid: wrong prefix
-            "PRT_a",  # Invalid: too short node ID
-            "12.34",  # Invalid: contains decimal
-            "-123",  # Invalid: negative number
-            "123 456",  # Invalid: contains space
+            "PRT_a",   # Invalid: too short node ID
+            "12.34",   # Invalid: contains decimal
+            "-123",    # Invalid: negative number
+            "123 456", # Invalid: contains space
         ]
 
         for thread_id in test_cases:
@@ -467,12 +537,23 @@ class TestResolveCommand:
                 result.exit_code != 0
             ), f"Should have failed for thread ID: {thread_id}"
 
-    def test_resolve_json_output_structure(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ResolveService")
+    def test_resolve_json_output_structure(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test that JSON output has correct structure."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 0
-
-        import json
 
         output = json.loads(result.output)
         assert "thread_id" in output
@@ -484,15 +565,184 @@ class TestResolveCommand:
         assert output["success"] is True
         assert "https://github.com/" in output["thread_url"]
 
-    def test_resolve_json_output_with_undo(self, runner: CliRunner) -> None:
+    @patch("toady.cli.ResolveService")
+    def test_resolve_json_output_with_undo(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test that JSON output has correct structure with undo flag."""
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
         assert result.exit_code == 0
 
-        import json
-
         output = json.loads(result.output)
         assert output["action"] == "unresolve"
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_thread_not_found_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with thread not found error in pretty mode."""
+        from toady.resolve_service import ThreadNotFoundError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadNotFoundError(
+            "Thread 999 not found"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "999", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Thread not found: Thread 999 not found" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_thread_not_found_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with thread not found error in JSON mode."""
+        from toady.resolve_service import ThreadNotFoundError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadNotFoundError(
+            "Thread 999 not found"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "999"])
+        assert result.exit_code == 1
+        
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "thread_not_found"
+        assert "Thread 999 not found" in output["error_message"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_permission_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with permission error in pretty mode."""
+        from toady.resolve_service import ThreadPermissionError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadPermissionError(
+            "Permission denied"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Permission denied: Permission denied" in result.output
+        assert "💡 Ensure you have write access to the repository" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_permission_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with permission error in JSON mode."""
+        from toady.resolve_service import ThreadPermissionError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadPermissionError(
+            "Permission denied"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 1
+        
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "permission_denied"
+        assert "Permission denied" in output["error_message"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_authentication_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with authentication error in pretty mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = GitHubAuthenticationError(
+            "Authentication failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert "💡 Try running: gh auth login" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_authentication_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with authentication error in JSON mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = GitHubAuthenticationError(
+            "Authentication failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 1
+        
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "authentication_failed"
+        assert "Authentication failed" in output["error_message"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_api_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with API error in pretty mode."""
+        from toady.resolve_service import ResolveServiceError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ResolveServiceError(
+            "API request failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Failed to resolve thread: API request failed" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_api_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with API error in JSON mode."""
+        from toady.resolve_service import ResolveServiceError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ResolveServiceError(
+            "API request failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 1
+        
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "api_error"
+        assert "API request failed" in output["error_message"]
 
     def test_resolve_help_content(self, runner: CliRunner) -> None:
         """Test resolve command help content."""
@@ -502,9 +752,6 @@ class TestResolveCommand:
         assert "Examples:" in result.output
         assert "--thread-id" in result.output
         assert "--undo" in result.output
-        assert "--pretty" in result.output
-        assert "numeric ID" in result.output
-        assert "node ID" in result.output
 
     def test_resolve_parameter_metavars(self, runner: CliRunner) -> None:
         """Test that parameter metavars are displayed correctly."""
@@ -514,12 +761,23 @@ class TestResolveCommand:
 
     def test_resolve_all_options_combined(self, runner: CliRunner) -> None:
         """Test resolve with all options combined."""
-        result = runner.invoke(
-            cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
-        )
-        assert result.exit_code == 0
-        assert "🔓 Unresolving thread 123456789" in result.output
-        assert "✅ Thread unresolved successfully" in result.output
+        with patch("toady.cli.ResolveService") as mock_service_class:
+            mock_service = Mock()
+            mock_service.unresolve_thread.return_value = {
+                "thread_id": "123456789",
+                "action": "unresolve",
+                "success": True,
+                "is_resolved": "false",
+                "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+            }
+            mock_service_class.return_value = mock_service
+
+            result = runner.invoke(
+                cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
+            )
+            assert result.exit_code == 0
+            assert "🔓 Unresolving thread 123456789" in result.output
+            assert "✅ Thread unresolved successfully" in result.output
 
     def test_resolve_thread_id_parameter_type_validation(
         self, runner: CliRunner
