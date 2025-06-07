@@ -1,6 +1,5 @@
 """Service for resolving and unresolving review threads via GitHub GraphQL API."""
 
-import json
 from typing import Any, Dict, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
@@ -74,7 +73,10 @@ class ResolveService:
                 "action": "resolve",
                 "success": True,
                 "is_resolved": str(thread_data.get("isResolved", True)).lower(),
-                "thread_url": f"https://github.com/owner/repo/pull/123#discussion_r{thread_id}",
+                "thread_url": thread_data.get(
+                    "url",
+                    f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
+                ),
             }
 
         except ValueError as e:
@@ -120,7 +122,10 @@ class ResolveService:
                 "action": "unresolve",
                 "success": True,
                 "is_resolved": str(thread_data.get("isResolved", False)).lower(),
-                "thread_url": f"https://github.com/owner/repo/pull/123#discussion_r{thread_id}",
+                "thread_url": thread_data.get(
+                    "url",
+                    f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
+                ),
             }
 
         except ValueError as e:
@@ -142,7 +147,6 @@ class ResolveService:
         error_messages = []
         for error in errors:
             message = error.get("message", str(error))
-            error_type = error.get("type", "")
 
             # Check for specific error types
             if "not found" in message.lower() or "does not exist" in message.lower():
@@ -182,7 +186,7 @@ class ResolveService:
         try:
             # Query to check if thread exists in the PR
             query = """
-            query CheckThreadExists($owner: String!, $repo: String!, $number: Int!, $threadId: ID!) {
+            query CheckThreadExists($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
                     pullRequest(number: $number) {
                         reviewThreads(first: 100) {
@@ -199,7 +203,6 @@ class ResolveService:
                 "owner": owner,
                 "repo": repo,
                 "number": pull_number,
-                "threadId": thread_id,
             }
 
             result = self.github_service.execute_graphql_query(query, variables)
@@ -213,11 +216,7 @@ class ResolveService:
                 .get("nodes", [])
             )
 
-            for thread in threads:
-                if thread.get("id") == thread_id:
-                    return True
-
-            return False
+            return any(thread.get("id") == thread_id for thread in threads)
 
         except (GitHubAPIError, KeyError):
             return False

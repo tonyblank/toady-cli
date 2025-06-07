@@ -1,5 +1,7 @@
 """Main CLI interface for Toady."""
 
+import json
+
 import click
 
 from toady import __version__
@@ -184,8 +186,6 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         )
     else:
         # Return minimal JSON response
-        import json
-
         result = {
             "comment_id": comment_id,
             "reply_posted": True,
@@ -261,7 +261,7 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
     # Execute the resolve/unresolve operation using the resolve service
     try:
         resolve_service = ResolveService()
-        
+
         if undo:
             result = resolve_service.unresolve_thread(thread_id)
         else:
@@ -273,14 +273,12 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
                 click.echo(f"🔗 View thread at: {result['thread_url']}")
         else:
             # Return JSON response with actual result information
-            import json
             click.echo(json.dumps(result))
 
     except ThreadNotFoundError as e:
         if pretty:
             click.echo(f"❌ Thread not found: {e}", err=True)
         else:
-            import json
             error_result = {
                 "thread_id": thread_id,
                 "action": "unresolve" if undo else "resolve",
@@ -296,7 +294,6 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
             click.echo(f"❌ Permission denied: {e}", err=True)
             click.echo("💡 Ensure you have write access to the repository", err=True)
         else:
-            import json
             error_result = {
                 "thread_id": thread_id,
                 "action": "unresolve" if undo else "resolve",
@@ -312,7 +309,6 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
             click.echo(f"❌ Authentication failed: {e}", err=True)
             click.echo("💡 Try running: gh auth login", err=True)
         else:
-            import json
             error_result = {
                 "thread_id": thread_id,
                 "action": "unresolve" if undo else "resolve",
@@ -327,7 +323,6 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
         if pretty:
             click.echo(f"❌ Failed to {action.lower()} thread: {e}", err=True)
         else:
-            import json
             error_result = {
                 "thread_id": thread_id,
                 "action": "unresolve" if undo else "resolve",

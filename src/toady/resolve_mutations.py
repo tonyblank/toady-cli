@@ -22,6 +22,7 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
+                    url
                 }
             }
         }
@@ -39,6 +40,7 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
+                    url
                 }
             }
         }
@@ -67,10 +69,6 @@ class ResolveThreadMutationBuilder:
                 "Thread ID must be numeric (e.g., 123456789) or a "
                 "GitHub node ID starting with 'PRT_'"
             )
-
-        # Additional validation for node IDs
-        if thread_id.startswith("PRT_") and len(thread_id) < 12:
-            raise ValueError("GitHub node ID appears too short to be valid")
 
         return {"threadId": thread_id}
 

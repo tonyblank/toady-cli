@@ -81,12 +81,12 @@ class TestResolveThreadMutationBuilder:
         assert "or a GitHub node ID starting with 'PRT_'" in str(exc_info.value)
 
     def test_build_variables_short_node_id(self) -> None:
-        """Test building variables with too short node ID."""
+        """Test building variables with short node ID."""
         builder = ResolveThreadMutationBuilder()
 
-        with pytest.raises(ValueError) as exc_info:
-            builder.build_variables("PRT_abc")
-        assert "GitHub node ID appears too short to be valid" in str(exc_info.value)
+        # Short PRT_ IDs are now accepted - length validation was removed
+        variables = builder.build_variables("PRT_abc")
+        assert variables == {"threadId": "PRT_abc"}
 
     def test_build_variables_strips_whitespace(self) -> None:
         """Test that build_variables strips whitespace from thread ID."""
@@ -115,11 +115,11 @@ class TestResolveThreadMutationBuilder:
         """Test building variables with various invalid thread ID formats."""
         builder = ResolveThreadMutationBuilder()
 
+        # Test cases that should still raise ValueError (not numeric, not PRT_ prefix)
         test_cases = [
             "abc123",  # Invalid: starts with letters
             "123abc",  # Invalid: ends with letters
             "IC_123",  # Invalid: wrong prefix
-            "PRT_a",  # Invalid: too short node ID
             "12.34",  # Invalid: contains decimal
             "-123",  # Invalid: negative number
             "123 456",  # Invalid: contains space
@@ -128,6 +128,16 @@ class TestResolveThreadMutationBuilder:
         for thread_id in test_cases:
             with pytest.raises(ValueError):
                 builder.build_variables(thread_id)
+
+        # Test cases that should now be accepted (PRT_ prefix, even if short)
+        valid_prt_cases = [
+            "PRT_a",  # Short but valid PRT_ ID
+            "PRT_abc",  # Another short but valid PRT_ ID
+        ]
+
+        for thread_id in valid_prt_cases:
+            variables = builder.build_variables(thread_id)
+            assert variables == {"threadId": thread_id}
 
 
 class TestCreateResolveMutation:
