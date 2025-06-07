@@ -183,9 +183,7 @@ class TestResolveService:
         """Test resolving thread when no thread data is returned."""
         mock_github_service = Mock(spec=GitHubService)
         mock_github_service.execute_graphql_query.return_value = {
-            "data": {
-                "resolveReviewThread": {}
-            }
+            "data": {"resolveReviewThread": {}}
         }
 
         service = ResolveService(mock_github_service)
@@ -260,7 +258,7 @@ class TestResolveServiceErrorHandling:
         """Test handling different 'not found' error message formats."""
         test_cases = [
             "Thread not found",
-            "Resource does not exist", 
+            "Resource does not exist",
             "Object not found in repository",
         ]
 
@@ -365,6 +363,8 @@ class TestResolveServiceIntegration:
         assert result["thread_id"] == "1"
 
         # Test minimum valid node ID
-        mock_github_service.execute_graphql_query.return_value["data"]["resolveReviewThread"]["thread"]["id"] = "PRT_kwDOABcD"
+        mock_github_service.execute_graphql_query.return_value["data"][
+            "resolveReviewThread"
+        ]["thread"]["id"] = "PRT_kwDOABcD"
         result = service.resolve_thread("PRT_kwDOABcD")
         assert result["thread_id"] == "PRT_kwDOABcD"

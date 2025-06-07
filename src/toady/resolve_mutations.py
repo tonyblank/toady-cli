@@ -1,6 +1,6 @@
 """GraphQL mutations for resolving and unresolving review threads."""
 
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 
 class ResolveThreadMutationBuilder:
@@ -75,7 +75,7 @@ class ResolveThreadMutationBuilder:
         return {"threadId": thread_id}
 
 
-def create_resolve_mutation(thread_id: str) -> tuple[str, Dict[str, Any]]:
+def create_resolve_mutation(thread_id: str) -> Tuple[str, Dict[str, Any]]:
     """Create a complete resolve thread mutation with variables.
 
     Args:
@@ -93,7 +93,7 @@ def create_resolve_mutation(thread_id: str) -> tuple[str, Dict[str, Any]]:
     return mutation, variables
 
 
-def create_unresolve_mutation(thread_id: str) -> tuple[str, Dict[str, Any]]:
+def create_unresolve_mutation(thread_id: str) -> Tuple[str, Dict[str, Any]]:
     """Create a complete unresolve thread mutation with variables.
 
     Args:
