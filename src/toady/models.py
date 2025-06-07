@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
+
+from .utils import parse_datetime
 
 
 @dataclass
@@ -138,33 +140,154 @@ class ReviewThread:
         Raises:
             ValueError: If date string cannot be parsed
         """
-        # Remove timezone info if present
-        if date_str.endswith("Z"):
-            date_str = date_str[:-1]
-        elif "+" in date_str and date_str.count(":") >= 3:
-            # Handle timezone like +00:00
-            date_str = date_str.split("+")[0]
-        elif "-" in date_str and date_str.count(":") >= 3:
-            # Handle timezone like -05:00 (but not dates like 2024-01-01)
-            parts = date_str.split("-")
-            if len(parts) > 3:  # Has timezone
-                date_str = "-".join(parts[:-1])
-
-        # Try parsing with different formats
-        for fmt in [
-            "%Y-%m-%dT%H:%M:%S.%f",  # With microseconds
-            "%Y-%m-%dT%H:%M:%S",  # Without microseconds
-        ]:
-            try:
-                return datetime.strptime(date_str, fmt)
-            except ValueError:
-                continue
-
-        raise ValueError(f"Unable to parse datetime: {date_str}")
+        return parse_datetime(date_str)
 
     def __str__(self) -> str:
         """Return a human-readable string representation."""
         return (
             f"ReviewThread(id={self.thread_id}, title='{self.title}', "
             f"status={self.status}, author={self.author})"
+        )
+
+
+@dataclass
+class Comment:
+    """Represents a GitHub pull request review comment.
+
+    Attributes:
+        comment_id: Unique identifier for the comment
+        content: Text content of the comment
+        author: Username of the comment author
+        created_at: When the comment was created
+        updated_at: When the comment was last updated
+        parent_id: ID of parent comment if this is a reply (None for top-level)
+        thread_id: ID of the review thread this comment belongs to
+    """
+
+    comment_id: str
+    content: str
+    author: str
+    created_at: datetime
+    updated_at: datetime
+    parent_id: Optional[str]
+    thread_id: str
+
+    # Content length limit (GitHub's actual limit)
+    MAX_CONTENT_LENGTH = 65536
+
+    def __post_init__(self) -> None:
+        """Validate fields after initialization."""
+        # Validate comment_id
+        if not self.comment_id or not self.comment_id.strip():
+            raise ValueError("comment_id cannot be empty")
+
+        # Validate content
+        if not self.content or not self.content.strip():
+            raise ValueError("content cannot be empty")
+
+        if len(self.content) > self.MAX_CONTENT_LENGTH:
+            raise ValueError(
+                f"content cannot exceed {self.MAX_CONTENT_LENGTH} characters"
+            )
+
+        # Validate author
+        if not self.author or not self.author.strip():
+            raise ValueError("author cannot be empty")
+
+        # Validate thread_id
+        if not self.thread_id or not self.thread_id.strip():
+            raise ValueError("thread_id cannot be empty")
+
+        # Validate dates
+        if self.updated_at < self.created_at:
+            raise ValueError("updated_at cannot be before created_at")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the Comment to a dictionary for serialization.
+
+        Returns:
+            Dictionary representation of the Comment
+        """
+        return {
+            "comment_id": self.comment_id,
+            "content": self.content,
+            "author": self.author,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "parent_id": self.parent_id,
+            "thread_id": self.thread_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Comment":
+        """Create a Comment from a dictionary.
+
+        Args:
+            data: Dictionary containing Comment fields
+
+        Returns:
+            Comment instance
+
+        Raises:
+            ValueError: If required fields are missing or invalid
+        """
+        # Check required fields
+        required_fields = {
+            "comment_id",
+            "content",
+            "author",
+            "created_at",
+            "updated_at",
+            "thread_id",
+        }
+        missing_fields = required_fields - set(data.keys())
+        if missing_fields:
+            raise ValueError(f"Missing required field: {', '.join(missing_fields)}")
+
+        # Parse dates
+        try:
+            created_at = cls._parse_datetime(data["created_at"])
+        except ValueError as err:
+            raise ValueError(
+                f"Invalid date format for created_at: {data['created_at']}"
+            ) from err
+
+        try:
+            updated_at = cls._parse_datetime(data["updated_at"])
+        except ValueError as err:
+            raise ValueError(
+                f"Invalid date format for updated_at: {data['updated_at']}"
+            ) from err
+
+        # Create instance
+        return cls(
+            comment_id=data["comment_id"],
+            content=data["content"],
+            author=data["author"],
+            created_at=created_at,
+            updated_at=updated_at,
+            parent_id=data.get("parent_id"),
+            thread_id=data["thread_id"],
+        )
+
+    @staticmethod
+    def _parse_datetime(date_str: str) -> datetime:
+        """Parse datetime string in various ISO formats.
+
+        Args:
+            date_str: Date string in ISO format
+
+        Returns:
+            datetime object
+
+        Raises:
+            ValueError: If date string cannot be parsed
+        """
+        return parse_datetime(date_str)
+
+    def __str__(self) -> str:
+        """Return a human-readable string representation."""
+        return (
+            f"Comment(id={self.comment_id}, author={self.author}, "
+            f"thread={self.thread_id}, parent={self.parent_id})"
         )
