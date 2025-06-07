@@ -1,10 +1,17 @@
 """Main CLI interface for Toady."""
 
+import json
+
 import click
 
 from toady import __version__
 from toady.github_service import GitHubAPIError, GitHubAuthenticationError
-from toady.reply_service import CommentNotFoundError, ReplyService, ReplyServiceError
+from toady.reply_service import (
+    CommentNotFoundError,
+    ReplyRequest,
+    ReplyService,
+    ReplyServiceError,
+)
 
 
 @click.group()
@@ -171,9 +178,10 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         pass
 
     # Post the reply using the reply service
+    reply_service = ReplyService()
     try:
-        reply_service = ReplyService()
-        reply_info = reply_service.post_reply(comment_id, body)
+        request = ReplyRequest(comment_id=comment_id, reply_body=body)
+        reply_info = reply_service.post_reply(request)
 
         if pretty:
             click.echo("✅ Reply posted successfully")
@@ -183,8 +191,6 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
                 click.echo(f"📝 Reply ID: {reply_info['reply_id']}")
         else:
             # Return JSON response with actual reply information
-            import json
-
             result = {
                 "comment_id": comment_id,
                 "reply_posted": True,
@@ -199,8 +205,6 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         if pretty:
             click.echo(f"❌ Comment not found: {e}", err=True)
         else:
-            import json
-
             error_result = {
                 "comment_id": comment_id,
                 "reply_posted": False,
@@ -215,8 +219,6 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
             click.echo(f"❌ Authentication failed: {e}", err=True)
             click.echo("💡 Try running: gh auth login", err=True)
         else:
-            import json
-
             error_result = {
                 "comment_id": comment_id,
                 "reply_posted": False,
@@ -230,8 +232,6 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         if pretty:
             click.echo(f"❌ Failed to post reply: {e}", err=True)
         else:
-            import json
-
             error_result = {
                 "comment_id": comment_id,
                 "reply_posted": False,
@@ -315,8 +315,6 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
         )
     else:
         # Return minimal JSON response
-        import json
-
         result = {
             "thread_id": thread_id,
             "action": "unresolve" if undo else "resolve",

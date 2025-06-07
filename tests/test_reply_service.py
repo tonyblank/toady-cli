@@ -12,6 +12,7 @@ from toady.github_service import (
 )
 from toady.reply_service import (
     CommentNotFoundError,
+    ReplyRequest,
     ReplyService,
     ReplyServiceError,
 )
@@ -54,7 +55,8 @@ class TestReplyService:
         mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
-        result = service.post_reply("123456789", "Test reply")
+        request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
+        result = service.post_reply(request)
 
         assert result["reply_id"] == "123456789"
         assert "https://github.com/owner/repo/pull/1" in result["reply_url"]
@@ -90,13 +92,14 @@ class TestReplyService:
         mock_github_service.run_gh_command.return_value = mock_response
 
         service = ReplyService(mock_github_service)
-        result = service.post_reply(
+        request = ReplyRequest(
             comment_id="IC_kwDOABcD12MAAAABcDE3fg",
             reply_body="Thanks for the feedback!",
             owner="testowner",
             repo="testrepo",
             pull_number=5,
         )
+        result = service.post_reply(request)
 
         assert result["reply_id"] == "987654321"
         assert result["author"] == "reviewer"
@@ -127,8 +130,9 @@ class TestReplyService:
         mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
+        request = ReplyRequest(comment_id="nonexistent", reply_body="Test reply")
         with pytest.raises(CommentNotFoundError) as exc_info:
-            service.post_reply("nonexistent", "Test reply")
+            service.post_reply(request)
 
         assert "Comment nonexistent not found in PR #1" in str(exc_info.value)
 
@@ -147,8 +151,9 @@ class TestReplyService:
         mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
+        request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
         with pytest.raises(GitHubAuthenticationError):
-            service.post_reply("123456789", "Test reply")
+            service.post_reply(request)
 
     @patch.object(ReplyService, "_get_repository_info")
     @patch.object(ReplyService, "_get_pull_number_from_comment")
@@ -165,8 +170,9 @@ class TestReplyService:
         mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
+        request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
         with pytest.raises(ReplyServiceError) as exc_info:
-            service.post_reply("123456789", "Test reply")
+            service.post_reply(request)
 
         assert "Failed to parse API response" in str(exc_info.value)
 
@@ -211,7 +217,7 @@ class TestReplyService:
         mock_github_service.run_gh_command.return_value = mock_response
 
         service = ReplyService(mock_github_service)
-        pr_number = service._get_pull_number_from_comment("owner", "repo", "123456789")
+        pr_number = service._get_pull_number_from_comment("123456789")
 
         assert pr_number == 42
         mock_github_service.run_gh_command.assert_called_once_with(
@@ -225,7 +231,7 @@ class TestReplyService:
 
         service = ReplyService(mock_github_service)
         with pytest.raises(ReplyServiceError) as exc_info:
-            service._get_pull_number_from_comment("owner", "repo", "123456789")
+            service._get_pull_number_from_comment("123456789")
 
         assert "Could not determine pull request number" in str(exc_info.value)
 
@@ -238,7 +244,7 @@ class TestReplyService:
 
         service = ReplyService(mock_github_service)
         with pytest.raises(ReplyServiceError) as exc_info:
-            service._get_pull_number_from_comment("owner", "repo", "123456789")
+            service._get_pull_number_from_comment("123456789")
 
         assert "Could not determine pull request number" in str(exc_info.value)
 
@@ -336,13 +342,14 @@ class TestReplyServiceIntegration:
             "Thanks for the feedback! 🎉 Here's some code: `console.log('hello');`"
         )
 
-        result = service.post_reply(
+        request = ReplyRequest(
             comment_id="123456789",
             reply_body=special_body,
             owner="owner",
             repo="repo",
             pull_number=1,
         )
+        result = service.post_reply(request)
 
         assert result["reply_id"] == "123456789"
 
@@ -376,13 +383,14 @@ class TestReplyServiceIntegration:
         service = ReplyService(mock_github_service)
         large_body = "A" * 5000  # Large but reasonable reply
 
-        result = service.post_reply(
+        request = ReplyRequest(
             comment_id="123456789",
             reply_body=large_body,
             owner="owner",
             repo="repo",
             pull_number=1,
         )
+        result = service.post_reply(request)
 
         assert result["reply_id"] == "123456789"
 

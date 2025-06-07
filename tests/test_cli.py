@@ -173,7 +173,10 @@ class TestReplyCommand:
         assert '"reply_posted": true' in result.output
         assert '"reply_id": "987654321"' in result.output
 
-        mock_service.post_reply.assert_called_once_with("123456789", "Test reply")
+        from toady.reply_service import ReplyRequest
+
+        expected_request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
+        mock_service.post_reply.assert_called_once_with(expected_request)
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_valid_node_id(
@@ -203,9 +206,12 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert '"comment_id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
 
-        mock_service.post_reply.assert_called_once_with(
-            "IC_kwDOABcD12MAAAABcDE3fg", "Test reply"
+        from toady.reply_service import ReplyRequest
+
+        expected_request = ReplyRequest(
+            comment_id="IC_kwDOABcD12MAAAABcDE3fg", reply_body="Test reply"
         )
+        mock_service.post_reply.assert_called_once_with(expected_request)
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_pretty_output(

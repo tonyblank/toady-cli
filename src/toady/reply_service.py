@@ -1,6 +1,7 @@
 """Reply service for posting comments to GitHub pull request reviews."""
 
 import json
+from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
@@ -18,6 +19,17 @@ class CommentNotFoundError(ReplyServiceError):
     pass
 
 
+@dataclass
+class ReplyRequest:
+    """Data class for encapsulating reply request parameters."""
+
+    comment_id: str
+    reply_body: str
+    owner: Optional[str] = None
+    repo: Optional[str] = None
+    pull_number: Optional[int] = None
+
+
 class ReplyService:
     """Service for posting replies to GitHub pull request review comments."""
 
@@ -29,22 +41,11 @@ class ReplyService:
         """
         self.github_service = github_service or GitHubService()
 
-    def post_reply(
-        self,
-        comment_id: str,
-        reply_body: str,
-        owner: Optional[str] = None,
-        repo: Optional[str] = None,
-        pull_number: Optional[int] = None,
-    ) -> Dict[str, str]:
+    def post_reply(self, request: ReplyRequest) -> Dict[str, str]:
         """Post a reply to a pull request review comment.
 
         Args:
-            comment_id: GitHub comment ID (numeric or node ID starting with IC_).
-            reply_body: The reply message content.
-            owner: Repository owner. If None, attempts to detect from current repo.
-            repo: Repository name. If None, attempts to detect from current repo.
-            pull_number: Pull request number. If None, attempts to detect from comment.
+            request: ReplyRequest object containing all necessary parameters.
 
         Returns:
             Dictionary containing reply information including URL and ID.
@@ -56,22 +57,25 @@ class ReplyService:
             GitHubAuthenticationError: If authentication fails.
         """
         # Get repository info if not provided
-        if not owner or not repo:
+        if not request.owner or not request.repo:
             repo_info = self._get_repository_info()
-            owner = owner or repo_info[0]
-            repo = repo or repo_info[1]
+            owner = request.owner or repo_info[0]
+            repo = request.repo or repo_info[1]
+        else:
+            owner = request.owner
+            repo = request.repo
 
         # Get pull request number if not provided
-        if not pull_number:
-            pull_number = self._get_pull_number_from_comment(owner, repo, comment_id)
+        if not request.pull_number:
+            pull_number = self._get_pull_number_from_comment(request.comment_id)
+        else:
+            pull_number = request.pull_number
 
         # Construct the API endpoint
-        endpoint = (
-            f"repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies"
-        )
+        endpoint = f"repos/{owner}/{repo}/pulls/{pull_number}/comments/{request.comment_id}/replies"
 
         # Prepare the request payload (for reference)
-        # payload = {"body": reply_body}
+        # payload = {"body": request.reply_body}
 
         # Execute the API call using gh CLI
         try:
@@ -81,7 +85,7 @@ class ReplyService:
                 "--method",
                 "POST",
                 "--field",
-                f"body={reply_body}",
+                f"body={request.reply_body}",
                 "--header",
                 "Accept: application/vnd.github+json",
             ]
@@ -93,7 +97,7 @@ class ReplyService:
             reply_info = {
                 "reply_id": str(response_data.get("id", "")),
                 "reply_url": response_data.get("html_url", ""),
-                "comment_id": comment_id,
+                "comment_id": request.comment_id,
                 "created_at": response_data.get("created_at", ""),
                 "author": response_data.get("user", {}).get("login", ""),
             }
@@ -106,7 +110,7 @@ class ReplyService:
             # Check if it's a "not found" error for the comment
             if "404" in str(e) or "not found" in str(e).lower():
                 raise CommentNotFoundError(
-                    f"Comment {comment_id} not found in PR #{pull_number}"
+                    f"Comment {request.comment_id} not found in PR #{pull_number}"
                 ) from e
             raise ReplyServiceError(f"Failed to post reply: {e}") from e
 
@@ -132,9 +136,7 @@ class ReplyService:
 
         return parts[0], parts[1]
 
-    def _get_pull_number_from_comment(
-        self, owner: str, repo: str, comment_id: str  # noqa: ARG002
-    ) -> int:
+    def _get_pull_number_from_comment(self, comment_id: str) -> int:
         """Get the pull request number associated with a comment.
 
         This is a simplified implementation that would need to be enhanced
@@ -142,8 +144,6 @@ class ReplyService:
         provided explicitly or detect it from the current branch.
 
         Args:
-            owner: Repository owner.
-            repo: Repository name.
             comment_id: Comment ID.
 
         Returns:
@@ -162,8 +162,8 @@ class ReplyService:
             data = json.loads(result.stdout)
             pr_number = data.get("number")
 
-            if pr_number and isinstance(pr_number, int):
-                return pr_number  # type: ignore[no-any-return]
+            if isinstance(pr_number, int):
+                return pr_number
 
         except (GitHubAPIError, json.JSONDecodeError, KeyError):
             pass
