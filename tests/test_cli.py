@@ -1,5 +1,7 @@
 """Tests for the CLI interface."""
 
+from unittest.mock import Mock, patch
+
 from click.testing import CliRunner
 
 from toady import __version__
@@ -371,20 +373,394 @@ class TestResolveCommand:
         assert result.exit_code != 0
         assert "Missing option '--thread-id'" in result.output
 
-    def test_resolve_with_thread_id(self, runner: CliRunner) -> None:
-        """Test resolve with valid thread ID."""
-        result = runner.invoke(cli, ["resolve", "--thread-id", "abc123"])
-        assert result.exit_code == 0
-        assert "Resolving thread abc123" in result.output
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_valid_numeric_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with valid numeric thread ID."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
 
-    def test_resolve_with_undo_flag(self, runner: CliRunner) -> None:
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 0
+        assert '"thread_id": "123456789"' in result.output
+        assert '"action": "resolve"' in result.output
+        assert '"success": true' in result.output
+
+        mock_service.resolve_thread.assert_called_once_with("123456789")
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_valid_node_id(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with valid GitHub node ID."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "PRT_kwDOABcD12MAAAABcDE3fg",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "PRT_kwDOABcD12MAAAABcDE3fg"]
+        )
+        assert result.exit_code == 0
+        assert '"thread_id": "PRT_kwDOABcD12MAAAABcDE3fg"' in result.output
+
+        mock_service.resolve_thread.assert_called_once_with("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_undo_flag(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
         """Test resolve with undo flag."""
-        result = runner.invoke(cli, ["resolve", "--thread-id", "abc123", "--undo"])
-        assert result.exit_code == 0
-        assert "Unresolving thread abc123" in result.output
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
 
-    def test_resolve_help(self, runner: CliRunner) -> None:
-        """Test resolve command help."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
+        assert result.exit_code == 0
+        assert '"action": "unresolve"' in result.output
+        assert '"success": true' in result.output
+
+        mock_service.unresolve_thread.assert_called_once_with("123456789")
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_pretty_output(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with pretty output format."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
+        assert result.exit_code == 0
+        assert "🔒 Resolving thread 123456789" in result.output
+        assert "✅ Thread resolved successfully" in result.output
+        assert "🔗 View thread at: https://github.com/owner/repo/pull/123" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_with_undo_pretty_output(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test unresolve with pretty output format."""
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
+        )
+        assert result.exit_code == 0
+        assert "🔓 Unresolving thread 123456789" in result.output
+        assert "✅ Thread unresolved successfully" in result.output
+
+    def test_resolve_empty_thread_id(self, runner: CliRunner) -> None:
+        """Test resolve with empty thread ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", ""])
+        assert result.exit_code != 0
+        assert "Thread ID cannot be empty" in result.output
+
+    def test_resolve_whitespace_thread_id(self, runner: CliRunner) -> None:
+        """Test resolve with whitespace-only thread ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "   "])
+        assert result.exit_code != 0
+        assert "Thread ID cannot be empty" in result.output
+
+    def test_resolve_invalid_thread_id_format(self, runner: CliRunner) -> None:
+        """Test resolve with invalid thread ID format."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "invalid-id"])
+        assert result.exit_code != 0
+        assert "Thread ID must be numeric" in result.output
+        assert "or a GitHub node ID starting with 'PRT_'" in result.output
+
+    def test_resolve_invalid_node_id_too_short(self, runner: CliRunner) -> None:
+        """Test resolve with too short node ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "PRT_abc"])
+        assert result.exit_code != 0
+        assert "GitHub node ID appears too short to be valid" in result.output
+
+    def test_resolve_various_thread_id_formats(self, runner: CliRunner) -> None:
+        """Test resolve with various valid thread ID formats."""
+        with patch("toady.cli.ResolveService") as mock_service_class:
+            mock_service = Mock()
+            mock_service.resolve_thread.return_value = {
+                "thread_id": "test_id",
+                "action": "resolve",
+                "success": True,
+                "is_resolved": "true",
+                "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123",
+            }
+            mock_service_class.return_value = mock_service
+
+            test_cases = [
+                "1",
+                "123",
+                "123456789",
+                "PRT_kwDOABcD12M",
+                "PRT_kwDOABcD12MAAAABcDE3fg",
+            ]
+
+            for thread_id in test_cases:
+                result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
+                assert result.exit_code == 0, f"Failed for thread ID: {thread_id}"
+
+    def test_resolve_invalid_thread_id_formats(self, runner: CliRunner) -> None:
+        """Test resolve with various invalid thread ID formats."""
+        test_cases = [
+            "abc123",  # Invalid: starts with letters
+            "123abc",  # Invalid: ends with letters
+            "IC_123",  # Invalid: wrong prefix
+            "PRT_a",   # Invalid: too short node ID
+            "12.34",   # Invalid: contains decimal
+            "-123",    # Invalid: negative number
+            "123 456", # Invalid: contains space
+        ]
+
+        for thread_id in test_cases:
+            result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
+            assert (
+                result.exit_code != 0
+            ), f"Should have failed for thread ID: {thread_id}"
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_json_output_structure(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test that JSON output has correct structure."""
+        mock_service = Mock()
+        mock_service.resolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "resolve",
+            "success": True,
+            "is_resolved": "true",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 0
+
+        import json
+
+        output = json.loads(result.output)
+        assert "thread_id" in output
+        assert "action" in output
+        assert "success" in output
+        assert "thread_url" in output
+        assert output["thread_id"] == "123456789"
+        assert output["action"] == "resolve"
+        assert output["success"] is True
+        assert "https://github.com/" in output["thread_url"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_json_output_with_undo(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test that JSON output has correct structure with undo flag."""
+        mock_service = Mock()
+        mock_service.unresolve_thread.return_value = {
+            "thread_id": "123456789",
+            "action": "unresolve",
+            "success": True,
+            "is_resolved": "false",
+            "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
+        assert result.exit_code == 0
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["action"] == "unresolve"
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_thread_not_found_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with thread not found error in pretty mode."""
+        from toady.resolve_service import ThreadNotFoundError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadNotFoundError(
+            "Thread 999 not found"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "999", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Thread not found: Thread 999 not found" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_thread_not_found_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with thread not found error in JSON mode."""
+        from toady.resolve_service import ThreadNotFoundError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadNotFoundError(
+            "Thread 999 not found"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "999"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "thread_not_found"
+        assert "Thread 999 not found" in output["error_message"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_permission_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with permission error in pretty mode."""
+        from toady.resolve_service import ThreadPermissionError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadPermissionError(
+            "Permission denied"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Permission denied: Permission denied" in result.output
+        assert "💡 Ensure you have write access to the repository" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_permission_error_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with permission error in JSON mode."""
+        from toady.resolve_service import ThreadPermissionError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ThreadPermissionError(
+            "Permission denied"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "permission_denied"
+        assert "Permission denied" in output["error_message"]
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_authentication_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with authentication error in pretty mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = GitHubAuthenticationError(
+            "Authentication failed"
+        )
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert "💡 Try running: gh auth login" in result.output
+
+    @patch("toady.cli.ResolveService")
+    def test_resolve_api_error_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test resolve with API error in pretty mode."""
+        from toady.resolve_service import ResolveServiceError
+
+        mock_service = Mock()
+        mock_service.resolve_thread.side_effect = ResolveServiceError("API request failed")
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "❌ Failed to resolving thread: API request failed" in result.output
+
+    def test_resolve_help_content(self, runner: CliRunner) -> None:
+        """Test resolve command help content."""
         result = runner.invoke(cli, ["resolve", "--help"])
         assert result.exit_code == 0
         assert "Mark a review thread as resolved or unresolved" in result.output
+        assert "Examples:" in result.output
+        assert "--thread-id" in result.output
+        assert "--undo" in result.output
+        assert "--pretty" in result.output
+        assert "numeric ID" in result.output
+        assert "node ID" in result.output
+
+    def test_resolve_parameter_metavars(self, runner: CliRunner) -> None:
+        """Test that parameter metavars are displayed correctly."""
+        result = runner.invoke(cli, ["resolve", "--help"])
+        assert result.exit_code == 0
+        assert "ID" in result.output  # metavar for thread-id
+
+    def test_resolve_all_options_combined(self, runner: CliRunner) -> None:
+        """Test resolve with all options combined."""
+        with patch("toady.cli.ResolveService") as mock_service_class:
+            mock_service = Mock()
+            mock_service.unresolve_thread.return_value = {
+                "thread_id": "123456789",
+                "action": "unresolve",
+                "success": True,
+                "is_resolved": "false",
+                "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456789",
+            }
+            mock_service_class.return_value = mock_service
+
+            result = runner.invoke(
+                cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
+            )
+            assert result.exit_code == 0
+            assert "🔓 Unresolving thread 123456789" in result.output
+            assert "✅ Thread unresolved successfully" in result.output
