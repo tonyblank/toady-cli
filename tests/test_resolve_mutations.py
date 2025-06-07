@@ -21,7 +21,7 @@ class TestResolveThreadMutationBuilder:
         """Test building resolve mutation."""
         builder = ResolveThreadMutationBuilder()
         mutation = builder.build_resolve_mutation()
-        
+
         assert "mutation ResolveReviewThread" in mutation
         assert "$threadId: ID!" in mutation
         assert "resolveReviewThread(input: {threadId: $threadId})" in mutation
@@ -33,7 +33,7 @@ class TestResolveThreadMutationBuilder:
         """Test building unresolve mutation."""
         builder = ResolveThreadMutationBuilder()
         mutation = builder.build_unresolve_mutation()
-        
+
         assert "mutation UnresolveReviewThread" in mutation
         assert "$threadId: ID!" in mutation
         assert "unresolveReviewThread(input: {threadId: $threadId})" in mutation
@@ -45,20 +45,20 @@ class TestResolveThreadMutationBuilder:
         """Test building variables with numeric thread ID."""
         builder = ResolveThreadMutationBuilder()
         variables = builder.build_variables("123456789")
-        
+
         assert variables == {"threadId": "123456789"}
 
     def test_build_variables_with_node_id(self) -> None:
         """Test building variables with GitHub node ID."""
         builder = ResolveThreadMutationBuilder()
         variables = builder.build_variables("PRT_kwDOABcD12MAAAABcDE3fg")
-        
+
         assert variables == {"threadId": "PRT_kwDOABcD12MAAAABcDE3fg"}
 
     def test_build_variables_empty_thread_id(self) -> None:
         """Test building variables with empty thread ID."""
         builder = ResolveThreadMutationBuilder()
-        
+
         with pytest.raises(ValueError) as exc_info:
             builder.build_variables("")
         assert "Thread ID cannot be empty" in str(exc_info.value)
@@ -66,7 +66,7 @@ class TestResolveThreadMutationBuilder:
     def test_build_variables_whitespace_thread_id(self) -> None:
         """Test building variables with whitespace-only thread ID."""
         builder = ResolveThreadMutationBuilder()
-        
+
         with pytest.raises(ValueError) as exc_info:
             builder.build_variables("   ")
         assert "Thread ID cannot be empty" in str(exc_info.value)
@@ -74,7 +74,7 @@ class TestResolveThreadMutationBuilder:
     def test_build_variables_invalid_format(self) -> None:
         """Test building variables with invalid thread ID format."""
         builder = ResolveThreadMutationBuilder()
-        
+
         with pytest.raises(ValueError) as exc_info:
             builder.build_variables("invalid-id")
         assert "Thread ID must be numeric" in str(exc_info.value)
@@ -83,7 +83,7 @@ class TestResolveThreadMutationBuilder:
     def test_build_variables_short_node_id(self) -> None:
         """Test building variables with too short node ID."""
         builder = ResolveThreadMutationBuilder()
-        
+
         with pytest.raises(ValueError) as exc_info:
             builder.build_variables("PRT_abc")
         assert "GitHub node ID appears too short to be valid" in str(exc_info.value)
@@ -92,13 +92,13 @@ class TestResolveThreadMutationBuilder:
         """Test that build_variables strips whitespace from thread ID."""
         builder = ResolveThreadMutationBuilder()
         variables = builder.build_variables("  123456789  ")
-        
+
         assert variables == {"threadId": "123456789"}
 
     def test_build_variables_various_valid_formats(self) -> None:
         """Test building variables with various valid thread ID formats."""
         builder = ResolveThreadMutationBuilder()
-        
+
         test_cases = [
             "1",
             "123",
@@ -106,7 +106,7 @@ class TestResolveThreadMutationBuilder:
             "PRT_kwDOABcD12M",
             "PRT_kwDOABcD12MAAAABcDE3fg",
         ]
-        
+
         for thread_id in test_cases:
             variables = builder.build_variables(thread_id)
             assert variables == {"threadId": thread_id}
@@ -114,17 +114,17 @@ class TestResolveThreadMutationBuilder:
     def test_build_variables_various_invalid_formats(self) -> None:
         """Test building variables with various invalid thread ID formats."""
         builder = ResolveThreadMutationBuilder()
-        
+
         test_cases = [
             "abc123",  # Invalid: starts with letters
             "123abc",  # Invalid: ends with letters
             "IC_123",  # Invalid: wrong prefix
-            "PRT_a",   # Invalid: too short node ID
-            "12.34",   # Invalid: contains decimal
-            "-123",    # Invalid: negative number
-            "123 456", # Invalid: contains space
+            "PRT_a",  # Invalid: too short node ID
+            "12.34",  # Invalid: contains decimal
+            "-123",  # Invalid: negative number
+            "123 456",  # Invalid: contains space
         ]
-        
+
         for thread_id in test_cases:
             with pytest.raises(ValueError):
                 builder.build_variables(thread_id)
@@ -136,14 +136,14 @@ class TestCreateResolveMutation:
     def test_create_resolve_mutation_success(self) -> None:
         """Test successful creation of resolve mutation."""
         mutation, variables = create_resolve_mutation("123456789")
-        
+
         assert "mutation ResolveReviewThread" in mutation
         assert variables == {"threadId": "123456789"}
 
     def test_create_resolve_mutation_with_node_id(self) -> None:
         """Test creating resolve mutation with GitHub node ID."""
         mutation, variables = create_resolve_mutation("PRT_kwDOABcD12MAAAABcDE3fg")
-        
+
         assert "mutation ResolveReviewThread" in mutation
         assert variables == {"threadId": "PRT_kwDOABcD12MAAAABcDE3fg"}
 
@@ -160,14 +160,14 @@ class TestCreateUnresolveMutation:
     def test_create_unresolve_mutation_success(self) -> None:
         """Test successful creation of unresolve mutation."""
         mutation, variables = create_unresolve_mutation("123456789")
-        
+
         assert "mutation UnresolveReviewThread" in mutation
         assert variables == {"threadId": "123456789"}
 
     def test_create_unresolve_mutation_with_node_id(self) -> None:
         """Test creating unresolve mutation with GitHub node ID."""
         mutation, variables = create_unresolve_mutation("PRT_kwDOABcD12MAAAABcDE3fg")
-        
+
         assert "mutation UnresolveReviewThread" in mutation
         assert variables == {"threadId": "PRT_kwDOABcD12MAAAABcDE3fg"}
 
@@ -185,19 +185,19 @@ class TestMutationStructure:
         """Test that resolve mutation has correct GraphQL structure."""
         builder = ResolveThreadMutationBuilder()
         mutation = builder.build_resolve_mutation()
-        
+
         # Check for proper GraphQL syntax
-        lines = [line.strip() for line in mutation.split('\n') if line.strip()]
-        
+        lines = [line.strip() for line in mutation.split("\n") if line.strip()]
+
         # Should start with mutation declaration
         assert lines[0].startswith("mutation ResolveReviewThread")
-        
+
         # Should have proper variable declaration
         assert "$threadId: ID!" in mutation
-        
+
         # Should have proper mutation call
         assert "resolveReviewThread(input: {threadId: $threadId})" in mutation
-        
+
         # Should request proper fields
         assert "thread {" in mutation
         assert "id" in mutation
@@ -207,19 +207,19 @@ class TestMutationStructure:
         """Test that unresolve mutation has correct GraphQL structure."""
         builder = ResolveThreadMutationBuilder()
         mutation = builder.build_unresolve_mutation()
-        
+
         # Check for proper GraphQL syntax
-        lines = [line.strip() for line in mutation.split('\n') if line.strip()]
-        
+        lines = [line.strip() for line in mutation.split("\n") if line.strip()]
+
         # Should start with mutation declaration
         assert lines[0].startswith("mutation UnresolveReviewThread")
-        
+
         # Should have proper variable declaration
         assert "$threadId: ID!" in mutation
-        
+
         # Should have proper mutation call
         assert "unresolveReviewThread(input: {threadId: $threadId})" in mutation
-        
+
         # Should request proper fields
         assert "thread {" in mutation
         assert "id" in mutation
@@ -230,17 +230,17 @@ class TestMutationStructure:
         builder = ResolveThreadMutationBuilder()
         resolve_mutation = builder.build_resolve_mutation()
         unresolve_mutation = builder.build_unresolve_mutation()
-        
+
         assert resolve_mutation != unresolve_mutation
-        
+
         # Check that each mutation contains its own operation
         assert "mutation ResolveReviewThread" in resolve_mutation
         assert "mutation UnresolveReviewThread" in unresolve_mutation
-        
+
         # Check that operations are different
         assert "resolveReviewThread(input:" in resolve_mutation
         assert "unresolveReviewThread(input:" in unresolve_mutation
-        
+
         # Ensure they don't contain each other's mutation names
         assert "mutation UnresolveReviewThread" not in resolve_mutation
         assert "mutation ResolveReviewThread" not in unresolve_mutation
@@ -253,7 +253,7 @@ class TestEdgeCases:
         """Test with very long (but valid) thread ID."""
         builder = ResolveThreadMutationBuilder()
         long_id = "PRT_" + "a" * 100  # Long but valid node ID format
-        
+
         variables = builder.build_variables(long_id)
         assert variables == {"threadId": long_id}
 
@@ -261,28 +261,28 @@ class TestEdgeCases:
         """Test with single digit thread ID."""
         builder = ResolveThreadMutationBuilder()
         variables = builder.build_variables("1")
-        
+
         assert variables == {"threadId": "1"}
 
     def test_minimum_valid_node_id(self) -> None:
         """Test with minimum valid node ID length."""
         builder = ResolveThreadMutationBuilder()
         min_id = "PRT_kwDOABcD"  # Minimum valid length (12 characters)
-        
+
         variables = builder.build_variables(min_id)
         assert variables == {"threadId": min_id}
 
     def test_case_sensitivity_node_id(self) -> None:
         """Test that node ID prefix is case sensitive."""
         builder = ResolveThreadMutationBuilder()
-        
+
         # Should work with correct case
         variables = builder.build_variables("PRT_kwDOABcD12M")
         assert variables == {"threadId": "PRT_kwDOABcD12M"}
-        
+
         # Should fail with wrong case
         with pytest.raises(ValueError):
             builder.build_variables("prt_kwDOABcD12M")
-        
+
         with pytest.raises(ValueError):
             builder.build_variables("Prt_kwDOABcD12M")

@@ -1,7 +1,7 @@
 """Service for resolving and unresolving review threads via GitHub GraphQL API."""
 
 import json
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 from .resolve_mutations import create_resolve_mutation, create_unresolve_mutation
@@ -36,7 +36,7 @@ class ResolveService:
         """
         self.github_service = github_service or GitHubService()
 
-    def resolve_thread(self, thread_id: str) -> Dict[str, str]:
+    def resolve_thread(self, thread_id: str) -> Dict[str, Any]:
         """Resolve a review thread.
 
         Args:
@@ -60,10 +60,14 @@ class ResolveService:
                 self._handle_graphql_errors(result["errors"], thread_id, "resolve")
 
             # Extract thread data from response
-            thread_data = result.get("data", {}).get("resolveReviewThread", {}).get("thread", {})
-            
+            thread_data = (
+                result.get("data", {}).get("resolveReviewThread", {}).get("thread", {})
+            )
+
             if not thread_data:
-                raise ResolveServiceError("No thread data returned from GraphQL mutation")
+                raise ResolveServiceError(
+                    "No thread data returned from GraphQL mutation"
+                )
 
             return {
                 "thread_id": thread_id,
@@ -76,7 +80,7 @@ class ResolveService:
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
 
-    def unresolve_thread(self, thread_id: str) -> Dict[str, str]:
+    def unresolve_thread(self, thread_id: str) -> Dict[str, Any]:
         """Unresolve a review thread.
 
         Args:
@@ -100,10 +104,16 @@ class ResolveService:
                 self._handle_graphql_errors(result["errors"], thread_id, "unresolve")
 
             # Extract thread data from response
-            thread_data = result.get("data", {}).get("unresolveReviewThread", {}).get("thread", {})
-            
+            thread_data = (
+                result.get("data", {})
+                .get("unresolveReviewThread", {})
+                .get("thread", {})
+            )
+
             if not thread_data:
-                raise ResolveServiceError("No thread data returned from GraphQL mutation")
+                raise ResolveServiceError(
+                    "No thread data returned from GraphQL mutation"
+                )
 
             return {
                 "thread_id": thread_id,
@@ -133,21 +143,27 @@ class ResolveService:
         for error in errors:
             message = error.get("message", str(error))
             error_type = error.get("type", "")
-            
+
             # Check for specific error types
             if "not found" in message.lower() or "does not exist" in message.lower():
                 raise ThreadNotFoundError(f"Thread {thread_id} not found")
-            elif "permission" in message.lower() or "forbidden" in message.lower() or "not accessible" in message.lower():
+            elif (
+                "permission" in message.lower()
+                or "forbidden" in message.lower()
+                or "not accessible" in message.lower()
+            ):
                 raise ThreadPermissionError(
                     f"Permission denied: cannot {action} thread {thread_id}. "
                     "Ensure you have write access to the repository."
                 )
-            
+
             error_messages.append(message)
 
         # If we get here, it's a generic GraphQL error
         combined_message = "; ".join(error_messages)
-        raise ResolveServiceError(f"Failed to {action} thread {thread_id}: {combined_message}")
+        raise ResolveServiceError(
+            f"Failed to {action} thread {thread_id}: {combined_message}"
+        )
 
     def validate_thread_exists(
         self, owner: str, repo: str, pull_number: int, thread_id: str
@@ -178,7 +194,7 @@ class ResolveService:
                 }
             }
             """
-            
+
             variables = {
                 "owner": owner,
                 "repo": repo,
@@ -187,7 +203,7 @@ class ResolveService:
             }
 
             result = self.github_service.execute_graphql_query(query, variables)
-            
+
             # Check if thread_id exists in the returned threads
             threads = (
                 result.get("data", {})
@@ -196,11 +212,11 @@ class ResolveService:
                 .get("reviewThreads", {})
                 .get("nodes", [])
             )
-            
+
             for thread in threads:
                 if thread.get("id") == thread_id:
                     return True
-            
+
             return False
 
         except (GitHubAPIError, KeyError):
