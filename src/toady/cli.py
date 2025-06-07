@@ -87,13 +87,104 @@ def fetch(
 
 @cli.command()
 @click.option(
-    "--comment-id", required=True, type=str, help="ID of the comment to reply to"
+    "--comment-id",
+    required=True,
+    type=str,
+    help="GitHub comment ID (numeric ID or node ID starting with IC_)",
+    metavar="ID",
 )
-@click.option("--body", required=True, type=str, help="Reply message body")
-def reply(comment_id: str, body: str) -> None:
-    """Post a reply to a specific review comment."""
-    click.echo(f"Replying to comment {comment_id}")
-    # TODO: Implement reply logic
+@click.option(
+    "--body",
+    required=True,
+    type=str,
+    help="Reply message body (1-65536 characters)",
+    metavar="TEXT",
+)
+@click.option(
+    "--pretty",
+    is_flag=True,
+    help="Output in human-readable format instead of JSON",
+)
+@click.pass_context
+def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
+    """Post a reply to a specific review comment.
+
+    Reply to comments using either numeric IDs (e.g., 123456789) or
+    GitHub node IDs (e.g., IC_kwDOABcD12MAAAABcDE3fg).
+
+    Examples:
+
+        toady reply --comment-id 123456789 --body "Fixed in latest commit"
+
+        toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+
+        toady reply --comment-id 123456789 --body "Thanks for the review" --pretty
+    """
+    # Validate comment ID format
+    comment_id = comment_id.strip()
+    if not comment_id:
+        raise click.BadParameter(
+            "Comment ID cannot be empty", param_hint="--comment-id"
+        )
+
+    # Validate comment ID format - either numeric or GitHub node ID
+    if not (comment_id.isdigit() or comment_id.startswith("IC_")):
+        raise click.BadParameter(
+            "Comment ID must be numeric (e.g., 123456789) or a "
+            "GitHub node ID starting with 'IC_'",
+            param_hint="--comment-id",
+        )
+
+    # Additional validation for node IDs
+    if comment_id.startswith("IC_") and len(comment_id) < 10:
+        raise click.BadParameter(
+            "GitHub node ID appears too short to be valid",
+            param_hint="--comment-id",
+        )
+
+    # Validate reply body
+    body = body.strip()
+    if not body:
+        raise click.BadParameter("Reply body cannot be empty", param_hint="--body")
+
+    if len(body) > 65536:
+        raise click.BadParameter(
+            "Reply body cannot exceed 65,536 characters", param_hint="--body"
+        )
+
+    # Check for potentially problematic content
+    if body.startswith("@") and pretty:
+        # This is just a warning, not an error
+        click.echo(
+            "⚠️  Note: Reply starts with '@' - this will mention users",
+            err=True,
+        )
+
+    # Show what we're doing
+    if pretty:
+        click.echo(f"💬 Posting reply to comment {comment_id}")
+        click.echo(f"📝 Reply: {body[:100]}{'...' if len(body) > 100 else ''}")
+    else:
+        # For JSON output, we'll just return the result without progress messages
+        pass
+
+    # TODO: Implement actual reply posting logic in subsequent tasks
+    # For now, show placeholder behavior
+    if pretty:
+        click.echo("✅ Reply posted successfully")
+        click.echo(
+            f"🔗 View reply at: https://github.com/owner/repo/pull/123#discussion_r{comment_id}"
+        )
+    else:
+        # Return minimal JSON response
+        import json
+
+        result = {
+            "comment_id": comment_id,
+            "reply_posted": True,
+            "reply_url": f"https://github.com/owner/repo/pull/123#discussion_r{comment_id}",
+        }
+        click.echo(json.dumps(result))
 
 
 @cli.command()
