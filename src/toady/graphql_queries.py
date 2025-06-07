@@ -1,6 +1,46 @@
 """GraphQL query builders for GitHub API interactions."""
 
+import base64
+import re
 from typing import Any, Dict, Optional
+
+
+def _validate_cursor(cursor: str) -> bool:
+    """Validate that a cursor is safe for use in GraphQL queries.
+
+    GitHub cursors are typically Base64-encoded strings. This function validates
+    that the cursor matches expected patterns to prevent injection attacks.
+
+    Args:
+        cursor: The cursor string to validate
+
+    Returns:
+        True if the cursor is valid and safe to use
+
+    Raises:
+        ValueError: If the cursor is invalid or potentially unsafe
+    """
+    if not cursor:
+        return False
+
+    # Additional length check to prevent excessively long cursors (check first)
+    if len(cursor) > 1000:
+        raise ValueError("Cursor exceeds maximum length of 1000 characters")
+
+    # GitHub cursors are typically Base64-encoded strings
+    # They should only contain alphanumeric characters, +, /, and = for padding
+    if not re.match(r"^[A-Za-z0-9+/]*={0,2}$", cursor):
+        raise ValueError(
+            "Invalid cursor format: cursors must be Base64-encoded strings"
+        )
+
+    # Verify it's valid Base64 by attempting to decode
+    try:
+        base64.b64decode(cursor, validate=True)
+    except Exception as e:
+        raise ValueError(f"Invalid Base64 cursor: {str(e)}") from e
+
+    return True
 
 
 class ReviewThreadQueryBuilder:
@@ -170,11 +210,20 @@ def create_paginated_query(limit: int = 100, after_cursor: Optional[str] = None)
 
     Returns:
         GraphQL query string with pagination support
+
+    Raises:
+        ValueError: If after_cursor is provided but invalid
     """
-    cursor_arg = f', after: "{after_cursor}"' if after_cursor is not None else ""
+    # Validate cursor if provided
+    if after_cursor is not None:
+        _validate_cursor(after_cursor)
+
+    # Use GraphQL variables for safe cursor handling
+    cursor_variable = ", $after: String" if after_cursor is not None else ""
+    cursor_arg = ", after: $after" if after_cursor is not None else ""
 
     query = f"""
-    query($owner: String!, $repo: String!, $number: Int!) {{
+    query($owner: String!, $repo: String!, $number: Int!{cursor_variable}) {{
       repository(owner: $owner, name: $repo) {{
         pullRequest(number: $number) {{
           id
@@ -217,3 +266,32 @@ def create_paginated_query(limit: int = 100, after_cursor: Optional[str] = None)
     """
 
     return query.strip()
+
+
+def create_paginated_query_variables(
+    owner: str, repo: str, pr_number: int, after_cursor: Optional[str] = None
+) -> Dict[str, Any]:
+    """Create variables for the paginated GraphQL query.
+
+    Args:
+        owner: Repository owner
+        repo: Repository name
+        pr_number: Pull request number
+        after_cursor: Cursor for pagination (optional)
+
+    Returns:
+        Dictionary of GraphQL variables
+
+    Raises:
+        ValueError: If after_cursor is provided but invalid
+    """
+    # Validate cursor if provided
+    if after_cursor is not None:
+        _validate_cursor(after_cursor)
+
+    variables = {"owner": owner, "repo": repo, "number": pr_number}
+
+    if after_cursor is not None:
+        variables["after"] = after_cursor
+
+    return variables

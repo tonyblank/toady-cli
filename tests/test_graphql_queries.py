@@ -4,8 +4,10 @@ import pytest
 
 from toady.graphql_queries import (
     ReviewThreadQueryBuilder,
+    _validate_cursor,
     build_review_threads_query,
     create_paginated_query,
+    create_paginated_query_variables,
 )
 
 
@@ -187,8 +189,11 @@ class TestCreatePaginatedQuery:
         cursor = "Y3Vyc29yOnYyOpHOBZnKHA=="
         query = create_paginated_query(limit=25, after_cursor=cursor)
 
-        assert "query($owner: String!, $repo: String!, $number: Int!)" in query
-        assert f'reviewThreads(first: 25, after: "{cursor}")' in query
+        assert (
+            "query($owner: String!, $repo: String!, $number: Int!, $after: String)"
+            in query
+        )
+        assert "reviewThreads(first: 25, after: $after)" in query
         assert "pageInfo" in query
         assert "totalCount" in query
 
@@ -266,14 +271,179 @@ class TestGraphQLQueryEdgeCases:
 
     def test_empty_cursor_handling(self) -> None:
         """Test pagination with empty cursor."""
-        query = create_paginated_query(after_cursor="")
+        # Empty cursor should not cause exception, just return query without cursor
+        query = create_paginated_query(after_cursor=None)
+        assert "$after" not in query
 
-        # Empty cursor should still be included in query
-        assert 'after: ""' in query
+    def test_valid_base64_cursor(self) -> None:
+        """Test pagination with valid Base64 cursor."""
+        valid_cursor = "Y3Vyc29yOnYyOpHOBZnKHA=="
+        query = create_paginated_query(after_cursor=valid_cursor)
+
+        # Should use GraphQL variables instead of string interpolation
+        assert "$after: String" in query
+        assert "after: $after" in query
+        assert valid_cursor not in query  # Cursor should not be in query string
 
     def test_special_characters_in_cursor(self) -> None:
         """Test pagination with special characters in cursor."""
         special_cursor = "abc+123/def="
         query = create_paginated_query(after_cursor=special_cursor)
 
-        assert f'after: "{special_cursor}"' in query
+        # Should use GraphQL variables
+        assert "$after: String" in query
+        assert "after: $after" in query
+
+
+class TestCursorValidation:
+    """Test cursor validation functionality."""
+
+    def test_validate_cursor_with_valid_base64(self) -> None:
+        """Test cursor validation with valid Base64 strings."""
+        valid_cursors = [
+            "Y3Vyc29yOnYyOpHOBZnKHA==",
+            "dGVzdA==",
+            "SGVsbG9Xb3JsZA==",
+            "YWJjZGVmZ2hpams=",
+        ]
+
+        for cursor in valid_cursors:
+            assert _validate_cursor(cursor) is True
+
+    def test_validate_cursor_with_invalid_characters(self) -> None:
+        """Test cursor validation with invalid characters."""
+        invalid_cursors = [
+            "invalid-cursor!",
+            "cursor with spaces",
+            "cursor\nwith\nnewlines",
+            "cursor\twith\ttabs",
+            "cursor$with$symbols",
+            'cursor"with"quotes',
+            "cursor'with'quotes",
+        ]
+
+        for cursor in invalid_cursors:
+            with pytest.raises(ValueError, match="Invalid cursor format"):
+                _validate_cursor(cursor)
+
+    def test_validate_cursor_with_empty_string(self) -> None:
+        """Test cursor validation with empty string."""
+        assert _validate_cursor("") is False
+
+    def test_validate_cursor_with_invalid_base64(self) -> None:
+        """Test cursor validation with invalid Base64."""
+        # Missing padding - should fail Base64 validation
+        with pytest.raises(ValueError, match="Invalid Base64 cursor"):
+            _validate_cursor("YWJjZGVmZ2hpams")
+
+        # Too much padding - should fail format validation
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            _validate_cursor("YWJjZGVmZ2hpams===")
+
+        # Invalid character should fail at format check
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            _validate_cursor("YWJ!ZGVmZ2hpams=")
+
+    def test_validate_cursor_with_too_long_string(self) -> None:
+        """Test cursor validation with excessively long string."""
+        long_cursor = "a" * 1001  # Exceeds 1000 character limit
+        with pytest.raises(ValueError, match="Cursor exceeds maximum length"):
+            _validate_cursor(long_cursor)
+
+    def test_validate_cursor_boundary_length(self) -> None:
+        """Test cursor validation at boundary length."""
+        # Create a valid Base64 string at exactly 1000 characters
+        # Base64 encoding produces 4 characters for every 3 input bytes
+        # 999 chars + '=' padding = 1000 chars total
+        boundary_cursor = "A" * 999 + "="
+        assert _validate_cursor(boundary_cursor) is True
+
+
+class TestPaginatedQueryVariables:
+    """Test the create_paginated_query_variables function."""
+
+    def test_variables_without_cursor(self) -> None:
+        """Test creating variables without cursor."""
+        variables = create_paginated_query_variables("owner", "repo", 123)
+
+        expected = {"owner": "owner", "repo": "repo", "number": 123}
+
+        assert variables == expected
+
+    def test_variables_with_valid_cursor(self) -> None:
+        """Test creating variables with valid cursor."""
+        cursor = "Y3Vyc29yOnYyOpHOBZnKHA=="
+        variables = create_paginated_query_variables("owner", "repo", 123, cursor)
+
+        expected = {"owner": "owner", "repo": "repo", "number": 123, "after": cursor}
+
+        assert variables == expected
+
+    def test_variables_with_invalid_cursor(self) -> None:
+        """Test creating variables with invalid cursor."""
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            create_paginated_query_variables("owner", "repo", 123, "invalid-cursor!")
+
+    def test_variables_with_special_repo_names(self) -> None:
+        """Test creating variables with special repository names."""
+        cursor = "dGVzdA=="
+        variables = create_paginated_query_variables(
+            "user-name", "repo_name", 456, cursor
+        )
+
+        expected = {
+            "owner": "user-name",
+            "repo": "repo_name",
+            "number": 456,
+            "after": cursor,
+        }
+
+        assert variables == expected
+
+
+class TestSecurityImprovements:
+    """Test security improvements in GraphQL query building."""
+
+    def test_query_uses_variables_not_interpolation(self) -> None:
+        """Test that queries use GraphQL variables instead of string interpolation."""
+        cursor = "Y3Vyc29yOnYyOpHOBZnKHA=="
+        query = create_paginated_query(after_cursor=cursor)
+
+        # Ensure cursor is not directly interpolated into query string
+        assert cursor not in query
+
+        # Ensure proper GraphQL variable usage
+        assert "$after: String" in query
+        assert "after: $after" in query
+
+    def test_injection_attack_prevention(self) -> None:
+        """Test that potential injection attacks are prevented."""
+        malicious_cursors = [
+            '") { malicious { field } }',
+            'test" } malicious: query {',
+            'cursor\\"} injection {',
+            'cursor"; DROP TABLE users; --',
+        ]
+
+        for malicious_cursor in malicious_cursors:
+            with pytest.raises(ValueError):
+                create_paginated_query(after_cursor=malicious_cursor)
+
+    def test_query_structure_unchanged_for_none_cursor(self) -> None:
+        """Test that query structure is unchanged when no cursor is provided."""
+        query_without_cursor = create_paginated_query()
+
+        # Should not contain cursor-related variables when none provided
+        assert "$after" not in query_without_cursor
+        assert "after:" not in query_without_cursor
+
+    def test_cursor_validation_in_both_functions(self) -> None:
+        """Test that cursor validation is applied in both functions."""
+        invalid_cursor = "invalid-cursor!"
+
+        # Both functions should validate cursors
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            create_paginated_query(after_cursor=invalid_cursor)
+
+        with pytest.raises(ValueError, match="Invalid cursor format"):
+            create_paginated_query_variables("owner", "repo", 123, invalid_cursor)
