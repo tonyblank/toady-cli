@@ -17,12 +17,72 @@ def cli(ctx: click.Context) -> None:
 
 
 @cli.command()
-@click.option("--pr", "pr_number", required=True, type=int, help="Pull request number")
-@click.option("--pretty", is_flag=True, help="Output in human-readable format")
-def fetch(pr_number: int, pretty: bool) -> None:
-    """Fetch unresolved review threads from a pull request."""
-    click.echo(f"Fetching unresolved threads for PR #{pr_number}")
-    # TODO: Implement fetch logic
+@click.option(
+    "--pr",
+    "pr_number",
+    required=True,
+    type=int,
+    help="Pull request number to fetch review threads from",
+    metavar="NUMBER",
+)
+@click.option(
+    "--pretty",
+    is_flag=True,
+    help="Output in human-readable format instead of JSON",
+)
+@click.option(
+    "--resolved",
+    is_flag=True,
+    help="Include resolved threads in addition to unresolved ones",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=100,
+    help="Maximum number of threads to fetch (default: 100)",
+    metavar="COUNT",
+)
+@click.pass_context
+def fetch(
+    ctx: click.Context, pr_number: int, pretty: bool, resolved: bool, limit: int
+) -> None:
+    """Fetch review threads from a GitHub pull request.
+
+    By default, only unresolved review threads are fetched. Use --resolved
+    to include resolved threads as well.
+
+    Examples:
+
+        toady fetch --pr 123
+
+        toady fetch --pr 123 --pretty
+
+        toady fetch --pr 123 --resolved --limit 50
+    """
+    # Validate PR number
+    if pr_number <= 0:
+        raise click.BadParameter("PR number must be positive", param_hint="--pr")
+
+    # Validate limit
+    if limit <= 0:
+        raise click.BadParameter("Limit must be positive", param_hint="--limit")
+    if limit > 1000:
+        raise click.BadParameter("Limit cannot exceed 1000", param_hint="--limit")
+
+    # Show what we're fetching
+    thread_type = "all threads" if resolved else "unresolved threads"
+    if pretty:
+        click.echo(f"🔍 Fetching {thread_type} for PR #{pr_number} (limit: {limit})")
+    else:
+        # For JSON output, we'll just return the data without progress messages
+        pass
+
+    # TODO: Implement actual fetch logic in subsequent tasks
+    # For now, show placeholder behavior
+    if pretty:
+        click.echo("📝 Found 0 review threads")
+    else:
+        click.echo("[]")
 
 
 @cli.command()

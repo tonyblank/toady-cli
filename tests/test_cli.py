@@ -38,19 +38,93 @@ class TestFetchCommand:
         """Test fetch with valid PR number."""
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
         assert result.exit_code == 0
-        assert "Fetching unresolved threads for PR #123" in result.output
+        assert "[]" in result.output  # JSON output by default
 
     def test_fetch_with_pretty_flag(self, runner: CliRunner) -> None:
         """Test fetch with pretty output flag."""
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 0
-        assert "Fetching unresolved threads for PR #123" in result.output
+        assert "🔍 Fetching unresolved threads for PR #123" in result.output
+        assert "📝 Found 0 review threads" in result.output
+
+    def test_fetch_with_resolved_flag(self, runner: CliRunner) -> None:
+        """Test fetch with resolved threads included."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--resolved", "--pretty"])
+        assert result.exit_code == 0
+        assert "🔍 Fetching all threads for PR #123" in result.output
+
+    def test_fetch_with_custom_limit(self, runner: CliRunner) -> None:
+        """Test fetch with custom limit."""
+        result = runner.invoke(
+            cli, ["fetch", "--pr", "123", "--limit", "50", "--pretty"]
+        )
+        assert result.exit_code == 0
+        assert "limit: 50" in result.output
+
+    def test_fetch_invalid_pr_number_negative(self, runner: CliRunner) -> None:
+        """Test fetch with negative PR number."""
+        result = runner.invoke(cli, ["fetch", "--pr", "-1"])
+        assert result.exit_code != 0
+        assert "PR number must be positive" in result.output
+
+    def test_fetch_invalid_pr_number_zero(self, runner: CliRunner) -> None:
+        """Test fetch with zero PR number."""
+        result = runner.invoke(cli, ["fetch", "--pr", "0"])
+        assert result.exit_code != 0
+        assert "PR number must be positive" in result.output
+
+    def test_fetch_invalid_limit_negative(self, runner: CliRunner) -> None:
+        """Test fetch with negative limit."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "-1"])
+        assert result.exit_code != 0
+        assert "Limit must be positive" in result.output
+
+    def test_fetch_invalid_limit_zero(self, runner: CliRunner) -> None:
+        """Test fetch with zero limit."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "0"])
+        assert result.exit_code != 0
+        assert "Limit must be positive" in result.output
+
+    def test_fetch_invalid_limit_too_large(self, runner: CliRunner) -> None:
+        """Test fetch with limit exceeding maximum."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "1001"])
+        assert result.exit_code != 0
+        assert "Limit cannot exceed 1000" in result.output
+
+    def test_fetch_all_options_combined(self, runner: CliRunner) -> None:
+        """Test fetch with all options combined."""
+        result = runner.invoke(
+            cli, ["fetch", "--pr", "123", "--pretty", "--resolved", "--limit", "200"]
+        )
+        assert result.exit_code == 0
+        assert "🔍 Fetching all threads for PR #123 (limit: 200)" in result.output
 
     def test_fetch_help(self, runner: CliRunner) -> None:
         """Test fetch command help."""
         result = runner.invoke(cli, ["fetch", "--help"])
         assert result.exit_code == 0
-        assert "Fetch unresolved review threads" in result.output
+        assert "Fetch review threads from a GitHub pull request" in result.output
+        assert "Examples:" in result.output
+        assert "--resolved" in result.output
+        assert "--limit" in result.output
+
+    def test_fetch_pr_parameter_type_validation(self, runner: CliRunner) -> None:
+        """Test that PR parameter validates integer type."""
+        result = runner.invoke(cli, ["fetch", "--pr", "not-a-number"])
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output
+
+    def test_fetch_limit_parameter_type_validation(self, runner: CliRunner) -> None:
+        """Test that limit parameter validates integer type."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--limit", "not-a-number"])
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output
+
+    def test_fetch_default_limit(self, runner: CliRunner) -> None:
+        """Test that default limit is applied correctly."""
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 0
+        assert "(limit: 100)" in result.output  # Default limit
 
 
 class TestReplyCommand:
