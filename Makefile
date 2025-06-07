@@ -26,7 +26,7 @@ test:
 	pytest -v
 
 lint:
-	ruff check src tests
+	ruff check --no-fix src tests
 
 format:
 	black src tests
@@ -40,8 +40,8 @@ type-check:
 pre-commit:
 	pre-commit run --all-files
 
-# Main target for running all checks
-check: pre-commit test
+# Main target for running all checks (like CI pipeline)
+check: format-check lint type-check test
 	@echo "✅ All checks passed!"
 
 clean:

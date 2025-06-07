@@ -22,7 +22,7 @@ class TestReviewThread:
             author="johndoe",
             comments=[],
         )
-        
+
         assert thread.thread_id == "RT_123"
         assert thread.title == "Review comment about function naming"
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0)
@@ -107,9 +107,9 @@ class TestReviewThread:
             author="johndoe",
             comments=["comment1", "comment2"],
         )
-        
+
         result = thread.to_dict()
-        
+
         assert result == {
             "thread_id": "RT_123",
             "title": "Test Review",
@@ -131,9 +131,9 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         thread = ReviewThread.from_dict(data)
-        
+
         assert thread.thread_id == "RT_123"
         assert thread.title == "Test Review"
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0)
@@ -152,7 +152,7 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         with pytest.raises(ValueError, match="Missing required field: thread_id"):
             ReviewThread.from_dict(data)
 
@@ -167,7 +167,7 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         with pytest.raises(ValueError, match="Invalid date format for created_at"):
             ReviewThread.from_dict(data)
 
@@ -182,9 +182,9 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         thread = ReviewThread.from_dict(data)
-        
+
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0, 123456)
         assert thread.updated_at == datetime(2024, 1, 2, 13, 0, 0, 654321)
 
@@ -199,9 +199,9 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         thread = ReviewThread.from_dict(data)
-        
+
         # Should parse without timezone info (naive datetime)
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0)
         assert thread.updated_at == datetime(2024, 1, 2, 13, 0, 0)
@@ -217,11 +217,11 @@ class TestReviewThread:
             author="johndoe",
             comments=["c1", "c2", "c3"],
         )
-        
+
         # Serialize and deserialize
         data = original.to_dict()
         restored = ReviewThread.from_dict(data)
-        
+
         # Compare all fields
         assert restored.thread_id == original.thread_id
         assert restored.title == original.title
@@ -242,7 +242,7 @@ class TestReviewThread:
             author="johndoe",
             comments=[],
         )
-        
+
         str_repr = str(thread)
         assert "RT_123" in str_repr
         assert "Review comment about function naming" in str_repr
@@ -278,10 +278,10 @@ class TestReviewThread:
             author="user",
             comments=comments,
         )
-        
+
         # Modify original list
         comments.append("c3")
-        
+
         # Thread should still have original comments
         assert len(thread.comments) == 2
         assert "c3" not in thread.comments
@@ -297,9 +297,9 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         thread = ReviewThread.from_dict(data)
-        
+
         # Should parse without timezone info (naive datetime)
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0)
         assert thread.updated_at == datetime(2024, 1, 2, 13, 0, 0)
@@ -316,7 +316,7 @@ class TestReviewThread:
             "author": "johndoe",
             "comments": [],
         }
-        
+
         thread = ReviewThread.from_dict(data)
         assert thread.created_at == datetime(2024, 1, 1, 12, 0, 0)
 
