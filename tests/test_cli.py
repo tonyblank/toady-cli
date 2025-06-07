@@ -371,20 +371,162 @@ class TestResolveCommand:
         assert result.exit_code != 0
         assert "Missing option '--thread-id'" in result.output
 
-    def test_resolve_with_thread_id(self, runner: CliRunner) -> None:
-        """Test resolve with valid thread ID."""
-        result = runner.invoke(cli, ["resolve", "--thread-id", "abc123"])
+    def test_resolve_with_valid_numeric_id(self, runner: CliRunner) -> None:
+        """Test resolve with valid numeric thread ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 0
-        assert "Resolving thread abc123" in result.output
+        assert '"thread_id": "123456789"' in result.output
+        assert '"action": "resolve"' in result.output
+        assert '"success": true' in result.output
+
+    def test_resolve_with_valid_node_id(self, runner: CliRunner) -> None:
+        """Test resolve with valid GitHub node ID."""
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "PRT_kwDOABcD12MAAAABcDE3fg"]
+        )
+        assert result.exit_code == 0
+        assert '"thread_id": "PRT_kwDOABcD12MAAAABcDE3fg"' in result.output
 
     def test_resolve_with_undo_flag(self, runner: CliRunner) -> None:
         """Test resolve with undo flag."""
-        result = runner.invoke(cli, ["resolve", "--thread-id", "abc123", "--undo"])
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
         assert result.exit_code == 0
-        assert "Unresolving thread abc123" in result.output
+        assert '"action": "unresolve"' in result.output
+        assert '"success": true' in result.output
 
-    def test_resolve_help(self, runner: CliRunner) -> None:
-        """Test resolve command help."""
+    def test_resolve_with_pretty_output(self, runner: CliRunner) -> None:
+        """Test resolve with pretty output format."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
+        assert result.exit_code == 0
+        assert "🔒 Resolving thread 123456789" in result.output
+        assert "✅ Thread resolved successfully" in result.output
+
+    def test_resolve_with_undo_pretty_output(self, runner: CliRunner) -> None:
+        """Test unresolve with pretty output format."""
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
+        )
+        assert result.exit_code == 0
+        assert "🔓 Unresolving thread 123456789" in result.output
+        assert "✅ Thread unresolved successfully" in result.output
+
+    def test_resolve_empty_thread_id(self, runner: CliRunner) -> None:
+        """Test resolve with empty thread ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", ""])
+        assert result.exit_code != 0
+        assert "Thread ID cannot be empty" in result.output
+
+    def test_resolve_whitespace_thread_id(self, runner: CliRunner) -> None:
+        """Test resolve with whitespace-only thread ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "   "])
+        assert result.exit_code != 0
+        assert "Thread ID cannot be empty" in result.output
+
+    def test_resolve_invalid_thread_id_format(self, runner: CliRunner) -> None:
+        """Test resolve with invalid thread ID format."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "invalid-id"])
+        assert result.exit_code != 0
+        assert "Thread ID must be numeric" in result.output
+        assert "or a GitHub node ID starting with 'PRT_'" in result.output
+
+    def test_resolve_invalid_node_id_too_short(self, runner: CliRunner) -> None:
+        """Test resolve with too short node ID."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "PRT_abc"])
+        assert result.exit_code != 0
+        assert "GitHub node ID appears too short to be valid" in result.output
+
+    def test_resolve_various_thread_id_formats(self, runner: CliRunner) -> None:
+        """Test resolve with various valid thread ID formats."""
+        test_cases = [
+            "1",
+            "123",
+            "123456789",
+            "PRT_kwDOABcD12M",
+            "PRT_kwDOABcD12MAAAABcDE3fg",
+        ]
+
+        for thread_id in test_cases:
+            result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
+            assert result.exit_code == 0, f"Failed for thread ID: {thread_id}"
+
+    def test_resolve_invalid_thread_id_formats(self, runner: CliRunner) -> None:
+        """Test resolve with various invalid thread ID formats."""
+        test_cases = [
+            "abc123",  # Invalid: starts with letters
+            "123abc",  # Invalid: ends with letters
+            "IC_123",  # Invalid: wrong prefix
+            "PRT_a",  # Invalid: too short node ID
+            "12.34",  # Invalid: contains decimal
+            "-123",  # Invalid: negative number
+            "123 456",  # Invalid: contains space
+        ]
+
+        for thread_id in test_cases:
+            result = runner.invoke(cli, ["resolve", "--thread-id", thread_id])
+            assert (
+                result.exit_code != 0
+            ), f"Should have failed for thread ID: {thread_id}"
+
+    def test_resolve_json_output_structure(self, runner: CliRunner) -> None:
+        """Test that JSON output has correct structure."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
+        assert result.exit_code == 0
+
+        import json
+
+        output = json.loads(result.output)
+        assert "thread_id" in output
+        assert "action" in output
+        assert "success" in output
+        assert "thread_url" in output
+        assert output["thread_id"] == "123456789"
+        assert output["action"] == "resolve"
+        assert output["success"] is True
+        assert "https://github.com/" in output["thread_url"]
+
+    def test_resolve_json_output_with_undo(self, runner: CliRunner) -> None:
+        """Test that JSON output has correct structure with undo flag."""
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--undo"])
+        assert result.exit_code == 0
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["action"] == "unresolve"
+
+    def test_resolve_help_content(self, runner: CliRunner) -> None:
+        """Test resolve command help content."""
         result = runner.invoke(cli, ["resolve", "--help"])
         assert result.exit_code == 0
         assert "Mark a review thread as resolved or unresolved" in result.output
+        assert "Examples:" in result.output
+        assert "--thread-id" in result.output
+        assert "--undo" in result.output
+        assert "--pretty" in result.output
+        assert "numeric ID" in result.output
+        assert "node ID" in result.output
+
+    def test_resolve_parameter_metavars(self, runner: CliRunner) -> None:
+        """Test that parameter metavars are displayed correctly."""
+        result = runner.invoke(cli, ["resolve", "--help"])
+        assert result.exit_code == 0
+        assert "ID" in result.output  # metavar for thread-id
+
+    def test_resolve_all_options_combined(self, runner: CliRunner) -> None:
+        """Test resolve with all options combined."""
+        result = runner.invoke(
+            cli, ["resolve", "--thread-id", "123456789", "--undo", "--pretty"]
+        )
+        assert result.exit_code == 0
+        assert "🔓 Unresolving thread 123456789" in result.output
+        assert "✅ Thread unresolved successfully" in result.output
+
+    def test_resolve_thread_id_parameter_type_validation(
+        self, runner: CliRunner
+    ) -> None:
+        """Test that thread-id parameter accepts string values correctly."""
+        # This tests that string validation works, not Click type validation
+        result = runner.invoke(cli, ["resolve", "--thread-id", "thread-123"])
+        assert (
+            result.exit_code != 0
+        )  # Should fail format validation, not type validation
