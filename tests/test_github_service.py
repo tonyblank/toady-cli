@@ -29,6 +29,24 @@ class TestGitHubService:
         service = GitHubService(timeout=60)
         assert service.timeout == 60
 
+    def test_init_invalid_timeout_zero(self) -> None:
+        """Test GitHubService initialization with zero timeout."""
+        with pytest.raises(ValueError) as exc_info:
+            GitHubService(timeout=0)
+        assert "Timeout must be a positive integer" in str(exc_info.value)
+
+    def test_init_invalid_timeout_negative(self) -> None:
+        """Test GitHubService initialization with negative timeout."""
+        with pytest.raises(ValueError) as exc_info:
+            GitHubService(timeout=-5)
+        assert "Timeout must be a positive integer" in str(exc_info.value)
+
+    def test_init_invalid_timeout_non_integer(self) -> None:
+        """Test GitHubService initialization with non-integer timeout."""
+        with pytest.raises(ValueError) as exc_info:
+            GitHubService(timeout=30.5)  # type: ignore[arg-type]
+        assert "Timeout must be a positive integer" in str(exc_info.value)
+
     @patch("subprocess.run")
     def test_check_gh_installation_success(self, mock_run: Mock) -> None:
         """Test successful gh CLI installation check."""
@@ -304,6 +322,22 @@ class TestGitHubService:
 
     @patch.object(GitHubService, "check_gh_installation")
     @patch("subprocess.run")
+    def test_run_gh_command_rate_limit_error_success_exit_code(
+        self, mock_run: Mock, mock_check: Mock
+    ) -> None:
+        """Test gh command detects rate limit error even with exit code 0."""
+        mock_check.return_value = True
+        mock_run.return_value = Mock(
+            returncode=0, stdout='{"data": null}', stderr="rate limited"
+        )
+
+        service = GitHubService()
+        with pytest.raises(GitHubRateLimitError) as exc_info:
+            service.run_gh_command(["api", "user"])
+        assert "rate limited" in str(exc_info.value)
+
+    @patch.object(GitHubService, "check_gh_installation")
+    @patch("subprocess.run")
     def test_run_gh_command_custom_timeout(
         self, mock_run: Mock, mock_check: Mock
     ) -> None:
@@ -355,11 +389,7 @@ class TestGitHubService:
             "-f",
             "query=query($owner: String!) { }",
             "-f",
-            "owner=testowner",
-            "-f",
-            "repo=testrepo",
-            "-F",
-            "number=123",
+            'variables={"owner": "testowner", "repo": "testrepo", "number": 123}',
         ]
         mock_run.assert_called_once_with(expected_args)
         assert response == {"data": {"repository": {"name": "test"}}}
@@ -437,6 +467,26 @@ class TestGitHubService:
 
         service = GitHubService()
         assert service.validate_repository_access("owner", "repo") is False
+
+    @patch.object(GitHubService, "run_gh_command")
+    def test_validate_repository_access_rate_limit_error(self, mock_run: Mock) -> None:
+        """Test repository access validation re-raises rate limit errors."""
+        mock_run.side_effect = GitHubRateLimitError("Rate limit exceeded")
+
+        service = GitHubService()
+        with pytest.raises(GitHubRateLimitError) as exc_info:
+            service.validate_repository_access("owner", "repo")
+        assert "Rate limit exceeded" in str(exc_info.value)
+
+    @patch.object(GitHubService, "run_gh_command")
+    def test_validate_repository_access_timeout_error(self, mock_run: Mock) -> None:
+        """Test repository access validation re-raises timeout errors."""
+        mock_run.side_effect = GitHubTimeoutError("Command timed out")
+
+        service = GitHubService()
+        with pytest.raises(GitHubTimeoutError) as exc_info:
+            service.validate_repository_access("owner", "repo")
+        assert "Command timed out" in str(exc_info.value)
 
     @patch.object(GitHubService, "run_gh_command")
     def test_check_pr_exists_success(self, mock_run: Mock) -> None:

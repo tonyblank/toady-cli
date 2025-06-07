@@ -49,7 +49,13 @@ class GitHubService:
 
         Args:
             timeout: Command timeout in seconds (default: 30)
+
+        Raises:
+            ValueError: If timeout is not a positive integer.
         """
+        if not isinstance(timeout, int) or timeout <= 0:
+            raise ValueError("Timeout must be a positive integer")
+
         self.gh_command = "gh"
         self.timeout = timeout
 
@@ -183,8 +189,8 @@ class GitHubService:
                     f"GitHub CLI command timed out after {command_timeout} seconds"
                 )
 
-            # Check for rate limiting
-            if result.returncode != 0 and any(
+            # Check for rate limiting (inspect stderr regardless of exit code)
+            if any(
                 phrase in result.stderr.lower()
                 for phrase in ["rate limit", "rate limited", "api rate limit"]
             ):
@@ -276,16 +282,9 @@ class GitHubService:
         """
         args = ["api", "graphql", "-f", f"query={query}"]
 
-        # Add variables if provided
+        # Add variables if provided as a single JSON-encoded argument
         if variables:
-            for key, value in variables.items():
-                if isinstance(value, str):
-                    args.extend(["-f", f"{key}={value}"])
-                elif isinstance(value, int):
-                    args.extend(["-F", f"{key}={value}"])
-                else:
-                    # Convert complex types to JSON strings
-                    args.extend(["-f", f"{key}={json.dumps(value)}"])
+            args.extend(["-f", f"variables={json.dumps(variables)}"])
 
         result = self.run_gh_command(args)
 
@@ -344,11 +343,22 @@ class GitHubService:
 
         Returns:
             True if the repository is accessible, False otherwise.
+
+        Raises:
+            GitHubRateLimitError: If rate limit is exceeded.
+            GitHubTimeoutError: If the command times out.
         """
         try:
             self.run_gh_command(["repo", "view", f"{owner}/{repo}", "--json", "name"])
             return True
+        except GitHubRateLimitError:
+            # Re-raise rate limit errors - these are systemic issues
+            raise
+        except GitHubTimeoutError:
+            # Re-raise timeout errors - these are systemic issues
+            raise
         except GitHubAPIError:
+            # Only suppress general API errors (like 404, permission denied)
             return False
 
     def check_pr_exists(self, owner: str, repo: str, pr_number: int) -> bool:
