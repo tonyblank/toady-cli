@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class GitHubServiceError(Exception):
@@ -29,12 +29,35 @@ class GitHubAPIError(GitHubServiceError):
     pass
 
 
+class GitHubTimeoutError(GitHubServiceError):
+    """Raised when GitHub CLI commands timeout."""
+
+    pass
+
+
+class GitHubRateLimitError(GitHubServiceError):
+    """Raised when GitHub API rate limit is exceeded."""
+
+    pass
+
+
 class GitHubService:
     """Service for interacting with GitHub through the gh CLI."""
 
-    def __init__(self) -> None:
-        """Initialize the GitHub service."""
+    def __init__(self, timeout: int = 30) -> None:
+        """Initialize the GitHub service.
+
+        Args:
+            timeout: Command timeout in seconds (default: 30)
+
+        Raises:
+            ValueError: If timeout is not a positive integer.
+        """
+        if not isinstance(timeout, int) or timeout <= 0:
+            raise ValueError("Timeout must be a positive integer")
+
         self.gh_command = "gh"
+        self.timeout = timeout
 
     def check_gh_installation(self) -> bool:
         """Check if gh CLI is installed and accessible.
@@ -129,11 +152,12 @@ class GitHubService:
 
         return current_parts >= min_parts
 
-    def run_gh_command(self, args: List[str]) -> Any:
-        """Run a gh CLI command with error handling.
+    def run_gh_command(self, args: List[str], timeout: Optional[int] = None) -> Any:
+        """Run a gh CLI command with error handling and timeout support.
 
         Args:
             args: List of command arguments (excluding 'gh').
+            timeout: Command timeout in seconds (uses instance default if None).
 
         Returns:
             CompletedProcess result.
@@ -142,9 +166,13 @@ class GitHubService:
             GitHubCLINotFoundError: If gh CLI is not found.
             GitHubAuthenticationError: If authentication fails.
             GitHubAPIError: If the GitHub API call fails.
+            GitHubTimeoutError: If the command times out.
+            GitHubRateLimitError: If rate limit is exceeded.
         """
         if not self.check_gh_installation():
             raise GitHubCLINotFoundError("gh CLI is not installed or not accessible")
+
+        command_timeout = timeout or self.timeout
 
         try:
             result = subprocess.run(
@@ -152,10 +180,29 @@ class GitHubService:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=command_timeout,
             )
 
+            # Check for timeout (this shouldn't happen as timeout would raise exception)
+            if result.returncode == 124:  # Standard timeout exit code
+                raise GitHubTimeoutError(
+                    f"GitHub CLI command timed out after {command_timeout} seconds"
+                )
+
+            # Check for rate limiting (inspect stderr regardless of exit code)
+            if any(
+                phrase in result.stderr.lower()
+                for phrase in ["rate limit", "rate limited", "api rate limit"]
+            ):
+                raise GitHubRateLimitError(
+                    f"GitHub API rate limit exceeded: {result.stderr}"
+                )
+
             # Check for authentication errors
-            if result.returncode != 0 and "authentication" in result.stderr.lower():
+            if result.returncode != 0 and any(
+                phrase in result.stderr.lower()
+                for phrase in ["authentication", "unauthorized", "forbidden"]
+            ):
                 raise GitHubAuthenticationError(
                     f"GitHub authentication failed: {result.stderr}"
                 )
@@ -166,6 +213,10 @@ class GitHubService:
 
             return result
 
+        except subprocess.TimeoutExpired as e:
+            raise GitHubTimeoutError(
+                f"GitHub CLI command timed out after {command_timeout} seconds"
+            ) from e
         except FileNotFoundError as e:
             raise GitHubCLINotFoundError(
                 "gh CLI is not installed or not accessible"
@@ -209,3 +260,130 @@ class GitHubService:
             return name_with_owner if isinstance(name_with_owner, str) else None
         except (GitHubAPIError, json.JSONDecodeError):
             return None
+
+    def execute_graphql_query(
+        self, query: str, variables: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a GraphQL query using gh CLI.
+
+        Args:
+            query: GraphQL query string.
+            variables: Optional variables for the query.
+
+        Returns:
+            Parsed JSON response from GraphQL API.
+
+        Raises:
+            GitHubCLINotFoundError: If gh CLI is not found.
+            GitHubAuthenticationError: If authentication fails.
+            GitHubAPIError: If the GraphQL query fails.
+            GitHubTimeoutError: If the command times out.
+            GitHubRateLimitError: If rate limit is exceeded.
+        """
+        args = ["api", "graphql", "-f", f"query={query}"]
+
+        # Add variables if provided as a single JSON-encoded argument
+        if variables:
+            args.extend(["-f", f"variables={json.dumps(variables)}"])
+
+        result = self.run_gh_command(args)
+
+        try:
+            response = json.loads(result.stdout)
+
+            # Check for GraphQL errors
+            if "errors" in response:
+                error_messages = [
+                    error.get("message", str(error)) for error in response["errors"]
+                ]
+                raise GitHubAPIError(
+                    f"GraphQL query failed: {'; '.join(error_messages)}"
+                )
+
+            return response  # type: ignore[no-any-return]
+        except json.JSONDecodeError as e:
+            raise GitHubAPIError(f"Failed to parse GraphQL response: {e}") from e
+
+    def get_repo_info_from_url(self, repo_url: str) -> Tuple[str, str]:
+        """Extract owner and repository name from a GitHub URL.
+
+        Args:
+            repo_url: GitHub repository URL (https://github.com/owner/repo).
+
+        Returns:
+            Tuple of (owner, repo_name).
+
+        Raises:
+            ValueError: If the URL format is invalid.
+        """
+        import re
+
+        # Match various GitHub URL formats
+        patterns = [
+            r"github\.com[:/]([^/]+)/([^/\.]+)",  # SSH or HTTPS
+            r"^([^/]+)/([^/]+)$",  # owner/repo format
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, repo_url)
+            if match:
+                owner, repo = match.groups()
+                # Remove .git suffix if present
+                repo = repo.rstrip(".git")
+                return owner, repo
+
+        raise ValueError(f"Invalid GitHub repository URL or format: {repo_url}")
+
+    def validate_repository_access(self, owner: str, repo: str) -> bool:
+        """Validate that the current user has access to the specified repository.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+
+        Returns:
+            True if the repository is accessible, False otherwise.
+
+        Raises:
+            GitHubRateLimitError: If rate limit is exceeded.
+            GitHubTimeoutError: If the command times out.
+        """
+        try:
+            self.run_gh_command(["repo", "view", f"{owner}/{repo}", "--json", "name"])
+            return True
+        except GitHubRateLimitError:
+            # Re-raise rate limit errors - these are systemic issues
+            raise
+        except GitHubTimeoutError:
+            # Re-raise timeout errors - these are systemic issues
+            raise
+        except GitHubAPIError:
+            # Only suppress general API errors (like 404, permission denied)
+            return False
+
+    def check_pr_exists(self, owner: str, repo: str, pr_number: int) -> bool:
+        """Check if a pull request exists in the specified repository.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
+        Returns:
+            True if the PR exists, False otherwise.
+        """
+        try:
+            self.run_gh_command(
+                [
+                    "pr",
+                    "view",
+                    str(pr_number),
+                    "--repo",
+                    f"{owner}/{repo}",
+                    "--json",
+                    "number",
+                ]
+            )
+            return True
+        except GitHubAPIError:
+            return False
