@@ -142,19 +142,224 @@ class TestReplyCommand:
         assert result.exit_code != 0
         assert "Missing option '--body'" in result.output
 
-    def test_reply_with_valid_options(self, runner: CliRunner) -> None:
-        """Test reply with valid options."""
+    def test_reply_requires_comment_id(self, runner: CliRunner) -> None:
+        """Test that reply requires --comment-id option."""
+        result = runner.invoke(cli, ["reply", "--body", "Test reply"])
+        assert result.exit_code != 0
+        assert "Missing option '--comment-id'" in result.output
+
+    def test_reply_with_valid_numeric_id(self, runner: CliRunner) -> None:
+        """Test reply with valid numeric comment ID."""
         result = runner.invoke(
-            cli, ["reply", "--comment-id", "12345", "--body", "Test reply"]
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 0
-        assert "Replying to comment 12345" in result.output
+        assert '"comment_id": "123456789"' in result.output
+        assert '"reply_posted": true' in result.output
 
-    def test_reply_help(self, runner: CliRunner) -> None:
-        """Test reply command help."""
+    def test_reply_with_valid_node_id(self, runner: CliRunner) -> None:
+        """Test reply with valid GitHub node ID."""
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "IC_kwDOABcD12MAAAABcDE3fg",
+                "--body",
+                "Test reply",
+            ],
+        )
+        assert result.exit_code == 0
+        assert '"comment_id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
+
+    def test_reply_with_pretty_output(self, runner: CliRunner) -> None:
+        """Test reply with pretty output format."""
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 0
+        assert "💬 Posting reply to comment 123456789" in result.output
+        assert "📝 Reply: Test reply" in result.output
+        assert "✅ Reply posted successfully" in result.output
+
+    def test_reply_empty_comment_id(self, runner: CliRunner) -> None:
+        """Test reply with empty comment ID."""
+        result = runner.invoke(cli, ["reply", "--comment-id", "", "--body", "Test"])
+        assert result.exit_code != 0
+        assert "Comment ID cannot be empty" in result.output
+
+    def test_reply_whitespace_comment_id(self, runner: CliRunner) -> None:
+        """Test reply with whitespace-only comment ID."""
+        result = runner.invoke(cli, ["reply", "--comment-id", "   ", "--body", "Test"])
+        assert result.exit_code != 0
+        assert "Comment ID cannot be empty" in result.output
+
+    def test_reply_invalid_comment_id_format(self, runner: CliRunner) -> None:
+        """Test reply with invalid comment ID format."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "invalid-id", "--body", "Test"]
+        )
+        assert result.exit_code != 0
+        assert "Comment ID must be numeric" in result.output
+        assert "or a GitHub node ID starting with 'IC_'" in result.output
+
+    def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
+        """Test reply with too short node ID."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "IC_abc", "--body", "Test"]
+        )
+        assert result.exit_code != 0
+        assert "GitHub node ID appears too short to be valid" in result.output
+
+    def test_reply_empty_body(self, runner: CliRunner) -> None:
+        """Test reply with empty body."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", ""]
+        )
+        assert result.exit_code != 0
+        assert "Reply body cannot be empty" in result.output
+
+    def test_reply_whitespace_only_body(self, runner: CliRunner) -> None:
+        """Test reply with whitespace-only body."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "   \n\t   "]
+        )
+        assert result.exit_code != 0
+        assert "Reply body cannot be empty" in result.output
+
+    def test_reply_body_too_long(self, runner: CliRunner) -> None:
+        """Test reply with body exceeding maximum length."""
+        long_body = "x" * 65537  # One character over the limit
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", long_body]
+        )
+        assert result.exit_code != 0
+        assert "Reply body cannot exceed 65,536 characters" in result.output
+
+    def test_reply_body_at_maximum_length(self, runner: CliRunner) -> None:
+        """Test reply with body at maximum length."""
+        max_body = "x" * 65536  # Exactly at the limit
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", max_body]
+        )
+        assert result.exit_code == 0
+        assert '"reply_posted": true' in result.output
+
+    def test_reply_body_with_mention_warning(self, runner: CliRunner) -> None:
+        """Test reply with body starting with @ shows warning."""
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "@user thanks!",
+                "--pretty",
+            ],
+        )
+        assert result.exit_code == 0
+        assert (
+            "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
+        )
+
+    def test_reply_body_with_mention_no_warning_json(self, runner: CliRunner) -> None:
+        """Test reply with @ mention doesn't show warning in JSON mode."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "@user thanks!"]
+        )
+        assert result.exit_code == 0
+        assert "⚠️" not in result.output
+
+    def test_reply_long_body_truncation_in_pretty_mode(self, runner: CliRunner) -> None:
+        """Test that long reply body is truncated in pretty output."""
+        long_body = (
+            "This is a very long reply body that should be truncated in the "
+            "pretty output mode to avoid cluttering the terminal with too much text"
+        )
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", long_body, "--pretty"]
+        )
+        assert result.exit_code == 0
+        # Check that truncation occurs at around 100 characters
+        assert (
+            "📝 Reply: This is a very long reply body that should be truncated"
+            in result.output
+        )
+        assert "..." in result.output
+
+    def test_reply_various_comment_id_formats(self, runner: CliRunner) -> None:
+        """Test reply with various valid comment ID formats."""
+        test_cases = [
+            "1",
+            "123",
+            "123456789",
+            "IC_kwDOABcD12M",
+            "IC_kwDOABcD12MAAAABcDE3fg",
+        ]
+
+        for comment_id in test_cases:
+            result = runner.invoke(
+                cli, ["reply", "--comment-id", comment_id, "--body", "Test reply"]
+            )
+            assert result.exit_code == 0, f"Failed for comment ID: {comment_id}"
+
+    def test_reply_invalid_comment_id_formats(self, runner: CliRunner) -> None:
+        """Test reply with various invalid comment ID formats."""
+        test_cases = [
+            "abc123",  # Invalid: starts with letters
+            "123abc",  # Invalid: ends with letters
+            "PR_123",  # Invalid: wrong prefix
+            "IC_a",  # Invalid: too short node ID
+            "12.34",  # Invalid: contains decimal
+            "-123",  # Invalid: negative number
+            "123 456",  # Invalid: contains space
+        ]
+
+        for comment_id in test_cases:
+            result = runner.invoke(
+                cli, ["reply", "--comment-id", comment_id, "--body", "Test reply"]
+            )
+            assert (
+                result.exit_code != 0
+            ), f"Should have failed for comment ID: {comment_id}"
+
+    def test_reply_json_output_structure(self, runner: CliRunner) -> None:
+        """Test that JSON output has correct structure."""
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 0
+
+        import json
+
+        output = json.loads(result.output)
+        assert "comment_id" in output
+        assert "reply_posted" in output
+        assert "reply_url" in output
+        assert output["comment_id"] == "123456789"
+        assert output["reply_posted"] is True
+        assert "https://github.com/" in output["reply_url"]
+
+    def test_reply_help_content(self, runner: CliRunner) -> None:
+        """Test reply command help content."""
         result = runner.invoke(cli, ["reply", "--help"])
         assert result.exit_code == 0
         assert "Post a reply to a specific review comment" in result.output
+        assert "Examples:" in result.output
+        assert "--comment-id" in result.output
+        assert "--body" in result.output
+        assert "--pretty" in result.output
+        assert "numeric ID" in result.output
+        assert "node ID" in result.output
+
+    def test_reply_parameter_metavars(self, runner: CliRunner) -> None:
+        """Test that parameter metavars are displayed correctly."""
+        result = runner.invoke(cli, ["reply", "--help"])
+        assert result.exit_code == 0
+        assert "ID" in result.output  # metavar for comment-id
+        assert "TEXT" in result.output  # metavar for body
 
 
 class TestResolveCommand:
