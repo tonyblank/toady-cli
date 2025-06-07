@@ -687,6 +687,12 @@ class TestReviewThreadEdgeCases:
         # Thread's comments should be unchanged
         assert thread.comments == ["C_1", "C_2"]
 
+        # Modify thread's comments list
+        thread.comments.append("C_4")
+
+        # Original list should be unchanged
+        assert original_comments == ["C_1", "C_2", "C_3"]
+
     def test_extreme_date_differences(self) -> None:
         """Test with extreme date differences."""
         created = datetime(1970, 1, 1, 0, 0, 0)
