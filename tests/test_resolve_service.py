@@ -1,13 +1,10 @@
 """Tests for the resolve service module."""
 
-import json
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 from toady.github_service import (
-    GitHubAPIError,
-    GitHubAuthenticationError,
     GitHubService,
 )
 from toady.resolve_service import (

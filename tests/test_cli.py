@@ -670,7 +670,9 @@ class TestResolveCommand:
         assert result.exit_code == 0
         assert '"thread_id": "PRT_kwDOABcD12MAAAABcDE3fg"' in result.output
 
-        mock_service.resolve_thread.assert_called_once_with("PRT_kwDOABcD12MAAAABcDE3fg")
+        mock_service.resolve_thread.assert_called_once_with(
+            "PRT_kwDOABcD12MAAAABcDE3fg"
+        )
 
     @patch("toady.cli.ResolveService")
     def test_resolve_with_undo_flag(
@@ -711,7 +713,9 @@ class TestResolveCommand:
         assert result.exit_code == 0
         assert "🔒 Resolving thread 123456789" in result.output
         assert "✅ Thread resolved successfully" in result.output
-        assert "🔗 View thread at: https://github.com/owner/repo/pull/123" in result.output
+        assert (
+            "🔗 View thread at: https://github.com/owner/repo/pull/123" in result.output
+        )
 
     @patch("toady.cli.ResolveService")
     def test_resolve_with_undo_pretty_output(
@@ -790,10 +794,10 @@ class TestResolveCommand:
             "abc123",  # Invalid: starts with letters
             "123abc",  # Invalid: ends with letters
             "IC_123",  # Invalid: wrong prefix
-            "PRT_a",   # Invalid: too short node ID
-            "12.34",   # Invalid: contains decimal
-            "-123",    # Invalid: negative number
-            "123 456", # Invalid: contains space
+            "PRT_a",  # Invalid: too short node ID
+            "12.34",  # Invalid: contains decimal
+            "-123",  # Invalid: negative number
+            "123 456",  # Invalid: contains space
         ]
 
         for thread_id in test_cases:
@@ -864,9 +868,7 @@ class TestResolveCommand:
         )
         mock_service_class.return_value = mock_service
 
-        result = runner.invoke(
-            cli, ["resolve", "--thread-id", "999", "--pretty"]
-        )
+        result = runner.invoke(cli, ["resolve", "--thread-id", "999", "--pretty"])
         assert result.exit_code == 1
         assert "❌ Thread not found: Thread 999 not found" in result.output
 
@@ -904,9 +906,7 @@ class TestResolveCommand:
         )
         mock_service_class.return_value = mock_service
 
-        result = runner.invoke(
-            cli, ["resolve", "--thread-id", "123456789", "--pretty"]
-        )
+        result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
         assert result.exit_code == 1
         assert "❌ Permission denied: Permission denied" in result.output
         assert "💡 Ensure you have write access to the repository" in result.output
