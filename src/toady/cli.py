@@ -12,6 +12,12 @@ from toady.reply_service import (
     ReplyService,
     ReplyServiceError,
 )
+from toady.resolve_service import (
+    ResolveService,
+    ResolveServiceError,
+    ThreadNotFoundError,
+    ThreadPermissionError,
+)
 
 
 @click.group()
@@ -306,22 +312,80 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
         # For JSON output, we'll just return the result without progress messages
         pass
 
-    # TODO: Implement actual resolve/unresolve logic in subsequent tasks
-    # For now, show placeholder behavior
-    if pretty:
-        click.echo(f"✅ Thread {action_past} successfully")
-        click.echo(
-            f"🔗 View thread at: https://github.com/owner/repo/pull/123#discussion_r{thread_id}"
-        )
-    else:
-        # Return minimal JSON response
-        result = {
-            "thread_id": thread_id,
-            "action": "unresolve" if undo else "resolve",
-            "success": True,
-            "thread_url": f"https://github.com/owner/repo/pull/123#discussion_r{thread_id}",
-        }
-        click.echo(json.dumps(result))
+    # Execute the resolve/unresolve operation using the resolve service
+    try:
+        resolve_service = ResolveService()
+        
+        if undo:
+            result = resolve_service.unresolve_thread(thread_id)
+        else:
+            result = resolve_service.resolve_thread(thread_id)
+
+        if pretty:
+            click.echo(f"✅ Thread {action_past} successfully")
+            if result.get("thread_url"):
+                click.echo(f"🔗 View thread at: {result['thread_url']}")
+        else:
+            # Return JSON response with actual result information
+            click.echo(json.dumps(result))
+
+    except ThreadNotFoundError as e:
+        if pretty:
+            click.echo(f"❌ Thread not found: {e}", err=True)
+        else:
+            error_result = {
+                "thread_id": thread_id,
+                "action": "unresolve" if undo else "resolve",
+                "success": False,
+                "error": "thread_not_found",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except ThreadPermissionError as e:
+        if pretty:
+            click.echo(f"❌ Permission denied: {e}", err=True)
+            click.echo("💡 Ensure you have write access to the repository", err=True)
+        else:
+            error_result = {
+                "thread_id": thread_id,
+                "action": "unresolve" if undo else "resolve",
+                "success": False,
+                "error": "permission_denied",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except GitHubAuthenticationError as e:
+        if pretty:
+            click.echo(f"❌ Authentication failed: {e}", err=True)
+            click.echo("💡 Try running: gh auth login", err=True)
+        else:
+            error_result = {
+                "thread_id": thread_id,
+                "action": "unresolve" if undo else "resolve",
+                "success": False,
+                "error": "authentication_failed",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except (ResolveServiceError, GitHubAPIError) as e:
+        if pretty:
+            click.echo(f"❌ Failed to resolve thread: {e}", err=True)
+        else:
+            error_result = {
+                "thread_id": thread_id,
+                "action": "unresolve" if undo else "resolve",
+                "success": False,
+                "error": "api_error",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
 
 
 def main() -> None:
