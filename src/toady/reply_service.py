@@ -27,7 +27,6 @@ class ReplyRequest:
     reply_body: str
     owner: Optional[str] = None
     repo: Optional[str] = None
-    pull_number: Optional[int] = None
 
 
 class ReplyService:
@@ -65,17 +64,8 @@ class ReplyService:
             owner = request.owner
             repo = request.repo
 
-        # Get pull request number if not provided
-        if not request.pull_number:
-            pull_number = self._get_pull_number_from_comment(request.comment_id)
-        else:
-            pull_number = request.pull_number
-
         # Construct the API endpoint
-        endpoint = (
-            f"repos/{owner}/{repo}/pulls/{pull_number}/comments/"
-            f"{request.comment_id}/replies"
-        )
+        endpoint = f"repos/{owner}/{repo}/pulls/comments/{request.comment_id}/replies"
 
         # Prepare the request payload (for reference)
         # payload = {"body": request.reply_body}
@@ -113,7 +103,7 @@ class ReplyService:
             # Check if it's a "not found" error for the comment
             if "404" in str(e) or "not found" in str(e).lower():
                 raise CommentNotFoundError(
-                    f"Comment {request.comment_id} not found in PR #{pull_number}"
+                    f"Comment {request.comment_id} not found"
                 ) from e
             raise ReplyServiceError(f"Failed to post reply: {e}") from e
 
@@ -138,44 +128,6 @@ class ReplyService:
             raise ReplyServiceError(f"Invalid repository format: {repo_info}")
 
         return parts[0], parts[1]
-
-    def _get_pull_number_from_comment(self, comment_id: str) -> int:  # noqa: ARG002
-        """Get the pull request number associated with a comment.
-
-        This is a simplified implementation that would need to be enhanced
-        for a production system. For now, we'll require the PR number to be
-        provided explicitly or detect it from the current branch.
-
-        Args:
-            comment_id: Comment ID.
-
-        Returns:
-            Pull request number.
-
-        Raises:
-            ReplyServiceError: If PR number cannot be determined.
-        """
-        # For now, we'll try to get the PR number from the current branch
-        # In a full implementation, we'd query the API to find which PR
-        # contains this comment
-        try:
-            # Try to get PR associated with current branch
-            args = ["pr", "view", "--json", "number"]
-            result = self.github_service.run_gh_command(args)
-            data = json.loads(result.stdout)
-            pr_number = data.get("number")
-
-            if isinstance(pr_number, int):
-                return pr_number
-
-        except (GitHubAPIError, json.JSONDecodeError, KeyError):
-            pass
-
-        raise ReplyServiceError(
-            "Could not determine pull request number. "
-            "Please ensure you're on a branch associated with a pull request, "
-            "or specify the PR number explicitly."
-        )
 
     def validate_comment_exists(
         self, owner: str, repo: str, pull_number: int, comment_id: str

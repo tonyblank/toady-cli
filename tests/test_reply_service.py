@@ -34,10 +34,7 @@ class TestReplyService:
         assert service.github_service is mock_github_service
 
     @patch.object(ReplyService, "_get_repository_info")
-    @patch.object(ReplyService, "_get_pull_number_from_comment")
-    def test_post_reply_success(
-        self, mock_get_pr_number: Mock, mock_get_repo_info: Mock
-    ) -> None:
+    def test_post_reply_success(self, mock_get_repo_info: Mock) -> None:
         """Test successful reply posting."""
         mock_github_service = Mock(spec=GitHubService)
         mock_response = Mock()
@@ -52,7 +49,6 @@ class TestReplyService:
         mock_github_service.run_gh_command.return_value = mock_response
 
         mock_get_repo_info.return_value = ("owner", "repo")
-        mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
@@ -67,7 +63,7 @@ class TestReplyService:
         # Verify the API call was made correctly
         expected_args = [
             "api",
-            "repos/owner/repo/pulls/1/comments/123456789/replies",
+            "repos/owner/repo/pulls/comments/123456789/replies",
             "--method",
             "POST",
             "--field",
@@ -97,7 +93,6 @@ class TestReplyService:
             reply_body="Thanks for the feedback!",
             owner="testowner",
             repo="testrepo",
-            pull_number=5,
         )
         result = service.post_reply(request)
 
@@ -107,7 +102,7 @@ class TestReplyService:
         # Verify the API call with explicit parameters
         expected_args = [
             "api",
-            "repos/testowner/testrepo/pulls/5/comments/IC_kwDOABcD12MAAAABcDE3fg/replies",
+            "repos/testowner/testrepo/pulls/comments/IC_kwDOABcD12MAAAABcDE3fg/replies",
             "--method",
             "POST",
             "--field",
@@ -118,29 +113,22 @@ class TestReplyService:
         mock_github_service.run_gh_command.assert_called_once_with(expected_args)
 
     @patch.object(ReplyService, "_get_repository_info")
-    @patch.object(ReplyService, "_get_pull_number_from_comment")
-    def test_post_reply_comment_not_found(
-        self, mock_get_pr_number: Mock, mock_get_repo_info: Mock
-    ) -> None:
+    def test_post_reply_comment_not_found(self, mock_get_repo_info: Mock) -> None:
         """Test reply posting when comment is not found."""
         mock_github_service = Mock(spec=GitHubService)
         mock_github_service.run_gh_command.side_effect = GitHubAPIError("404 Not Found")
 
         mock_get_repo_info.return_value = ("owner", "repo")
-        mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(comment_id="nonexistent", reply_body="Test reply")
         with pytest.raises(CommentNotFoundError) as exc_info:
             service.post_reply(request)
 
-        assert "Comment nonexistent not found in PR #1" in str(exc_info.value)
+        assert "Comment nonexistent not found" in str(exc_info.value)
 
     @patch.object(ReplyService, "_get_repository_info")
-    @patch.object(ReplyService, "_get_pull_number_from_comment")
-    def test_post_reply_authentication_error(
-        self, mock_get_pr_number: Mock, mock_get_repo_info: Mock
-    ) -> None:
+    def test_post_reply_authentication_error(self, mock_get_repo_info: Mock) -> None:
         """Test reply posting with authentication error."""
         mock_github_service = Mock(spec=GitHubService)
         mock_github_service.run_gh_command.side_effect = GitHubAuthenticationError(
@@ -148,7 +136,6 @@ class TestReplyService:
         )
 
         mock_get_repo_info.return_value = ("owner", "repo")
-        mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
@@ -156,10 +143,7 @@ class TestReplyService:
             service.post_reply(request)
 
     @patch.object(ReplyService, "_get_repository_info")
-    @patch.object(ReplyService, "_get_pull_number_from_comment")
-    def test_post_reply_invalid_json_response(
-        self, mock_get_pr_number: Mock, mock_get_repo_info: Mock
-    ) -> None:
+    def test_post_reply_invalid_json_response(self, mock_get_repo_info: Mock) -> None:
         """Test reply posting with invalid JSON response."""
         mock_github_service = Mock(spec=GitHubService)
         mock_response = Mock()
@@ -167,7 +151,6 @@ class TestReplyService:
         mock_github_service.run_gh_command.return_value = mock_response
 
         mock_get_repo_info.return_value = ("owner", "repo")
-        mock_get_pr_number.return_value = 1
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
@@ -208,45 +191,6 @@ class TestReplyService:
             service._get_repository_info()
 
         assert "Invalid repository format" in str(exc_info.value)
-
-    def test_get_pull_number_from_comment_success(self) -> None:
-        """Test successful PR number retrieval from current branch."""
-        mock_github_service = Mock(spec=GitHubService)
-        mock_response = Mock()
-        mock_response.stdout = json.dumps({"number": 42})
-        mock_github_service.run_gh_command.return_value = mock_response
-
-        service = ReplyService(mock_github_service)
-        pr_number = service._get_pull_number_from_comment("123456789")
-
-        assert pr_number == 42
-        mock_github_service.run_gh_command.assert_called_once_with(
-            ["pr", "view", "--json", "number"]
-        )
-
-    def test_get_pull_number_from_comment_no_pr(self) -> None:
-        """Test PR number retrieval when not on a PR branch."""
-        mock_github_service = Mock(spec=GitHubService)
-        mock_github_service.run_gh_command.side_effect = GitHubAPIError("No PR found")
-
-        service = ReplyService(mock_github_service)
-        with pytest.raises(ReplyServiceError) as exc_info:
-            service._get_pull_number_from_comment("123456789")
-
-        assert "Could not determine pull request number" in str(exc_info.value)
-
-    def test_get_pull_number_from_comment_invalid_response(self) -> None:
-        """Test PR number retrieval with invalid response."""
-        mock_github_service = Mock(spec=GitHubService)
-        mock_response = Mock()
-        mock_response.stdout = json.dumps({"number": "not-a-number"})
-        mock_github_service.run_gh_command.return_value = mock_response
-
-        service = ReplyService(mock_github_service)
-        with pytest.raises(ReplyServiceError) as exc_info:
-            service._get_pull_number_from_comment("123456789")
-
-        assert "Could not determine pull request number" in str(exc_info.value)
 
     def test_validate_comment_exists_success(self) -> None:
         """Test successful comment validation."""
@@ -347,7 +291,6 @@ class TestReplyServiceIntegration:
             reply_body=special_body,
             owner="owner",
             repo="repo",
-            pull_number=1,
         )
         result = service.post_reply(request)
 
@@ -356,7 +299,7 @@ class TestReplyServiceIntegration:
         # Verify the special characters were properly passed
         expected_args = [
             "api",
-            "repos/owner/repo/pulls/1/comments/123456789/replies",
+            "repos/owner/repo/pulls/comments/123456789/replies",
             "--method",
             "POST",
             "--field",
@@ -388,7 +331,6 @@ class TestReplyServiceIntegration:
             reply_body=large_body,
             owner="owner",
             repo="repo",
-            pull_number=1,
         )
         result = service.post_reply(request)
 
@@ -397,7 +339,7 @@ class TestReplyServiceIntegration:
         # Verify the large body was properly handled
         expected_args = [
             "api",
-            "repos/owner/repo/pulls/1/comments/123456789/replies",
+            "repos/owner/repo/pulls/comments/123456789/replies",
             "--method",
             "POST",
             "--field",
