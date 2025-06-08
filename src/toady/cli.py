@@ -1,7 +1,7 @@
 """Main CLI interface for Toady."""
 
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import click
 
