@@ -1,11 +1,14 @@
 """Main CLI interface for Toady."""
 
 import json
+from typing import List
 
 import click
 
 from toady import __version__
+from toady.formatters import format_fetch_output
 from toady.github_service import GitHubAPIError, GitHubAuthenticationError
+from toady.models import ReviewThread
 from toady.reply_service import (
     CommentNotFoundError,
     ReplyRequest,
@@ -84,20 +87,22 @@ def fetch(
     if limit > 1000:
         raise click.BadParameter("Limit cannot exceed 1000", param_hint="--limit")
 
-    # Show what we're fetching
-    thread_type = "all threads" if resolved else "unresolved threads"
-    if pretty:
-        click.echo(f"🔍 Fetching {thread_type} for PR #{pr_number} (limit: {limit})")
-    else:
-        # For JSON output, we'll just return the data without progress messages
-        pass
-
     # TODO: Implement actual fetch logic in subsequent tasks
-    # For now, show placeholder behavior
-    if pretty:
-        click.echo("📝 Found 0 review threads")
-    else:
-        click.echo("[]")
+    # For now, show placeholder behavior with empty thread list
+    thread_type = "all threads" if resolved else "unresolved threads"
+    threads: List[ReviewThread] = (
+        []
+    )  # Placeholder - will be populated by actual fetch logic
+
+    # Use formatters to display output
+    format_fetch_output(
+        threads=threads,
+        pretty=pretty,
+        show_progress=True,
+        pr_number=pr_number,
+        thread_type=thread_type,
+        limit=limit,
+    )
 
 
 @cli.command()
