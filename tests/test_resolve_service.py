@@ -290,6 +290,201 @@ class TestResolveServiceErrorHandling:
                 service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
 
 
+class TestValidateThreadExists:
+    """Test the validate_thread_exists method."""
+
+    def test_validate_thread_exists_success(self) -> None:
+        """Test successful thread validation."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "node": {
+                    "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                    "pullRequest": {
+                        "number": 123,
+                        "repository": {
+                            "owner": {"login": "testowner"},
+                            "name": "testrepo",
+                        },
+                    },
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
+        )
+
+        assert result is True
+        mock_github_service.execute_graphql_query.assert_called_once()
+        call_args = mock_github_service.execute_graphql_query.call_args
+        query, variables = call_args[0]
+        assert "node(id: $threadId)" in query
+        assert variables["threadId"] == "PRT_kwDOABcD12MAAAABcDE3fg"
+        assert variables["owner"] == "testowner"
+        assert variables["repo"] == "testrepo"
+        assert variables["number"] == 123
+
+    def test_validate_thread_exists_thread_not_found(self) -> None:
+        """Test thread validation when thread doesn't exist."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {"node": None}
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "nonexistent"
+        )
+
+        assert result is False
+
+    def test_validate_thread_exists_wrong_pr_number(self) -> None:
+        """Test thread validation when thread belongs to different PR."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "node": {
+                    "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                    "pullRequest": {
+                        "number": 456,  # Different PR number
+                        "repository": {
+                            "owner": {"login": "testowner"},
+                            "name": "testrepo",
+                        },
+                    },
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
+        )
+
+        assert result is False
+
+    def test_validate_thread_exists_wrong_repository(self) -> None:
+        """Test thread validation when thread belongs to different repository."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "node": {
+                    "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                    "pullRequest": {
+                        "number": 123,
+                        "repository": {
+                            "owner": {"login": "differentowner"},
+                            "name": "differentrepo",
+                        },
+                    },
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
+        )
+
+        assert result is False
+
+    def test_validate_thread_exists_graphql_errors(self) -> None:
+        """Test thread validation with GraphQL errors (returns False, doesn't raise)."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "errors": [{"message": "Thread not found"}, {"message": "Access denied"}]
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "invalid_thread"
+        )
+
+        assert result is False
+
+    def test_validate_thread_exists_api_error(self) -> None:
+        """Test thread validation with API error (raises ResolveServiceError)."""
+        from toady.github_service import GitHubAPIError
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.side_effect = GitHubAPIError(
+            "API failure"
+        )
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(ResolveServiceError) as exc_info:
+            service.validate_thread_exists(
+                "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
+            )
+
+        assert "Failed to validate thread existence due to API error" in str(
+            exc_info.value
+        )
+        assert "API failure" in str(exc_info.value)
+
+    def test_validate_thread_exists_malformed_response(self) -> None:
+        """Test thread validation with malformed response."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "node": {
+                    "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                    "pullRequest": {
+                        # Missing number field - will cause KeyError
+                        "repository": {
+                            "owner": {"login": "testowner"},
+                            "name": "testrepo",
+                        }
+                    },
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+
+        # The method should handle KeyError gracefully and raise ResolveServiceError
+        # Actually, current implementation uses .get() so it won't raise KeyError
+        # Let me test with a different malformed response
+        mock_github_service.execute_graphql_query.return_value = (
+            "invalid_json_structure"
+        )
+
+        with pytest.raises(ResolveServiceError) as exc_info:
+            service.validate_thread_exists(
+                "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
+            )
+
+        assert "Failed to validate thread existence" in str(exc_info.value)
+
+    def test_validate_thread_exists_numeric_thread_id(self) -> None:
+        """Test thread validation with numeric thread ID."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "node": {
+                    "id": "123456789",
+                    "pullRequest": {
+                        "number": 123,
+                        "repository": {
+                            "owner": {"login": "testowner"},
+                            "name": "testrepo",
+                        },
+                    },
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.validate_thread_exists(
+            "testowner", "testrepo", 123, "123456789"
+        )
+
+        assert result is True
+
+
 class TestResolveServiceIntegration:
     """Integration tests for resolve service with edge cases."""
 

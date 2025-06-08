@@ -1,5 +1,6 @@
 """Service for resolving and unresolving review threads via GitHub GraphQL API."""
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
@@ -176,6 +177,9 @@ class ResolveService:
     ) -> bool:
         """Validate that a thread exists in the specified pull request.
 
+        This method queries the specific thread directly rather than fetching all
+        threads, making it more efficient and avoiding pagination issues with large PRs.
+
         Args:
             owner: Repository owner.
             repo: Repository name.
@@ -184,16 +188,32 @@ class ResolveService:
 
         Returns:
             True if the thread exists, False otherwise.
+
+        Raises:
+            ResolveServiceError: If there's an API error that prevents validation.
         """
+        logger = logging.getLogger(__name__)
+
         try:
-            # Query to check if thread exists in the PR
+            # Query the specific thread directly using the GitHub GraphQL node interface
+            # This is more efficient than fetching all threads and avoids pagination
             query = """
-            query CheckThreadExists($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                    pullRequest(number: $number) {
-                        reviewThreads(first: 100) {
-                            nodes {
-                                id
+            query ValidateThreadExists(
+                $threadId: ID!
+                $owner: String!
+                $repo: String!
+                $number: Int!
+            ) {
+                node(id: $threadId) {
+                    ... on PullRequestReviewThread {
+                        id
+                        pullRequest {
+                            number
+                            repository {
+                                owner {
+                                    login
+                                }
+                                name
                             }
                         }
                     }
@@ -202,6 +222,7 @@ class ResolveService:
             """
 
             variables = {
+                "threadId": thread_id,
                 "owner": owner,
                 "repo": repo,
                 "number": pull_number,
@@ -209,16 +230,89 @@ class ResolveService:
 
             result = self.github_service.execute_graphql_query(query, variables)
 
-            # Check if thread_id exists in the returned threads
-            threads = (
-                result.get("data", {})
-                .get("repository", {})
-                .get("pullRequest", {})
-                .get("reviewThreads", {})
-                .get("nodes", [])
+            # Check for GraphQL errors
+            if "errors" in result:
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                logger.warning(
+                    "GraphQL errors during thread validation for thread %s: %s",
+                    thread_id,
+                    "; ".join(error_messages),
+                )
+                # For validation, GraphQL errors typically mean the thread doesn't exist
+                # or we don't have access to it, so return False
+                return False
+
+            # Extract the thread node from response
+            thread_node = result.get("data", {}).get("node")
+
+            if not thread_node:
+                # Thread doesn't exist or is not a PullRequestReviewThread
+                return False
+
+            # Verify the thread belongs to the correct PR and repository
+            pull_request = thread_node.get("pullRequest", {})
+            if pull_request.get("number") != pull_number:
+                logger.warning(
+                    "Thread %s exists but belongs to PR #%d, not #%d",
+                    thread_id,
+                    pull_request.get("number", -1),
+                    pull_number,
+                )
+                return False
+
+            repository = pull_request.get("repository", {})
+            repo_owner = repository.get("owner", {}).get("login", "")
+            repo_name = repository.get("name", "")
+
+            if repo_owner != owner or repo_name != repo:
+                logger.warning(
+                    "Thread %s exists but belongs to %s/%s, not %s/%s",
+                    thread_id,
+                    repo_owner,
+                    repo_name,
+                    owner,
+                    repo,
+                )
+                return False
+
+            return True
+
+        except GitHubAPIError as e:
+            logger.error(
+                "GitHub API error during thread validation for thread %s in %s/%s "
+                "PR #%d: %s",
+                thread_id,
+                owner,
+                repo,
+                pull_number,
+                str(e),
             )
-
-            return any(thread.get("id") == thread_id for thread in threads)
-
-        except (GitHubAPIError, KeyError):
-            return False
+            raise ResolveServiceError(
+                f"Failed to validate thread existence due to API error: {e}"
+            ) from e
+        except KeyError as e:
+            logger.error(
+                "Unexpected response structure during thread validation for thread %s: "
+                "missing key %s",
+                thread_id,
+                str(e),
+            )
+            raise ResolveServiceError(
+                f"Failed to validate thread existence due to unexpected response "
+                f"structure: {e}"
+            ) from e
+        except Exception as e:
+            logger.error(
+                "Unexpected error during thread validation for thread %s in %s/%s "
+                "PR #%d: %s",
+                thread_id,
+                owner,
+                repo,
+                pull_number,
+                str(e),
+            )
+            raise ResolveServiceError(
+                f"Failed to validate thread existence due to unexpected error: {e}"
+            ) from e
