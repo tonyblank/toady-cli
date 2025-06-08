@@ -1,7 +1,7 @@
 """Main CLI interface for Toady."""
 
 import json
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import click
 
@@ -328,7 +328,9 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
     return comment_id, body
 
 
-def _print_pretty_reply(reply_info: dict, verbose: bool, pretty: bool) -> None:
+def _print_pretty_reply(
+    reply_info: Dict[str, Any], verbose: bool, pretty: bool
+) -> None:
     """Print reply information in pretty format.
 
     Args:
@@ -357,9 +359,7 @@ def _print_pretty_reply(reply_info: dict, verbose: bool, pretty: bool) -> None:
                 f"{reply_info['pr_title']}"
             )
         if reply_info.get("parent_comment_author"):
-            click.echo(
-                f"   • Replying to: @{reply_info['parent_comment_author']}"
-            )
+            click.echo(f"   • Replying to: @{reply_info['parent_comment_author']}")
         if reply_info.get("body_preview"):
             click.echo(f"   • Your reply: {reply_info['body_preview']}")
         if reply_info.get("thread_url"):
@@ -370,7 +370,9 @@ def _print_pretty_reply(reply_info: dict, verbose: bool, pretty: bool) -> None:
             click.echo(f"   • Posted by: @{reply_info['author']}")
 
 
-def _build_json_reply(comment_id: str, reply_info: dict, verbose: bool) -> dict:
+def _build_json_reply(
+    comment_id: str, reply_info: Dict[str, Any], verbose: bool
+) -> Dict[str, Any]:
     """Build JSON response for reply command.
 
     Args:

@@ -378,7 +378,9 @@ class TestReplyCommand:
         from toady.reply_service import ReplyRequest
 
         expected_request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
-        mock_service.post_reply.assert_called_once_with(expected_request, fetch_context=False)
+        mock_service.post_reply.assert_called_once_with(
+            expected_request, fetch_context=False
+        )
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_valid_node_id(
@@ -413,7 +415,9 @@ class TestReplyCommand:
         expected_request = ReplyRequest(
             comment_id="IC_kwDOABcD12MAAAABcDE3fg", reply_body="Test reply"
         )
-        mock_service.post_reply.assert_called_once_with(expected_request, fetch_context=False)
+        mock_service.post_reply.assert_called_once_with(
+            expected_request, fetch_context=False
+        )
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_pretty_output(
