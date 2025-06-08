@@ -1,31 +1,32 @@
 """Tests for the exception hierarchy in toady.exceptions."""
 
 import pytest
+
 from toady.exceptions import (
+    CommandExecutionError,
+    CommentNotFoundError,
+    ConfigurationError,
     ErrorCode,
     ErrorSeverity,
-    ToadyError,
-    ValidationError,
-    ConfigurationError,
+    FetchServiceError,
     FileOperationError,
-    NetworkError,
-    GitHubServiceError,
-    GitHubCLINotFoundError,
-    GitHubAuthenticationError,
     GitHubAPIError,
-    GitHubTimeoutError,
-    GitHubRateLimitError,
+    GitHubAuthenticationError,
+    GitHubCLINotFoundError,
     GitHubNotFoundError,
     GitHubPermissionError,
-    CommandExecutionError,
-    FetchServiceError,
+    GitHubRateLimitError,
+    GitHubServiceError,
+    GitHubTimeoutError,
+    NetworkError,
     ReplyServiceError,
-    CommentNotFoundError,
     ResolveServiceError,
     ThreadNotFoundError,
     ThreadPermissionError,
-    create_validation_error,
+    ToadyError,
+    ValidationError,
     create_github_error,
+    create_validation_error,
 )
 
 
@@ -44,7 +45,9 @@ class TestErrorCode:
 
     def test_error_code_names(self):
         """Test that error codes have expected names."""
-        assert ErrorCode.GITHUB_AUTHENTICATION_ERROR.name == "GITHUB_AUTHENTICATION_ERROR"
+        assert (
+            ErrorCode.GITHUB_AUTHENTICATION_ERROR.name == "GITHUB_AUTHENTICATION_ERROR"
+        )
         assert ErrorCode.GITHUB_RATE_LIMIT_ERROR.name == "GITHUB_RATE_LIMIT_ERROR"
         assert ErrorCode.COMMENT_NOT_FOUND.name == "COMMENT_NOT_FOUND"
         assert ErrorCode.THREAD_NOT_FOUND.name == "THREAD_NOT_FOUND"
@@ -78,7 +81,7 @@ class TestToadyError:
         """Test ToadyError creation with all parameters."""
         context = {"test_key": "test_value"}
         suggestions = ["Try this", "Or this"]
-        
+
         error = ToadyError(
             "Custom error",
             error_code=ErrorCode.VALIDATION_ERROR,
@@ -86,7 +89,7 @@ class TestToadyError:
             context=context,
             suggestions=suggestions,
         )
-        
+
         assert error.message == "Custom error"
         assert error.error_code == ErrorCode.VALIDATION_ERROR
         assert error.severity == ErrorSeverity.HIGH
@@ -97,7 +100,7 @@ class TestToadyError:
         """Test ToadyError to_dict method."""
         context = {"field": "value"}
         suggestions = ["Suggestion 1", "Suggestion 2"]
-        
+
         error = ToadyError(
             "Test message",
             error_code=ErrorCode.NETWORK_ERROR,
@@ -105,7 +108,7 @@ class TestToadyError:
             context=context,
             suggestions=suggestions,
         )
-        
+
         result = error.to_dict()
         expected = {
             "error": "NETWORK_ERROR",
@@ -121,7 +124,7 @@ class TestToadyError:
         """Test that ToadyError inherits from Exception."""
         error = ToadyError("Test")
         assert isinstance(error, Exception)
-        
+
         # Test that it can be raised and caught
         with pytest.raises(ToadyError) as excinfo:
             raise error
@@ -148,7 +151,7 @@ class TestValidationError:
             invalid_value="abc123",
             expected_format="numeric or IC_ prefixed string",
         )
-        
+
         assert error.field_name == "comment_id"
         assert error.invalid_value == "abc123"
         assert error.expected_format == "numeric or IC_ prefixed string"
@@ -198,7 +201,7 @@ class TestFileOperationError:
             file_path="/path/to/file.txt",
             operation="read",
         )
-        
+
         assert error.file_path == "/path/to/file.txt"
         assert error.operation == "read"
         assert error.context["file_path"] == "/path/to/file.txt"
@@ -223,7 +226,7 @@ class TestNetworkError:
             url="https://api.github.com",
             status_code=404,
         )
-        
+
         assert error.url == "https://api.github.com"
         assert error.status_code == 404
         assert error.context["url"] == "https://api.github.com"
@@ -249,9 +252,15 @@ class TestGitHubServiceError:
         rate_limit_error = GitHubRateLimitError()
         not_found_error = GitHubNotFoundError("Not found")
         permission_error = GitHubPermissionError("Permission denied")
-        
-        for error in [auth_error, api_error, timeout_error, rate_limit_error, 
-                     not_found_error, permission_error]:
+
+        for error in [
+            auth_error,
+            api_error,
+            timeout_error,
+            rate_limit_error,
+            not_found_error,
+            permission_error,
+        ]:
             assert isinstance(error, GitHubServiceError)
             assert isinstance(error, ToadyError)
 
@@ -305,7 +314,7 @@ class TestGitHubAPIError:
             status_code=404,
             api_endpoint="/repos/owner/repo",
         )
-        
+
         assert error.status_code == 404
         assert error.api_endpoint == "/repos/owner/repo"
         assert error.context["status_code"] == 404
@@ -343,7 +352,9 @@ class TestGitHubRateLimitError:
 
     def test_creation_with_reset_time(self):
         """Test GitHubRateLimitError creation with reset time."""
-        error = GitHubRateLimitError("Rate limit exceeded", reset_time="2024-01-01T00:00:00Z")
+        error = GitHubRateLimitError(
+            "Rate limit exceeded", reset_time="2024-01-01T00:00:00Z"
+        )
         assert error.reset_time == "2024-01-01T00:00:00Z"
         assert error.context["reset_time"] == "2024-01-01T00:00:00Z"
 
@@ -367,7 +378,7 @@ class TestGitHubNotFoundError:
             resource_type="pull_request",
             resource_id="123",
         )
-        
+
         assert error.resource_type == "pull_request"
         assert error.resource_id == "123"
         assert error.context["resource_type"] == "pull_request"
@@ -393,7 +404,7 @@ class TestGitHubPermissionError:
             required_permission="write",
             resource="repository",
         )
-        
+
         assert error.required_permission == "write"
         assert error.resource == "repository"
         assert error.context["required_permission"] == "write"
@@ -420,7 +431,7 @@ class TestCommandExecutionError:
             exit_code=128,
             stderr="fatal: not a git repository",
         )
-        
+
         assert error.command == "git status"
         assert error.exit_code == 128
         assert error.stderr == "fatal: not a git repository"
@@ -489,7 +500,7 @@ class TestHelperFunctions:
             invalid_value="invalid",
             expected_format="numeric or IC_ prefixed",
         )
-        
+
         assert isinstance(error, ValidationError)
         assert error.field_name == "comment_id"
         assert error.invalid_value == "invalid"
@@ -505,7 +516,7 @@ class TestHelperFunctions:
             expected_format="test_format",
             message="Custom validation message",
         )
-        
+
         assert error.message == "Custom validation message"
         assert error.field_name == "test_field"
 
@@ -516,7 +527,7 @@ class TestHelperFunctions:
             status_code=404,
             api_endpoint="/repos/test/repo",
         )
-        
+
         assert isinstance(error, GitHubAPIError)
         assert error.message == "API call failed"
         assert error.status_code == 404
@@ -525,7 +536,7 @@ class TestHelperFunctions:
     def test_create_github_error_minimal(self):
         """Test create_github_error with minimal parameters."""
         error = create_github_error("Simple error")
-        
+
         assert isinstance(error, GitHubAPIError)
         assert error.message == "Simple error"
         assert error.status_code is None
@@ -546,7 +557,7 @@ class TestExceptionChaining:
             GitHubServiceError("test"),
             FetchServiceError("test"),
         ]
-        
+
         for error in toady_errors:
             assert isinstance(error, ToadyError)
             assert isinstance(error, Exception)
@@ -563,7 +574,7 @@ class TestExceptionChaining:
             ReplyServiceError("test"),
             ResolveServiceError("test"),
         ]
-        
+
         for error in github_errors:
             assert isinstance(error, GitHubServiceError)
             assert isinstance(error, ToadyError)
@@ -587,7 +598,7 @@ class TestExceptionChaining:
         # Create an error with context
         context = {"original_error": "something went wrong"}
         error = ValidationError("test", context=context)
-        
+
         # The context should be accessible
         assert error.context == context
         assert error.to_dict()["context"] == context
@@ -606,10 +617,10 @@ class TestBackwardCompatibility:
         """Test that backward compatibility aliases work."""
         # Test importing the alias
         from toady.exceptions import GitHubCLINotFound
-        
+
         # Should be the same class
         assert GitHubCLINotFound is GitHubCLINotFoundError
-        
+
         # Should work the same way
         error = GitHubCLINotFound("test")
         assert isinstance(error, GitHubCLINotFoundError)

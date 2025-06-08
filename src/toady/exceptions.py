@@ -171,7 +171,9 @@ class ConfigurationError(ToadyError):
     and environment setup issues.
     """
 
-    def __init__(self, message: str, config_key: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str, config_key: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """Initialize a ConfigurationError.
 
         Args:
@@ -286,7 +288,9 @@ class GitHubServiceError(ToadyError):
 class GitHubCLINotFoundError(GitHubServiceError):
     """Raised when gh CLI is not found or not installed."""
 
-    def __init__(self, message: str = "GitHub CLI (gh) not found", **kwargs: Any) -> None:
+    def __init__(
+        self, message: str = "GitHub CLI (gh) not found", **kwargs: Any
+    ) -> None:
         """Initialize a GitHubCLINotFoundError.
 
         Args:
@@ -309,7 +313,9 @@ class GitHubCLINotFoundError(GitHubServiceError):
 class GitHubAuthenticationError(GitHubServiceError):
     """Raised when gh CLI authentication fails."""
 
-    def __init__(self, message: str = "GitHub authentication failed", **kwargs: Any) -> None:
+    def __init__(
+        self, message: str = "GitHub authentication failed", **kwargs: Any
+    ) -> None:
         """Initialize a GitHubAuthenticationError.
 
         Args:
@@ -570,7 +576,9 @@ class ReplyServiceError(GitHubServiceError):
 class CommentNotFoundError(ReplyServiceError):
     """Raised when the specified comment cannot be found."""
 
-    def __init__(self, message: str, comment_id: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str, comment_id: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """Initialize a CommentNotFoundError.
 
         Args:
@@ -613,7 +621,9 @@ class ResolveServiceError(GitHubServiceError):
 class ThreadNotFoundError(ResolveServiceError):
     """Raised when the specified thread cannot be found."""
 
-    def __init__(self, message: str, thread_id: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str, thread_id: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """Initialize a ThreadNotFoundError.
 
         Args:
@@ -639,7 +649,9 @@ class ThreadNotFoundError(ResolveServiceError):
 class ThreadPermissionError(ResolveServiceError):
     """Raised when user lacks permission to resolve/unresolve the thread."""
 
-    def __init__(self, message: str, thread_id: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(
+        self, message: str, thread_id: Optional[str] = None, **kwargs: Any
+    ) -> None:
         """Initialize a ThreadPermissionError.
 
         Args:
@@ -685,7 +697,9 @@ def create_validation_error(
         Configured ValidationError instance.
     """
     if message is None:
-        message = f"Invalid {field_name}: '{invalid_value}'. Expected {expected_format}."
+        message = (
+            f"Invalid {field_name}: '{invalid_value}'. Expected {expected_format}."
+        )
 
     return ValidationError(
         message=message,
