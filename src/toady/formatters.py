@@ -1,10 +1,16 @@
-"""Output formatters for Toady CLI commands."""
+"""Output formatters for Toady CLI commands.
+
+This module provides both the legacy formatter implementations and integration
+with the new formatter interface system.
+"""
 
 import json
 from typing import List, Optional
 
 import click
 
+from .format_interfaces import FormatterFactory
+from .json_formatter import JSONFormatter as NewJSONFormatter
 from .models import ReviewThread
 
 
@@ -173,3 +179,10 @@ def format_fetch_output(
         # JSON output - no progress messages
         output = JSONFormatter.format_threads(threads)
         click.echo(output)
+
+
+# Register formatters with the factory
+FormatterFactory.register("json", NewJSONFormatter)
+
+# TODO: Register PrettyFormatter when it implements the new interface in subtask 9.2
+# FormatterFactory.register('pretty', NewPrettyFormatter)
