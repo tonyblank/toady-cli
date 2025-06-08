@@ -65,6 +65,16 @@ class ReviewThread:
         Returns:
             Dictionary representation of the ReviewThread
         """
+        # Convert Comment objects to dictionaries, leave strings as-is
+        serialized_comments = []
+        for comment in self.comments:
+            if hasattr(comment, "to_dict"):
+                # Comment object - convert to dict
+                serialized_comments.append(comment.to_dict())
+            else:
+                # String ID - keep as-is
+                serialized_comments.append(comment)
+
         return {
             "thread_id": self.thread_id,
             "title": self.title,
@@ -72,7 +82,7 @@ class ReviewThread:
             "updated_at": self.updated_at.isoformat(),
             "status": self.status,
             "author": self.author,
-            "comments": self.comments,
+            "comments": serialized_comments,
         }
 
     @classmethod

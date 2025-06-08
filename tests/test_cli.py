@@ -46,7 +46,7 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 0
         assert "🔍 Fetching unresolved threads for PR #123" in result.output
-        assert "📝 Found 0 review threads" in result.output
+        assert "📝 Found 0 unresolved threads" in result.output
 
     def test_fetch_with_resolved_flag(self, runner: CliRunner) -> None:
         """Test fetch with resolved threads included."""
