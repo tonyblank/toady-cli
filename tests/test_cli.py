@@ -261,13 +261,17 @@ class TestReplyCommand:
 
     def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test reply with too short node ID."""
-        result = runner.invoke(cli, ["reply", "--comment-id", "IC_abc", "--body", "test"])
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "IC_abc", "--body", "test"]
+        )
         assert result.exit_code != 0
         assert "GitHub node ID appears too short to be valid" in result.output
 
     def test_reply_empty_body(self, runner: CliRunner) -> None:
         """Test reply with empty body."""
-        result = runner.invoke(cli, ["reply", "--comment-id", "123456789", "--body", ""])
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", ""]
+        )
         assert result.exit_code != 0
         assert "Reply body cannot be empty" in result.output
 
@@ -335,7 +339,9 @@ class TestReplyCommand:
             ],
         )
         assert result.exit_code == 0
-        assert "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
+        assert (
+            "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
+        )
 
     @patch("toady.cli.ReplyService")
     def test_reply_body_with_mention_no_warning_json(
@@ -887,7 +893,7 @@ class TestResolveCommand:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "999"])
         assert result.exit_code == 1
-        
+
         output = json.loads(result.output)
         assert output["success"] is False
         assert output["error"] == "thread_not_found"
@@ -926,7 +932,7 @@ class TestResolveCommand:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 1
-        
+
         output = json.loads(result.output)
         assert output["success"] is False
         assert output["error"] == "permission_denied"
@@ -965,7 +971,7 @@ class TestResolveCommand:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 1
-        
+
         output = json.loads(result.output)
         assert output["success"] is False
         assert output["error"] == "authentication_failed"
@@ -1003,7 +1009,7 @@ class TestResolveCommand:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789"])
         assert result.exit_code == 1
-        
+
         output = json.loads(result.output)
         assert output["success"] is False
         assert output["error"] == "api_error"
