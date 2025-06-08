@@ -388,8 +388,12 @@ class TestGitHubService:
             "graphql",
             "-f",
             "query=query($owner: String!) { }",
-            "-f",
-            'variables={"owner": "testowner", "repo": "testrepo", "number": 123}',
+            "-F",
+            "owner=testowner",
+            "-F",
+            "repo=testrepo",
+            "-F",
+            "number=123",
         ]
         mock_run.assert_called_once_with(expected_args)
         assert response == {"data": {"repository": {"name": "test"}}}

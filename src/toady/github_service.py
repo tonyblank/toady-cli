@@ -282,9 +282,11 @@ class GitHubService:
         """
         args = ["api", "graphql", "-f", f"query={query}"]
 
-        # Add variables if provided as a single JSON-encoded argument
+        # Add variables if provided as individual field arguments
+        # Use -F for proper type conversion (strings, integers, booleans)
         if variables:
-            args.extend(["-f", f"variables={json.dumps(variables)}"])
+            for key, value in variables.items():
+                args.extend(["-F", f"{key}={value}"])
 
         result = self.run_gh_command(args)
 

@@ -1,11 +1,11 @@
 """Main CLI interface for Toady."""
 
 import json
-from typing import List
 
 import click
 
 from toady import __version__
+from toady.fetch_service import FetchService, FetchServiceError
 from toady.formatters import format_fetch_output
 from toady.github_service import (
     GitHubAPIError,
@@ -13,7 +13,6 @@ from toady.github_service import (
     GitHubRateLimitError,
     GitHubTimeoutError,
 )
-from toady.models import ReviewThread
 from toady.reply_service import (
     CommentNotFoundError,
     ReplyRequest,
@@ -132,11 +131,13 @@ def fetch(
 
     # Execute fetch operation with comprehensive error handling
     try:
-        # TODO: Implement actual fetch logic in subsequent tasks
-        # For now, show placeholder behavior with empty thread list
-        threads: List[ReviewThread] = (
-            []
-        )  # Placeholder - will be populated by actual fetch logic
+        # Create fetch service and retrieve threads
+        fetch_service = FetchService()
+        threads = fetch_service.fetch_review_threads_from_current_repo(
+            pr_number=pr_number,
+            include_resolved=resolved,
+            limit=limit,
+        )
 
         # Use formatters to display output
         format_fetch_output(
@@ -217,6 +218,17 @@ def fetch(
                 ctx.exit(1)
             else:
                 _emit_error(ctx, pr_number, "api_error", str(e), pretty)
+
+    except FetchServiceError as e:
+        if pretty:
+            click.echo(f"❌ Failed to fetch threads: {e}", err=True)
+            click.echo("💡 This may be a service error. Please:", err=True)
+            click.echo("   • Check your repository setup", err=True)
+            click.echo("   • Ensure you're in a git repository", err=True)
+            click.echo("   • Try again with different parameters", err=True)
+            ctx.exit(1)
+        else:
+            _emit_error(ctx, pr_number, "service_error", str(e), pretty)
 
     except Exception as e:
         # Catch-all for unexpected errors
