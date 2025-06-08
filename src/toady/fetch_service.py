@@ -2,7 +2,7 @@
 
 from typing import List, Optional, Tuple
 
-from .github_service import GitHubService
+from .github_service import GitHubService, GitHubServiceError
 from .graphql_queries import build_review_threads_query
 from .models import ReviewThread
 from .parsers import GraphQLResponseParser
@@ -69,14 +69,14 @@ class FetchService:
 
             # Filter resolved threads if not including them
             if query_builder.should_filter_resolved():
-                threads = [t for t in threads if t.status != "RESOLVED"]
+                threads = [t for t in threads if not t.is_resolved]
 
             # Return the threads
             return threads
 
         except Exception as e:
             # Re-raise GitHub service exceptions as-is
-            if hasattr(e, "__module__") and "github_service" in e.__module__:
+            if isinstance(e, GitHubServiceError):
                 raise
             # Wrap other exceptions in FetchServiceError
             raise FetchServiceError(f"Failed to fetch review threads: {e}") from e

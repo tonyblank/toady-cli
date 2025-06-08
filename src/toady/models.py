@@ -152,6 +152,15 @@ class ReviewThread:
         """
         return parse_datetime(date_str)
 
+    @property
+    def is_resolved(self) -> bool:
+        """Check if the review thread is resolved.
+
+        Returns:
+            True if the thread is resolved, False otherwise
+        """
+        return self.status == "RESOLVED"
+
     def __str__(self) -> str:
         """Return a human-readable string representation."""
         return (

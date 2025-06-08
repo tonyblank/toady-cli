@@ -266,6 +266,45 @@ class TestReviewThread:
         )
         assert thread.status == status
 
+    def test_is_resolved_property(self) -> None:
+        """Test the is_resolved property works correctly."""
+        # Test resolved thread
+        resolved_thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="RESOLVED",
+            author="user",
+            comments=[],
+        )
+        assert resolved_thread.is_resolved is True
+
+        # Test unresolved thread
+        unresolved_thread = ReviewThread(
+            thread_id="RT_124",
+            title="Test",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+        )
+        assert unresolved_thread.is_resolved is False
+
+        # Test other statuses
+        for status in ["PENDING", "OUTDATED", "DISMISSED"]:
+            thread = ReviewThread(
+                thread_id="RT_125",
+                title="Test",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                status=status,
+                author="user",
+                comments=[],
+            )
+            assert thread.is_resolved is False
+
     def test_comments_list_immutability(self) -> None:
         """Test that comments list changes don't affect the original."""
         comments = ["c1", "c2"]
