@@ -35,7 +35,7 @@ format-check:
 	black --check src tests
 
 type-check:
-	mypy src
+	mypy --strict --ignore-missing-imports src
 
 pre-commit:
 	pre-commit run --all-files
