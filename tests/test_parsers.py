@@ -123,7 +123,7 @@ class TestGraphQLResponseParser:
 
         with pytest.raises(ValueError) as exc_info:
             parser.parse_review_threads_response(invalid_response)
-        assert "Invalid response structure" in str(exc_info.value)
+        assert "Response missing 'data' field" in str(exc_info.value)
 
     def test_parse_single_review_thread_with_multiple_comments(self) -> None:
         """Test parsing a thread with multiple comments."""

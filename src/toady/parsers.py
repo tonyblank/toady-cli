@@ -28,8 +28,11 @@ class GraphQLResponseParser:
             ValueError: If the response structure is invalid
             KeyError: If required fields are missing from the response
         """
+        # Validate the top-level response structure first
+        ResponseValidator.validate_graphql_response(response)
+
         try:
-            # Navigate to the review threads data
+            # Navigate to the review threads data (guaranteed to exist after validation)
             pull_request = response["data"]["repository"]["pullRequest"]
             review_threads_data = pull_request["reviewThreads"]["nodes"]
 
@@ -55,6 +58,9 @@ class GraphQLResponseParser:
         Raises:
             ValueError: If thread data is invalid or incomplete
         """
+        # Validate thread data before accessing fields
+        ResponseValidator.validate_review_thread_data(thread_data)
+
         # Extract basic thread information
         thread_id = thread_data["id"]
         is_resolved = thread_data.get("isResolved", False)
@@ -67,6 +73,8 @@ class GraphQLResponseParser:
         # Parse comments
         comments = []
         for comment_data in comments_data:
+            # Validate comment data before parsing
+            ResponseValidator.validate_comment_data(comment_data)
             comment = self._parse_single_comment(comment_data, thread_id)
             comments.append(comment)
 
