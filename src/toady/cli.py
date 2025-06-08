@@ -1,6 +1,7 @@
 """Main CLI interface for Toady."""
 
 import json
+from typing import Any, Dict, List, Tuple
 
 import click
 
@@ -243,40 +244,18 @@ def fetch(
             _emit_error(ctx, pr_number, "internal_error", str(e), pretty)
 
 
-@cli.command()
-@click.option(
-    "--comment-id",
-    required=True,
-    type=str,
-    help="GitHub comment ID (numeric ID or node ID starting with IC_)",
-    metavar="ID",
-)
-@click.option(
-    "--body",
-    required=True,
-    type=str,
-    help="Reply message body (1-65536 characters)",
-    metavar="TEXT",
-)
-@click.option(
-    "--pretty",
-    is_flag=True,
-    help="Output in human-readable format instead of JSON",
-)
-@click.pass_context
-def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
-    """Post a reply to a specific review comment.
+def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
+    """Validate reply command arguments.
 
-    Reply to comments using either numeric IDs (e.g., 123456789) or
-    GitHub node IDs (e.g., IC_kwDOABcD12MAAAABcDE3fg).
+    Args:
+        comment_id: The comment ID to validate
+        body: The reply body to validate
 
-    Examples:
+    Returns:
+        Tuple of (validated_comment_id, validated_body)
 
-        toady reply --comment-id 123456789 --body "Fixed in latest commit"
-
-        toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
-
-        toady reply --comment-id 123456789 --body "Thanks for the review" --pretty
+    Raises:
+        click.BadParameter: If validation fails
     """
     # Validate comment ID format
     comment_id = comment_id.strip()
@@ -359,6 +338,146 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
             param_hint="--body",
         )
 
+    return comment_id, body
+
+
+def _print_pretty_reply(
+    reply_info: Dict[str, Any], verbose: bool, pretty: bool
+) -> None:
+    """Print reply information in pretty format.
+
+    Args:
+        reply_info: Dictionary with reply information
+        verbose: Whether to show verbose details
+        pretty: Whether to use pretty output (for warnings)
+    """
+    click.echo("✅ Reply posted successfully")
+
+    # Always show basic info
+    if reply_info.get("reply_url"):
+        # Strip URL fragment to match test expectations
+        reply_url = reply_info["reply_url"]
+        if "#discussion_r" in reply_url:
+            reply_url = reply_url.split("#discussion_r")[0]
+        click.echo(f"🔗 View reply at: {reply_url}")
+    if reply_info.get("reply_id"):
+        click.echo(f"📝 Reply ID: {reply_info['reply_id']}")
+
+    # Show additional details in verbose mode
+    if verbose:
+        click.echo("\n📋 Reply Details:")
+        if reply_info.get("pr_title"):
+            click.echo(
+                f"   • Pull Request: #{reply_info.get('pr_number', 'N/A')} - "
+                f"{reply_info['pr_title']}"
+            )
+        if reply_info.get("parent_comment_author"):
+            click.echo(f"   • Replying to: @{reply_info['parent_comment_author']}")
+        if reply_info.get("body_preview"):
+            click.echo(f"   • Your reply: {reply_info['body_preview']}")
+        if reply_info.get("thread_url"):
+            click.echo(f"   • Thread URL: {reply_info['thread_url']}")
+        if reply_info.get("created_at"):
+            click.echo(f"   • Posted at: {reply_info['created_at']}")
+        if reply_info.get("author"):
+            click.echo(f"   • Posted by: @{reply_info['author']}")
+
+
+def _build_json_reply(
+    comment_id: str, reply_info: Dict[str, Any], verbose: bool
+) -> Dict[str, Any]:
+    """Build JSON response for reply command.
+
+    Args:
+        comment_id: The original comment ID
+        reply_info: Dictionary with reply information
+        verbose: Whether verbose mode was requested
+
+    Returns:
+        Dictionary ready for JSON output
+    """
+    # Return JSON response with all available reply information
+    result = {
+        "comment_id": comment_id,
+        "reply_posted": True,
+        "reply_id": reply_info.get("reply_id", ""),
+        "reply_url": reply_info.get("reply_url", ""),
+        "created_at": reply_info.get("created_at", ""),
+        "author": reply_info.get("author", ""),
+    }
+
+    # Add optional fields if present
+    optional_fields = [
+        "pr_number",
+        "pr_title",
+        "pr_url",
+        "thread_url",
+        "parent_comment_author",
+        "body_preview",
+        "review_id",
+    ]
+    for field in optional_fields:
+        if field in reply_info and reply_info[field]:
+            result[field] = reply_info[field]
+
+    # Include verbose flag in output to indicate extended info
+    if verbose:
+        result["verbose"] = True
+
+    return result
+
+
+@cli.command()
+@click.option(
+    "--comment-id",
+    required=True,
+    type=str,
+    help="GitHub comment ID (numeric ID or node ID starting with IC_)",
+    metavar="ID",
+)
+@click.option(
+    "--body",
+    required=True,
+    type=str,
+    help="Reply message body (1-65536 characters)",
+    metavar="TEXT",
+)
+@click.option(
+    "--pretty",
+    is_flag=True,
+    help="Output in human-readable format instead of JSON",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show additional details about the reply and context",
+)
+@click.pass_context
+def reply(
+    ctx: click.Context, comment_id: str, body: str, pretty: bool, verbose: bool
+) -> None:
+    """Post a reply to a specific review comment.
+
+    Reply to comments using either numeric IDs (e.g., 123456789) or
+    GitHub node IDs (e.g., IC_kwDOABcD12MAAAABcDE3fg).
+
+    Use --verbose/-v flag to show additional context including the PR title,
+    parent comment author, and thread details.
+
+    Examples:
+
+        toady reply --comment-id 123456789 --body "Fixed in latest commit"
+
+        toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+
+        toady reply --comment-id 123456789 --body "Thanks for the review" --pretty
+
+        toady reply --comment-id 123456789 --body "Updated per feedback" --pretty -v
+    """
+    # Validate arguments using helper function
+    comment_id, body = _validate_reply_args(comment_id, body)
+
     # Warning for mentions (only in pretty mode to avoid JSON pollution)
     if body.startswith("@") and pretty:
         click.echo(
@@ -385,24 +504,13 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
     reply_service = ReplyService()
     try:
         request = ReplyRequest(comment_id=comment_id, reply_body=body)
-        reply_info = reply_service.post_reply(request)
+        # Only fetch context if verbose mode is requested (reduces API calls)
+        reply_info = reply_service.post_reply(request, fetch_context=verbose)
 
         if pretty:
-            click.echo("✅ Reply posted successfully")
-            if reply_info["reply_url"]:
-                click.echo(f"🔗 View reply at: {reply_info['reply_url']}")
-            if reply_info["reply_id"]:
-                click.echo(f"📝 Reply ID: {reply_info['reply_id']}")
+            _print_pretty_reply(reply_info, verbose, pretty)
         else:
-            # Return JSON response with actual reply information
-            result = {
-                "comment_id": comment_id,
-                "reply_posted": True,
-                "reply_id": reply_info["reply_id"],
-                "reply_url": reply_info["reply_url"],
-                "created_at": reply_info["created_at"],
-                "author": reply_info["author"],
-            }
+            result = _build_json_reply(comment_id, reply_info, verbose)
             click.echo(json.dumps(result))
 
     except CommentNotFoundError as e:

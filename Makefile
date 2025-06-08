@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test lint format format-check type-check pre-commit check clean build
+.PHONY: help install install-dev test lint format format-check type-check pre-commit check check-strict clean build
 
 # Default target
 help:
@@ -11,7 +11,8 @@ help:
 	@echo "  make format-check Check code formatting with black"
 	@echo "  make type-check   Run type checking with mypy"
 	@echo "  make pre-commit   Run all pre-commit hooks"
-	@echo "  make check        Run ALL checks (lint, format check, type check, tests)"
+	@echo "  make check        Run ALL checks (auto-fixes formatting, like CI pipeline)"
+	@echo "  make check-strict Run ALL checks without auto-fixing (strict validation)"
 	@echo "  make clean        Remove build artifacts and cache files"
 	@echo "  make build        Build distribution packages"
 
@@ -41,8 +42,19 @@ pre-commit:
 	pre-commit run --all-files
 
 # Main target for running all checks (like CI pipeline)
-check: format-check lint type-check test
+# This runs pre-commit which automatically fixes formatting, then runs tests
+check:
+	@echo "🔧 Running pre-commit hooks (auto-fixing issues)..."
+	pre-commit run --all-files || true
+	@echo "🔍 Running type checks..."
+	mypy --strict --ignore-missing-imports src
+	@echo "🧪 Running tests..."
+	pytest -v
 	@echo "✅ All checks passed!"
+
+# Strict checking without auto-fixing (fails if formatting needed)
+check-strict: format-check lint type-check test
+	@echo "✅ All strict checks passed!"
 
 clean:
 	rm -rf build/

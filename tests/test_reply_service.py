@@ -46,7 +46,12 @@ class TestReplyService:
                 "user": {"login": "testuser"},
             }
         )
-        mock_github_service.run_gh_command.return_value = mock_response
+
+        # Set up the responses: first for posting reply, then parent info fails
+        mock_github_service.run_gh_command.side_effect = [
+            mock_response,  # post_reply call
+            GitHubAPIError("404 Not Found"),  # _get_parent_comment_info fails
+        ]
 
         mock_get_repo_info.return_value = ("owner", "repo")
 
@@ -71,7 +76,9 @@ class TestReplyService:
             "--header",
             "Accept: application/vnd.github+json",
         ]
-        mock_github_service.run_gh_command.assert_called_once_with(expected_args)
+        assert (
+            mock_github_service.run_gh_command.call_args_list[0][0][0] == expected_args
+        )
 
     def test_post_reply_with_explicit_params(self) -> None:
         """Test reply posting with explicitly provided parameters."""
@@ -85,7 +92,12 @@ class TestReplyService:
                 "user": {"login": "reviewer"},
             }
         )
-        mock_github_service.run_gh_command.return_value = mock_response
+
+        # Set up the responses: first for posting reply, then parent info fails
+        mock_github_service.run_gh_command.side_effect = [
+            mock_response,  # post_reply call
+            GitHubAPIError("404 Not Found"),  # _get_parent_comment_info fails
+        ]
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(
@@ -110,7 +122,9 @@ class TestReplyService:
             "--header",
             "Accept: application/vnd.github+json",
         ]
-        mock_github_service.run_gh_command.assert_called_once_with(expected_args)
+        assert (
+            mock_github_service.run_gh_command.call_args_list[0][0][0] == expected_args
+        )
 
     @patch.object(ReplyService, "_get_repository_info")
     def test_post_reply_comment_not_found(self, mock_get_repo_info: Mock) -> None:
@@ -245,6 +259,186 @@ class TestReplyService:
 
         assert exists is False
 
+    def test_post_reply_with_parent_info(self) -> None:
+        """Test posting reply with parent comment information."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock main reply response
+        reply_response = Mock()
+        reply_response.stdout = json.dumps(
+            {
+                "id": 987654321,
+                "html_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+                "created_at": "2023-01-01T12:00:00Z",
+                "user": {"login": "testuser"},
+                "pull_request_review_id": 111222333,
+            }
+        )
+
+        # Mock parent comment response
+        parent_response = Mock()
+        parent_response.stdout = json.dumps(
+            {
+                "id": 123456789,
+                "user": {"login": "reviewer123"},
+                "pull_request_url": "https://api.github.com/repos/owner/repo/pulls/42",
+                "pull_request_review_id": 111222333,
+                "html_url": "https://github.com/owner/repo/pull/42#discussion_r123456789",
+            }
+        )
+
+        # Mock PR info response
+        pr_response = Mock()
+        pr_response.stdout = json.dumps(
+            {
+                "number": 42,
+                "title": "Add awesome feature",
+                "html_url": "https://github.com/owner/repo/pull/42",
+                "state": "open",
+            }
+        )
+
+        # Set up responses in order
+        mock_github_service.run_gh_command.side_effect = [
+            reply_response,  # post_reply call
+            parent_response,  # _get_parent_comment_info call
+            pr_response,  # _get_pr_info call
+        ]
+        mock_github_service.get_current_repo.return_value = "owner/repo"
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest(
+            comment_id="123456789", reply_body="Test reply with context"
+        )
+        result = service.post_reply(request, fetch_context=True)
+
+        assert result["reply_id"] == "987654321"
+        assert result["pr_number"] == "42"
+        assert result["pr_title"] == "Add awesome feature"
+        assert result["parent_comment_author"] == "reviewer123"
+        assert (
+            result["thread_url"]
+            == "https://github.com/owner/repo/pull/42#pullrequestreview-111222333"
+        )
+        assert result["body_preview"] == "Test reply with context"
+
+    def test_post_reply_parent_info_failure(self) -> None:
+        """Test posting reply when parent info fetch fails."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock main reply response
+        reply_response = Mock()
+        reply_response.stdout = json.dumps(
+            {
+                "id": 987654321,
+                "html_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+                "created_at": "2023-01-01T12:00:00Z",
+                "user": {"login": "testuser"},
+            }
+        )
+
+        # Mock parent comment failure
+        mock_github_service.run_gh_command.side_effect = [
+            reply_response,  # post_reply succeeds
+            GitHubAPIError("404 Not Found"),  # parent info fails
+        ]
+        mock_github_service.get_current_repo.return_value = "owner/repo"
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
+        result = service.post_reply(request)
+
+        # Should still succeed, just without parent info
+        assert result["reply_id"] == "987654321"
+        assert "pr_number" not in result
+        assert "parent_comment_author" not in result
+
+    def test_get_parent_comment_info_success(self) -> None:
+        """Test getting parent comment information."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock comment response
+        comment_response = Mock()
+        comment_response.stdout = json.dumps(
+            {
+                "id": 123456789,
+                "user": {"login": "reviewer123"},
+                "pull_request_url": "https://api.github.com/repos/owner/repo/pulls/42",
+                "pull_request_review_id": 111222333,
+                "html_url": "https://github.com/owner/repo/pull/42#discussion_r123456789",
+            }
+        )
+
+        # Mock PR response
+        pr_response = Mock()
+        pr_response.stdout = json.dumps(
+            {
+                "number": 42,
+                "title": "Test PR",
+                "html_url": "https://github.com/owner/repo/pull/42",
+                "state": "open",
+            }
+        )
+
+        mock_github_service.run_gh_command.side_effect = [comment_response, pr_response]
+
+        service = ReplyService(mock_github_service)
+        result = service._get_parent_comment_info("owner", "repo", "123456789")
+
+        assert result is not None
+        assert result["pr_number"] == "42"
+        assert result["pr_title"] == "Test PR"
+        assert result["parent_comment_author"] == "reviewer123"
+        assert "thread_url" in result
+
+    def test_get_pr_info_success(self) -> None:
+        """Test getting PR information."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        pr_response = Mock()
+        pr_response.stdout = json.dumps(
+            {
+                "number": 42,
+                "title": "Amazing feature",
+                "html_url": "https://github.com/owner/repo/pull/42",
+                "state": "open",
+            }
+        )
+
+        mock_github_service.run_gh_command.return_value = pr_response
+
+        service = ReplyService(mock_github_service)
+        result = service._get_pr_info("owner", "repo", "42")
+
+        assert result is not None
+        assert result["title"] == "Amazing feature"
+        assert result["html_url"] == "https://github.com/owner/repo/pull/42"
+        assert result["state"] == "open"
+
+    def test_post_reply_long_body_preview(self) -> None:
+        """Test that body preview is truncated for long replies."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        reply_response = Mock()
+        reply_response.stdout = json.dumps(
+            {
+                "id": 987654321,
+                "html_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+                "created_at": "2023-01-01T12:00:00Z",
+                "user": {"login": "testuser"},
+            }
+        )
+
+        mock_github_service.run_gh_command.return_value = reply_response
+        mock_github_service.get_current_repo.return_value = "owner/repo"
+
+        service = ReplyService(mock_github_service)
+        long_body = "x" * 150  # Body longer than 100 chars
+        request = ReplyRequest(comment_id="123456789", reply_body=long_body)
+        result = service.post_reply(request)
+
+        assert result["body_preview"] == "x" * 100 + "..."
+
 
 class TestReplyServiceExceptions:
     """Test reply service exception hierarchy."""
@@ -279,7 +473,12 @@ class TestReplyServiceIntegration:
                 "user": {"login": "testuser"},
             }
         )
-        mock_github_service.run_gh_command.return_value = mock_response
+
+        # Set up the responses: first for posting reply, then parent info fails
+        mock_github_service.run_gh_command.side_effect = [
+            mock_response,  # post_reply call
+            GitHubAPIError("404 Not Found"),  # _get_parent_comment_info fails
+        ]
 
         service = ReplyService(mock_github_service)
         special_body = (
@@ -307,7 +506,9 @@ class TestReplyServiceIntegration:
             "--header",
             "Accept: application/vnd.github+json",
         ]
-        mock_github_service.run_gh_command.assert_called_once_with(expected_args)
+        assert (
+            mock_github_service.run_gh_command.call_args_list[0][0][0] == expected_args
+        )
 
     def test_post_reply_large_body(self) -> None:
         """Test reply posting with large body content."""
@@ -321,7 +522,12 @@ class TestReplyServiceIntegration:
                 "user": {"login": "testuser"},
             }
         )
-        mock_github_service.run_gh_command.return_value = mock_response
+
+        # Set up the responses: first for posting reply, then parent info fails
+        mock_github_service.run_gh_command.side_effect = [
+            mock_response,  # post_reply call
+            GitHubAPIError("404 Not Found"),  # _get_parent_comment_info fails
+        ]
 
         service = ReplyService(mock_github_service)
         large_body = "A" * 5000  # Large but reasonable reply
@@ -347,4 +553,6 @@ class TestReplyServiceIntegration:
             "--header",
             "Accept: application/vnd.github+json",
         ]
-        mock_github_service.run_gh_command.assert_called_once_with(expected_args)
+        assert (
+            mock_github_service.run_gh_command.call_args_list[0][0][0] == expected_args
+        )

@@ -494,7 +494,9 @@ class TestReplyCommand:
         from toady.reply_service import ReplyRequest
 
         expected_request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
-        mock_service.post_reply.assert_called_once_with(expected_request)
+        mock_service.post_reply.assert_called_once_with(
+            expected_request, fetch_context=False
+        )
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_valid_node_id(
@@ -529,7 +531,9 @@ class TestReplyCommand:
         expected_request = ReplyRequest(
             comment_id="IC_kwDOABcD12MAAAABcDE3fg", reply_body="Test reply"
         )
-        mock_service.post_reply.assert_called_once_with(expected_request)
+        mock_service.post_reply.assert_called_once_with(
+            expected_request, fetch_context=False
+        )
 
     @patch("toady.cli.ReplyService")
     def test_reply_with_pretty_output(
@@ -1122,6 +1126,168 @@ class TestReplyCommand:
             input="",
         )
         assert "⚠️  Note: Reply contains very repetitive content" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_verbose_mode_pretty(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with verbose mode in pretty format."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+            "pr_number": "42",
+            "pr_title": "Add awesome feature",
+            "parent_comment_author": "reviewer123",
+            "body_preview": "This is a test reply that demonstrates...",
+            "thread_url": "https://github.com/owner/repo/pull/42#pullrequestreview-123456",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "This is a test reply that demonstrates the verbose feature",
+                "--pretty",
+                "--verbose",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "✅ Reply posted successfully" in result.output
+        assert "📋 Reply Details:" in result.output
+        assert "Pull Request: #42 - Add awesome feature" in result.output
+        assert "Replying to: @reviewer123" in result.output
+        assert "Your reply: This is a test reply that demonstrates..." in result.output
+        assert "Thread URL:" in result.output
+        assert "Posted at: 2023-01-01T12:00:00Z" in result.output
+        assert "Posted by: @testuser" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_verbose_mode_json(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with verbose mode in JSON format."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+            "pr_number": "42",
+            "pr_title": "Add awesome feature",
+            "parent_comment_author": "reviewer123",
+            "body_preview": "Test reply",
+            "thread_url": "https://github.com/owner/repo/pull/42#pullrequestreview-123456",
+            "review_id": "123456",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "Test reply",
+                "--verbose",
+            ],
+        )
+        assert result.exit_code == 0
+
+        output = json.loads(result.output)
+        assert output["reply_posted"] is True
+        assert output["pr_number"] == "42"
+        assert output["pr_title"] == "Add awesome feature"
+        assert output["parent_comment_author"] == "reviewer123"
+        assert output["body_preview"] == "Test reply"
+        assert (
+            output["thread_url"]
+            == "https://github.com/owner/repo/pull/42#pullrequestreview-123456"
+        )
+        assert output["review_id"] == "123456"
+        assert output["verbose"] is True
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_with_partial_metadata(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply when only partial metadata is available."""
+        mock_service = Mock()
+        # Return minimal info (simulating when parent info fetch fails)
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+            "body_preview": "Test reply",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "Test reply",
+                "--pretty",
+                "--verbose",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "✅ Reply posted successfully" in result.output
+        assert "📋 Reply Details:" in result.output
+        # Should not show PR info if not available
+        assert "Pull Request:" not in result.output
+        assert "Replying to:" not in result.output
+        # Should still show available info
+        assert "Your reply: Test reply" in result.output
+        assert "Posted at: 2023-01-01T12:00:00Z" in result.output
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_verbose_short_flag(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test reply with -v short flag for verbose."""
+        mock_service = Mock()
+        mock_service.post_reply.return_value = {
+            "reply_id": "987654321",
+            "reply_url": "https://github.com/owner/repo/pull/1#discussion_r987654321",
+            "comment_id": "123456789",
+            "created_at": "2023-01-01T12:00:00Z",
+            "author": "testuser",
+            "pr_number": "42",
+            "pr_title": "Test PR",
+        }
+        mock_service_class.return_value = mock_service
+
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test", "--pretty", "-v"],
+        )
+        assert result.exit_code == 0
+        assert "📋 Reply Details:" in result.output
+        assert "Pull Request: #42 - Test PR" in result.output
+
+    def test_reply_help_shows_verbose_option(self, runner: CliRunner) -> None:
+        """Test that help text mentions the verbose option."""
+        result = runner.invoke(cli, ["reply", "--help"])
+        assert result.exit_code == 0
+        assert "--verbose" in result.output
+        assert "-v" in result.output
+        assert "Show additional details" in result.output
+        assert "Use --verbose/-v flag" in result.output
 
 
 class TestResolveCommand:
