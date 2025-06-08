@@ -22,7 +22,6 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
-                    url
                 }
             }
         }
@@ -40,7 +39,6 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
-                    url
                 }
             }
         }
@@ -64,10 +62,10 @@ class ResolveThreadMutationBuilder:
         thread_id = thread_id.strip()
 
         # Validate thread ID format
-        if not (thread_id.isdigit() or thread_id.startswith("PRT_")):
+        if not (thread_id.isdigit() or thread_id.startswith(("PRT_", "PRRT_"))):
             raise ValueError(
                 "Thread ID must be numeric (e.g., 123456789) or a "
-                "GitHub node ID starting with 'PRT_'"
+                "GitHub node ID starting with 'PRT_' or 'PRRT_'"
             )
 
         return {"threadId": thread_id}
