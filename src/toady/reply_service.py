@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 
@@ -40,14 +40,29 @@ class ReplyService:
         """
         self.github_service = github_service or GitHubService()
 
-    def post_reply(self, request: ReplyRequest) -> Dict[str, str]:
+    def post_reply(
+        self, request: ReplyRequest, fetch_context: bool = False
+    ) -> Dict[str, Any]:
         """Post a reply to a pull request review comment.
 
         Args:
             request: ReplyRequest object containing all necessary parameters.
+            fetch_context: Whether to fetch additional context (PR info, parent
+                          comment, etc.). Set to True when verbose output is
+                          needed. Default: False.
 
         Returns:
-            Dictionary containing reply information including URL and ID.
+            Dictionary containing comprehensive reply information including:
+            - reply_id: The unique ID of the posted reply
+            - reply_url: Direct URL to view the reply on GitHub
+            - comment_id: The ID of the comment being replied to
+            - created_at: Timestamp when the reply was created
+            - author: Username of the reply author
+            - pr_number: Pull request number the comment belongs to
+            - pr_title: Title of the pull request
+            - thread_url: URL to the entire review thread
+            - body_preview: First 100 characters of the reply body
+            - parent_comment_author: Author of the comment being replied to
 
         Raises:
             ReplyServiceError: If the reply fails to post.
@@ -86,14 +101,28 @@ class ReplyService:
             result = self.github_service.run_gh_command(args)
             response_data = json.loads(result.stdout)
 
-            # Extract relevant information from the response
+            # Extract comprehensive information from the response
             reply_info = {
                 "reply_id": str(response_data.get("id", "")),
                 "reply_url": response_data.get("html_url", ""),
                 "comment_id": request.comment_id,
                 "created_at": response_data.get("created_at", ""),
                 "author": response_data.get("user", {}).get("login", ""),
+                "body_preview": request.reply_body[:100]
+                + ("..." if len(request.reply_body) > 100 else ""),
             }
+
+            # Extract additional context if available
+            if "pull_request_review_id" in response_data:
+                reply_info["review_id"] = str(response_data["pull_request_review_id"])
+
+            # Try to get parent comment info for context only if requested
+            if fetch_context:
+                parent_info = self._get_parent_comment_info(
+                    owner, repo, request.comment_id
+                )
+                if parent_info:
+                    reply_info.update(parent_info)
 
             return reply_info
 
@@ -157,3 +186,89 @@ class ReplyService:
 
         except (GitHubAPIError, json.JSONDecodeError, KeyError):
             return False
+
+    def _get_parent_comment_info(
+        self, owner: str, repo: str, comment_id: str
+    ) -> Optional[Dict[str, str]]:
+        """Get information about the parent comment for additional context.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            comment_id: Comment ID to get info for.
+
+        Returns:
+            Dictionary with parent comment info or None if not available.
+        """
+        try:
+            # Query the specific comment to get context
+            endpoint = f"repos/{owner}/{repo}/pulls/comments/{comment_id}"
+            args = ["api", endpoint, "--header", "Accept: application/vnd.github+json"]
+
+            result = self.github_service.run_gh_command(args)
+            data = json.loads(result.stdout)
+
+            parent_info = {}
+
+            # Get PR information from the comment
+            if "pull_request_url" in data:
+                pr_url = data["pull_request_url"]
+                pr_number = pr_url.split("/")[-1]
+                parent_info["pr_number"] = pr_number
+
+                # Try to get PR title
+                pr_info = self._get_pr_info(owner, repo, pr_number)
+                if pr_info:
+                    parent_info["pr_title"] = pr_info.get("title", "")
+                    parent_info["pr_url"] = pr_info.get("html_url", "")
+
+            # Get parent comment author
+            if "user" in data and "login" in data["user"]:
+                parent_info["parent_comment_author"] = data["user"]["login"]
+
+            # Get thread URL if available
+            if "html_url" in data:
+                # Convert comment URL to thread URL
+                comment_url = data["html_url"]
+                thread_url = (
+                    comment_url.split("#")[0]
+                    + "#pullrequestreview-"
+                    + str(data.get("pull_request_review_id", ""))
+                )
+                if data.get("pull_request_review_id"):
+                    parent_info["thread_url"] = thread_url
+
+            return parent_info if parent_info else None
+
+        except (GitHubAPIError, json.JSONDecodeError, KeyError):
+            # Don't fail the whole operation if we can't get parent info
+            return None
+
+    def _get_pr_info(
+        self, owner: str, repo: str, pr_number: str
+    ) -> Optional[Dict[str, str]]:
+        """Get basic PR information.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            pr_number: Pull request number.
+
+        Returns:
+            Dictionary with PR info or None if not available.
+        """
+        try:
+            endpoint = f"repos/{owner}/{repo}/pulls/{pr_number}"
+            args = ["api", endpoint, "--header", "Accept: application/vnd.github+json"]
+
+            result = self.github_service.run_gh_command(args)
+            data = json.loads(result.stdout)
+
+            return {
+                "title": data.get("title", ""),
+                "html_url": data.get("html_url", ""),
+                "state": data.get("state", ""),
+            }
+
+        except (GitHubAPIError, json.JSONDecodeError, KeyError):
+            return None
