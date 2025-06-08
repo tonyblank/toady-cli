@@ -251,12 +251,23 @@ def fetch(
     is_flag=True,
     help="Output in human-readable format instead of JSON",
 )
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show additional details about the reply and context",
+)
 @click.pass_context
-def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
+def reply(
+    ctx: click.Context, comment_id: str, body: str, pretty: bool, verbose: bool
+) -> None:
     """Post a reply to a specific review comment.
 
     Reply to comments using either numeric IDs (e.g., 123456789) or
     GitHub node IDs (e.g., IC_kwDOABcD12MAAAABcDE3fg).
+
+    Use --verbose/-v flag to show additional context including the PR title,
+    parent comment author, and thread details.
 
     Examples:
 
@@ -265,6 +276,8 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
 
         toady reply --comment-id 123456789 --body "Thanks for the review" --pretty
+
+        toady reply --comment-id 123456789 --body "Updated per feedback" --pretty -v
     """
     # Validate comment ID format
     comment_id = comment_id.strip()
@@ -377,20 +390,62 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
 
         if pretty:
             click.echo("✅ Reply posted successfully")
-            if reply_info["reply_url"]:
+
+            # Always show basic info
+            if reply_info.get("reply_url"):
                 click.echo(f"🔗 View reply at: {reply_info['reply_url']}")
-            if reply_info["reply_id"]:
+            if reply_info.get("reply_id"):
                 click.echo(f"📝 Reply ID: {reply_info['reply_id']}")
+
+            # Show additional details in verbose mode
+            if verbose:
+                click.echo("\n📋 Reply Details:")
+                if reply_info.get("pr_title"):
+                    click.echo(
+                        f"   • Pull Request: #{reply_info.get('pr_number', 'N/A')} - "
+                        f"{reply_info['pr_title']}"
+                    )
+                if reply_info.get("parent_comment_author"):
+                    click.echo(
+                        f"   • Replying to: @{reply_info['parent_comment_author']}"
+                    )
+                if reply_info.get("body_preview"):
+                    click.echo(f"   • Your reply: {reply_info['body_preview']}")
+                if reply_info.get("thread_url"):
+                    click.echo(f"   • Thread URL: {reply_info['thread_url']}")
+                if reply_info.get("created_at"):
+                    click.echo(f"   • Posted at: {reply_info['created_at']}")
+                if reply_info.get("author"):
+                    click.echo(f"   • Posted by: @{reply_info['author']}")
         else:
-            # Return JSON response with actual reply information
+            # Return JSON response with all available reply information
             result = {
                 "comment_id": comment_id,
                 "reply_posted": True,
-                "reply_id": reply_info["reply_id"],
-                "reply_url": reply_info["reply_url"],
-                "created_at": reply_info["created_at"],
-                "author": reply_info["author"],
+                "reply_id": reply_info.get("reply_id", ""),
+                "reply_url": reply_info.get("reply_url", ""),
+                "created_at": reply_info.get("created_at", ""),
+                "author": reply_info.get("author", ""),
             }
+
+            # Add optional fields if present
+            optional_fields = [
+                "pr_number",
+                "pr_title",
+                "pr_url",
+                "thread_url",
+                "parent_comment_author",
+                "body_preview",
+                "review_id",
+            ]
+            for field in optional_fields:
+                if field in reply_info and reply_info[field]:
+                    result[field] = reply_info[field]
+
+            # Include verbose flag in output to indicate extended info
+            if verbose:
+                result["verbose"] = True
+
             click.echo(json.dumps(result))
 
     except CommentNotFoundError as e:
