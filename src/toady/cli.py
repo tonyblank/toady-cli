@@ -27,6 +27,34 @@ from toady.resolve_service import (
     ThreadPermissionError,
 )
 
+# Constants
+MAX_PR_NUMBER = 999999
+
+
+def _emit_error(
+    ctx: click.Context, pr_number: int, code: str, msg: str, pretty: bool
+) -> None:
+    """Helper function to emit consistent error messages in JSON or pretty format.
+
+    Args:
+        ctx: Click context for exit handling
+        pr_number: PR number for error context
+        code: Error code for JSON output
+        msg: Error message
+        pretty: Whether to use pretty output format
+    """
+    if pretty:
+        click.echo(msg, err=True)
+    else:
+        error_result = {
+            "pr_number": pr_number,
+            "threads_fetched": False,
+            "error": code,
+            "error_message": msg,
+        }
+        click.echo(json.dumps(error_result), err=True)
+    ctx.exit(1)
+
 
 @click.group()
 @click.version_option(version=__version__, prog_name="toady")
@@ -86,28 +114,121 @@ def fetch(
     if pr_number <= 0:
         raise click.BadParameter("PR number must be positive", param_hint="--pr")
 
+    # Enhanced PR number validation
+    if pr_number > MAX_PR_NUMBER:
+        raise click.BadParameter(
+            "PR number appears unreasonably large (maximum: 999,999)",
+            param_hint="--pr",
+        )
+
     # Validate limit
     if limit <= 0:
         raise click.BadParameter("Limit must be positive", param_hint="--limit")
     if limit > 1000:
         raise click.BadParameter("Limit cannot exceed 1000", param_hint="--limit")
 
-    # TODO: Implement actual fetch logic in subsequent tasks
-    # For now, show placeholder behavior with empty thread list
+    # Prepare thread type description for user feedback
     thread_type = "all threads" if resolved else "unresolved threads"
-    threads: List[ReviewThread] = (
-        []
-    )  # Placeholder - will be populated by actual fetch logic
 
-    # Use formatters to display output
-    format_fetch_output(
-        threads=threads,
-        pretty=pretty,
-        show_progress=True,
-        pr_number=pr_number,
-        thread_type=thread_type,
-        limit=limit,
-    )
+    # Execute fetch operation with comprehensive error handling
+    try:
+        # TODO: Implement actual fetch logic in subsequent tasks
+        # For now, show placeholder behavior with empty thread list
+        threads: List[ReviewThread] = (
+            []
+        )  # Placeholder - will be populated by actual fetch logic
+
+        # Use formatters to display output
+        format_fetch_output(
+            threads=threads,
+            pretty=pretty,
+            show_progress=True,
+            pr_number=pr_number,
+            thread_type=thread_type,
+            limit=limit,
+        )
+
+    except GitHubAuthenticationError as e:
+        if pretty:
+            click.echo(f"❌ Authentication failed: {e}", err=True)
+            click.echo("💡 Try running: gh auth login", err=True)
+            click.echo("💡 Ensure you have access to the repository", err=True)
+            click.echo("💡 Check: gh auth status", err=True)
+            ctx.exit(1)
+        else:
+            _emit_error(ctx, pr_number, "authentication_failed", str(e), pretty)
+
+    except GitHubTimeoutError as e:
+        if pretty:
+            click.echo(f"❌ Request timed out: {e}", err=True)
+            click.echo("💡 The request took too long. Please:", err=True)
+            click.echo("   • Try again with a smaller --limit", err=True)
+            click.echo("   • Check your internet connection", err=True)
+            click.echo("   • GitHub API may be experiencing issues", err=True)
+            ctx.exit(1)
+        else:
+            _emit_error(ctx, pr_number, "timeout", str(e), pretty)
+
+    except GitHubRateLimitError as e:
+        if pretty:
+            click.echo(f"❌ Rate limit exceeded: {e}", err=True)
+            click.echo("💡 You've made too many requests. Please:", err=True)
+            click.echo("   • Wait a few minutes before trying again", err=True)
+            click.echo("   • Consider using a smaller --limit", err=True)
+            click.echo("   • Check rate limit status: gh api rate_limit", err=True)
+            ctx.exit(1)
+        else:
+            _emit_error(ctx, pr_number, "rate_limit_exceeded", str(e), pretty)
+
+    except GitHubAPIError as e:
+        # Handle specific API errors
+        if "404" in str(e) or "not found" in str(e).lower():
+            if pretty:
+                click.echo(f"❌ Pull request not found: {e}", err=True)
+                click.echo("💡 Possible causes:", err=True)
+                click.echo(f"   • PR #{pr_number} may not exist", err=True)
+                click.echo("   • You may not have access to this repository", err=True)
+                click.echo("   • The repository may be private", err=True)
+                ctx.exit(1)
+            else:
+                _emit_error(ctx, pr_number, "pr_not_found", str(e), pretty)
+        elif "403" in str(e) or "forbidden" in str(e).lower():
+            if pretty:
+                click.echo(f"❌ Permission denied: {e}", err=True)
+                click.echo("💡 Possible causes:", err=True)
+                click.echo(
+                    "   • You don't have read access to this repository", err=True
+                )
+                click.echo("   • The repository may be private", err=True)
+                click.echo(
+                    "   • Your GitHub token may lack required permissions", err=True
+                )
+                ctx.exit(1)
+            else:
+                _emit_error(ctx, pr_number, "permission_denied", str(e), pretty)
+        else:
+            if pretty:
+                click.echo(f"❌ GitHub API error: {e}", err=True)
+                click.echo("💡 This may be a temporary issue. Please:", err=True)
+                click.echo("   • Try again in a few moments", err=True)
+                click.echo(
+                    "   • Check GitHub status: https://www.githubstatus.com/", err=True
+                )
+                ctx.exit(1)
+            else:
+                _emit_error(ctx, pr_number, "api_error", str(e), pretty)
+
+    except Exception as e:
+        # Catch-all for unexpected errors
+        if pretty:
+            click.echo(f"❌ Unexpected error: {e}", err=True)
+            click.echo("💡 This appears to be an internal error. Please:", err=True)
+            click.echo("   • Check your command parameters", err=True)
+            click.echo("   • Try again with different options", err=True)
+            click.echo("   • Report this issue if it persists", err=True)
+            ctx.exit(1)
+        else:
+            _emit_error(ctx, pr_number, "internal_error", str(e), pretty)
 
 
 @cli.command()

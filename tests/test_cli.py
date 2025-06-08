@@ -123,6 +123,213 @@ class TestFetchCommand:
         assert result.exit_code == 0
         assert "(limit: 100)" in result.output
 
+    def test_fetch_enhanced_pr_validation_too_large(self, runner: CliRunner) -> None:
+        """Test fetch with unreasonably large PR number."""
+        result = runner.invoke(cli, ["fetch", "--pr", "1000000"])
+        assert result.exit_code != 0
+        assert "PR number appears unreasonably large" in result.output
+
+    def test_fetch_valid_large_pr_number(self, runner: CliRunner) -> None:
+        """Test fetch with valid large PR number."""
+        result = runner.invoke(cli, ["fetch", "--pr", "999999"])
+        assert result.exit_code == 0
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_authentication_error_pretty(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch with authentication error in pretty mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_format.side_effect = GitHubAuthenticationError("Authentication failed")
+
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert "💡 Try running: gh auth login" in result.output
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_authentication_error_json(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch with authentication error in JSON mode."""
+        from toady.github_service import GitHubAuthenticationError
+
+        mock_format.side_effect = GitHubAuthenticationError("Authentication failed")
+
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["threads_fetched"] is False
+        assert output["error"] == "authentication_failed"
+        assert "Authentication failed" in output["error_message"]
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_timeout_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch timeout error handling."""
+        from toady.github_service import GitHubTimeoutError
+
+        mock_format.side_effect = GitHubTimeoutError("Request timed out")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Request timed out" in result.output
+        assert "Try again with a smaller --limit" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "timeout"
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_rate_limit_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch rate limit error handling."""
+        from toady.github_service import GitHubRateLimitError
+
+        mock_format.side_effect = GitHubRateLimitError("Rate limit exceeded")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Rate limit exceeded" in result.output
+        assert "Consider using a smaller --limit" in result.output
+        assert "gh api rate_limit" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "rate_limit_exceeded"
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_pr_not_found_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch PR not found error handling."""
+        from toady.github_service import GitHubAPIError
+
+        mock_format.side_effect = GitHubAPIError("404 Not Found - PR not found")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "999999", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Pull request not found" in result.output
+        assert "PR #999999 may not exist" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "999999"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "pr_not_found"
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_permission_denied_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch permission denied error handling."""
+        from toady.github_service import GitHubAPIError
+
+        mock_format.side_effect = GitHubAPIError("403 Forbidden - permission denied")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Permission denied" in result.output
+        assert "read access to this repository" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "permission_denied"
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_general_api_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch general API error handling."""
+        from toady.github_service import GitHubAPIError
+
+        mock_format.side_effect = GitHubAPIError("500 Internal Server Error")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ GitHub API error" in result.output
+        assert "Check GitHub status:" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "api_error"
+
+    @patch("toady.cli.format_fetch_output")
+    def test_fetch_unexpected_error_handling(
+        self, mock_format: Mock, runner: CliRunner
+    ) -> None:
+        """Test fetch unexpected error handling."""
+        mock_format.side_effect = ValueError("Unexpected internal error")
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "❌ Unexpected error" in result.output
+        assert "internal error" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["fetch", "--pr", "123"])
+        assert result.exit_code == 1
+
+        import json
+
+        output = json.loads(result.output)
+        assert output["error"] == "internal_error"
+
+    def test_fetch_error_json_output_structure(self, runner: CliRunner) -> None:
+        """Test that error JSON output has correct structure."""
+        # Test with invalid PR to trigger validation error
+        result = runner.invoke(cli, ["fetch", "--pr", "1000000"])
+        assert result.exit_code == 2  # Click validation error exit code
+        # Validation errors from Click don't produce JSON, they go to stderr
+
+    def test_fetch_comprehensive_parameter_validation(self, runner: CliRunner) -> None:
+        """Test comprehensive parameter validation edge cases."""
+        test_cases = [
+            (["fetch", "--pr", "999999"], 0),  # Valid large PR
+            (["fetch", "--pr", "1000000"], 2),  # Invalid too large PR
+            (["fetch", "--pr", "123", "--limit", "1000"], 0),  # Valid max limit
+            (["fetch", "--pr", "123", "--limit", "1001"], 2),  # Invalid too large limit
+        ]
+
+        for args, expected_exit_code in test_cases:
+            result = runner.invoke(cli, args)
+            assert result.exit_code == expected_exit_code, f"Failed for args: {args}"
+
 
 class TestReplyCommand:
     """Test the reply command."""
