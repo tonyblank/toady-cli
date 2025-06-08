@@ -7,7 +7,12 @@ import click
 
 from toady import __version__
 from toady.formatters import format_fetch_output
-from toady.github_service import GitHubAPIError, GitHubAuthenticationError
+from toady.github_service import (
+    GitHubAPIError,
+    GitHubAuthenticationError,
+    GitHubRateLimitError,
+    GitHubTimeoutError,
+)
 from toady.models import ReviewThread
 from toady.reply_service import (
     CommentNotFoundError,
@@ -148,17 +153,44 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         )
 
     # Validate comment ID format - either numeric or GitHub node ID
-    if not (comment_id.isdigit() or comment_id.startswith("IC_")):
+    if comment_id.isdigit():
+        # Numeric comment ID validation
+        if len(comment_id) < 1 or len(comment_id) > 20:
+            raise click.BadParameter(
+                "Numeric comment ID must be between 1 and 20 digits",
+                param_hint="--comment-id",
+            )
+        # Check for reasonable numeric range (GitHub IDs are typically large)
+        numeric_id = int(comment_id)
+        if numeric_id <= 0:
+            raise click.BadParameter(
+                "Comment ID must be a positive integer",
+                param_hint="--comment-id",
+            )
+    elif comment_id.startswith("IC_"):
+        # GitHub node ID validation (more specific)
+        if len(comment_id) < 10:  # More realistic minimum length
+            raise click.BadParameter(
+                "GitHub node ID appears too short to be valid (minimum 10 characters)",
+                param_hint="--comment-id",
+            )
+        if len(comment_id) > 100:  # Reasonable maximum length
+            raise click.BadParameter(
+                "GitHub node ID appears too long to be valid (maximum 100 characters)",
+                param_hint="--comment-id",
+            )
+        # Check for valid base64-like characters after IC_
+        node_id_part = comment_id[3:]  # Remove "IC_" prefix
+        if not all(c.isalnum() or c in "-_=" for c in node_id_part):
+            raise click.BadParameter(
+                "GitHub node ID contains invalid characters. Should only contain "
+                "letters, numbers, hyphens, underscores, and equals signs",
+                param_hint="--comment-id",
+            )
+    else:
         raise click.BadParameter(
             "Comment ID must be numeric (e.g., 123456789) or a "
-            "GitHub node ID starting with 'IC_'",
-            param_hint="--comment-id",
-        )
-
-    # Additional validation for node IDs
-    if comment_id.startswith("IC_") and len(comment_id) < 10:
-        raise click.BadParameter(
-            "GitHub node ID appears too short to be valid",
+            "GitHub node ID starting with 'IC_' (e.g., IC_kwDOABcD12MAAAABcDE3fg)",
             param_hint="--comment-id",
         )
 
@@ -169,14 +201,42 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
 
     if len(body) > 65536:
         raise click.BadParameter(
-            "Reply body cannot exceed 65,536 characters", param_hint="--body"
+            "Reply body cannot exceed 65,536 characters (GitHub limit)",
+            param_hint="--body",
         )
 
-    # Check for potentially problematic content
+    # Check for minimum meaningful content
+    if len(body) < 3:
+        raise click.BadParameter(
+            "Reply body must be at least 3 characters long", param_hint="--body"
+        )
+
+    # Check for potentially problematic content patterns
+    if body.strip() in [".", "..", "...", "????", "???", "!!", "!?", "???"]:
+        raise click.BadParameter(
+            "Reply body appears to be placeholder text. "
+            "Please provide a meaningful reply",
+            param_hint="--body",
+        )
+
+    # Check for excessive whitespace/newlines
+    if len(body.replace(" ", "").replace("\n", "").replace("\t", "")) < 3:
+        raise click.BadParameter(
+            "Reply body must contain at least 3 non-whitespace characters",
+            param_hint="--body",
+        )
+
+    # Warning for mentions (only in pretty mode to avoid JSON pollution)
     if body.startswith("@") and pretty:
-        # This is just a warning, not an error
         click.echo(
             "⚠️  Note: Reply starts with '@' - this will mention users",
+            err=True,
+        )
+
+    # Warning for potential spam patterns
+    if len(set(body.lower().replace(" ", ""))) < 3 and len(body) > 10 and pretty:
+        click.echo(
+            "⚠️  Note: Reply contains very repetitive content",
             err=True,
         )
 
@@ -215,6 +275,10 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
     except CommentNotFoundError as e:
         if pretty:
             click.echo(f"❌ Comment not found: {e}", err=True)
+            click.echo("💡 Possible causes:", err=True)
+            click.echo("   • Comment ID may be incorrect", err=True)
+            click.echo("   • Comment may have been deleted", err=True)
+            click.echo("   • You may not have access to this comment", err=True)
         else:
             error_result = {
                 "comment_id": comment_id,
@@ -229,6 +293,8 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
         if pretty:
             click.echo(f"❌ Authentication failed: {e}", err=True)
             click.echo("💡 Try running: gh auth login", err=True)
+            click.echo("💡 Ensure you have the 'repo' scope enabled", err=True)
+            click.echo("💡 Check: gh auth status", err=True)
         else:
             error_result = {
                 "comment_id": comment_id,
@@ -239,9 +305,85 @@ def reply(ctx: click.Context, comment_id: str, body: str, pretty: bool) -> None:
             click.echo(json.dumps(error_result), err=True)
         ctx.exit(1)
 
-    except (ReplyServiceError, GitHubAPIError) as e:
+    except GitHubTimeoutError as e:
+        if pretty:
+            click.echo(f"❌ Request timed out: {e}", err=True)
+            click.echo("💡 Try again in a moment. If the problem persists:", err=True)
+            click.echo("   • Check your internet connection", err=True)
+            click.echo("   • GitHub API may be experiencing issues", err=True)
+        else:
+            error_result = {
+                "comment_id": comment_id,
+                "reply_posted": False,
+                "error": "timeout",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except GitHubRateLimitError as e:
+        if pretty:
+            click.echo(f"❌ Rate limit exceeded: {e}", err=True)
+            click.echo("💡 You've made too many requests. Please:", err=True)
+            click.echo("   • Wait a few minutes before trying again", err=True)
+            click.echo("   • Check rate limit status: gh api rate_limit", err=True)
+        else:
+            error_result = {
+                "comment_id": comment_id,
+                "reply_posted": False,
+                "error": "rate_limit_exceeded",
+                "error_message": str(e),
+            }
+            click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except GitHubAPIError as e:
+        # Handle permission errors specifically
+        if "403" in str(e) or "forbidden" in str(e).lower():
+            if pretty:
+                click.echo(f"❌ Permission denied: {e}", err=True)
+                click.echo("💡 Possible causes:", err=True)
+                click.echo(
+                    "   • You don't have write access to this repository", err=True
+                )
+                click.echo(
+                    "   • The comment may be locked or in a restricted thread", err=True
+                )
+                click.echo(
+                    "   • Your GitHub token may lack required permissions", err=True
+                )
+            else:
+                error_result = {
+                    "comment_id": comment_id,
+                    "reply_posted": False,
+                    "error": "permission_denied",
+                    "error_message": str(e),
+                }
+                click.echo(json.dumps(error_result), err=True)
+        else:
+            if pretty:
+                click.echo(f"❌ GitHub API error: {e}", err=True)
+                click.echo("💡 This may be a temporary issue. Please:", err=True)
+                click.echo("   • Try again in a few moments", err=True)
+                click.echo(
+                    "   • Check GitHub status: https://www.githubstatus.com/", err=True
+                )
+            else:
+                error_result = {
+                    "comment_id": comment_id,
+                    "reply_posted": False,
+                    "error": "api_error",
+                    "error_message": str(e),
+                }
+                click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    except ReplyServiceError as e:
         if pretty:
             click.echo(f"❌ Failed to post reply: {e}", err=True)
+            click.echo("💡 This is likely a service error. Please:", err=True)
+            click.echo("   • Check your input parameters", err=True)
+            click.echo("   • Try again with a different comment", err=True)
         else:
             error_result = {
                 "comment_id": comment_id,

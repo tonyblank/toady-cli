@@ -414,6 +414,7 @@ class TestReplyCommand:
             "123456789",
             "IC_kwDOABcD12M",
             "IC_kwDOABcD12MAAAABcDE3fg",
+            "IC_kwDOABcD12MAAAABcDE3fg=",  # With equals padding
         ]
 
         for comment_id in test_cases:
@@ -621,6 +622,183 @@ class TestReplyCommand:
         assert output["reply_posted"] is False
         assert output["error"] == "api_error"
         assert "API request failed" in output["error_message"]
+
+    def test_reply_enhanced_comment_id_validation(self, runner: CliRunner) -> None:
+        """Test enhanced comment ID validation edge cases."""
+        # Test numeric ID validation
+        test_cases = [
+            ("0", "Comment ID must be a positive integer"),
+            (
+                "123456789012345678901",
+                "Numeric comment ID must be between 1 and 20 digits",
+            ),
+            ("abc123", "Comment ID must be numeric"),
+            ("IC_", "GitHub node ID appears too short"),
+            ("IC_" + "a" * 98, "GitHub node ID appears too long"),
+            ("IC_kwDO@#$%", "GitHub node ID contains invalid characters"),
+        ]
+
+        for comment_id, expected_error in test_cases:
+            result = runner.invoke(
+                cli, ["reply", "--comment-id", comment_id, "--body", "test"]
+            )
+            assert result.exit_code == 2, f"Should fail for comment ID: {comment_id}"
+            assert expected_error in result.output, f"Expected error for {comment_id}"
+
+    def test_reply_enhanced_body_validation(self, runner: CliRunner) -> None:
+        """Test enhanced body validation."""
+        test_cases = [
+            ("ab", "Reply body must be at least 3 characters long"),
+            (
+                ".",
+                "Reply body must be at least 3 characters long",
+            ),  # Length check comes first
+            ("???", "Reply body appears to be placeholder text"),
+            ("   \n\t   ", "Reply body cannot be empty"),  # Stripped to empty
+            (
+                "...",
+                "Reply body appears to be placeholder text",
+            ),  # Test placeholder after length
+            (
+                "a  \n\t  b",
+                "Reply body must contain at least 3 non-whitespace characters",
+            ),  # Valid length but mostly whitespace
+        ]
+
+        for body, expected_error in test_cases:
+            result = runner.invoke(
+                cli, ["reply", "--comment-id", "123456789", "--body", body]
+            )
+            assert result.exit_code == 2, f"Should fail for body: {repr(body)}"
+            assert expected_error in result.output, f"Expected error for {repr(body)}"
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_timeout_error_handling(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test timeout error handling."""
+        import json
+
+        from toady.github_service import GitHubTimeoutError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = GitHubTimeoutError("Request timed out")
+        mock_service_class.return_value = mock_service
+
+        # Test pretty mode
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 1
+        assert "❌ Request timed out" in result.output
+        assert "Check your internet connection" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+        output = json.loads(result.output)
+        assert output["error"] == "timeout"
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_rate_limit_error_handling(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test rate limit error handling."""
+        import json
+
+        from toady.github_service import GitHubRateLimitError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = GitHubRateLimitError(
+            "Rate limit exceeded"
+        )
+        mock_service_class.return_value = mock_service
+
+        # Test pretty mode
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 1
+        assert "❌ Rate limit exceeded" in result.output
+        assert "Wait a few minutes" in result.output
+        assert "gh api rate_limit" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+        output = json.loads(result.output)
+        assert output["error"] == "rate_limit_exceeded"
+
+    @patch("toady.cli.ReplyService")
+    def test_reply_permission_error_handling(
+        self, mock_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test permission error handling."""
+        import json
+
+        from toady.github_service import GitHubAPIError
+
+        mock_service = Mock()
+        mock_service.post_reply.side_effect = GitHubAPIError(
+            "403 Forbidden - permission denied"
+        )
+        mock_service_class.return_value = mock_service
+
+        # Test pretty mode
+        result = runner.invoke(
+            cli,
+            ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
+        )
+        assert result.exit_code == 1
+        assert "❌ Permission denied" in result.output
+        assert "write access to this repository" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(
+            cli, ["reply", "--comment-id", "123456789", "--body", "Test reply"]
+        )
+        assert result.exit_code == 1
+        output = json.loads(result.output)
+        assert output["error"] == "permission_denied"
+
+    def test_reply_body_warning_messages(self, runner: CliRunner) -> None:
+        """Test warning messages for potentially problematic content."""
+        # Test mention warning (only in pretty mode)
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "@user thanks!",
+                "--pretty",
+            ],
+            input="",  # Prevent hanging on stdin
+        )
+        # This will fail at the service level but we're testing the warning
+        assert "⚠️  Note: Reply starts with '@'" in result.output
+
+        # Test repetitive content warning
+        result = runner.invoke(
+            cli,
+            [
+                "reply",
+                "--comment-id",
+                "123456789",
+                "--body",
+                "aaaaaaaaaaaaa",
+                "--pretty",
+            ],
+            input="",
+        )
+        assert "⚠️  Note: Reply contains very repetitive content" in result.output
 
 
 class TestResolveCommand:
