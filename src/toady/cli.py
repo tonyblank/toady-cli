@@ -279,7 +279,7 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
                 "Comment ID must be a positive integer",
                 param_hint="--comment-id",
             )
-    elif comment_id.startswith("IC_"):
+    elif comment_id.startswith(("IC_", "PRRC_")):
         # GitHub node ID validation (more specific)
         if len(comment_id) < 10:  # More realistic minimum length
             raise click.BadParameter(
@@ -291,8 +291,11 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
                 "GitHub node ID appears too long to be valid (maximum 100 characters)",
                 param_hint="--comment-id",
             )
-        # Check for valid base64-like characters after IC_
-        node_id_part = comment_id[3:]  # Remove "IC_" prefix
+        # Check for valid base64-like characters after prefix (IC_ or PRRC_)
+        if comment_id.startswith("IC_"):
+            node_id_part = comment_id[3:]  # Remove "IC_" prefix
+        else:  # PRRC_
+            node_id_part = comment_id[5:]  # Remove "PRRC_" prefix
         if not all(c.isalnum() or c in "-_=" for c in node_id_part):
             raise click.BadParameter(
                 "GitHub node ID contains invalid characters. Should only contain "
@@ -302,7 +305,7 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
     else:
         raise click.BadParameter(
             "Comment ID must be numeric (e.g., 123456789) or a "
-            "GitHub node ID starting with 'IC_' (e.g., IC_kwDOABcD12MAAAABcDE3fg)",
+            "GitHub node ID starting with 'IC_' or 'PRRC_'",
             param_hint="--comment-id",
         )
 
@@ -432,7 +435,7 @@ def _build_json_reply(
     "--comment-id",
     required=True,
     type=str,
-    help="GitHub comment ID (numeric ID or node ID starting with IC_)",
+    help="GitHub comment ID (numeric ID or node ID starting with IC_/PRRC_)",
     metavar="ID",
 )
 @click.option(
@@ -460,7 +463,7 @@ def reply(
     """Post a reply to a specific review comment.
 
     Reply to comments using either numeric IDs (e.g., 123456789) or
-    GitHub node IDs (e.g., IC_kwDOABcD12MAAAABcDE3fg).
+    GitHub node IDs for issue comments (IC_) or review comments (PRRC_).
 
     Use --verbose/-v flag to show additional context including the PR title,
     parent comment author, and thread details.
@@ -471,7 +474,7 @@ def reply(
 
         toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
 
-        toady reply --comment-id 123456789 --body "Thanks for the review" --pretty
+        toady reply --comment-id PRRC_kwDOO3WQIc5_Pnh_ --body "Thanks for the review"
 
         toady reply --comment-id 123456789 --body "Updated per feedback" --pretty -v
     """
@@ -641,7 +644,7 @@ def reply(
     "--thread-id",
     required=True,
     type=str,
-    help="GitHub thread ID (numeric ID or node ID starting with PRT_)",
+    help="GitHub thread ID (numeric ID or node ID starting with PRT_/PRRT_)",
     metavar="ID",
 )
 @click.option(
@@ -659,13 +662,15 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
     """Mark a review thread as resolved or unresolved.
 
     Resolve or unresolve review threads using either numeric IDs or
-    GitHub node IDs (e.g., PRT_kwDOABcD12MAAAABcDE3fg).
+    GitHub node IDs for threads (PRT_) or review threads (PRRT_).
 
     Examples:
 
         toady resolve --thread-id 123456789
 
         toady resolve --thread-id PRT_kwDOABcD12MAAAABcDE3fg --undo
+
+        toady resolve --thread-id PRRT_kwDOO3WQIc5RvXMO
 
         toady resolve --thread-id 123456789 --pretty
     """
@@ -675,15 +680,15 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
         raise click.BadParameter("Thread ID cannot be empty", param_hint="--thread-id")
 
     # Validate thread ID format - either numeric or GitHub node ID
-    if not (thread_id.isdigit() or thread_id.startswith("PRT_")):
+    if not (thread_id.isdigit() or thread_id.startswith(("PRT_", "PRRT_"))):
         raise click.BadParameter(
             "Thread ID must be numeric (e.g., 123456789) or a "
-            "GitHub node ID starting with 'PRT_'",
+            "GitHub node ID starting with 'PRT_' or 'PRRT_'",
             param_hint="--thread-id",
         )
 
     # Additional validation for node IDs
-    if thread_id.startswith("PRT_") and len(thread_id) < 12:
+    if thread_id.startswith(("PRT_", "PRRT_")) and len(thread_id) < 12:
         raise click.BadParameter(
             "GitHub node ID appears too short to be valid",
             param_hint="--thread-id",

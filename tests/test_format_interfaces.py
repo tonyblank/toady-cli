@@ -311,31 +311,22 @@ class TestFormatterError:
 class TestFormatterFactory:
     """Test the FormatterFactory class."""
 
-    def setUp(self):
-        """Set up test fixtures."""
-        # Clear the factory registry for clean tests
+    @pytest.fixture(autouse=True)
+    def clear_factory_registry(self):
+        """Clear factory registry before and after each test."""
         FormatterFactory._formatters.clear()
-
-    def tearDown(self):
-        """Clean up after tests."""
-        # Clear the factory registry
+        yield
         FormatterFactory._formatters.clear()
 
     def test_register_formatter(self):
         """Test registering a formatter."""
-        self.setUp()
-
         FormatterFactory.register("mock", MockFormatter)
 
         assert "mock" in FormatterFactory._formatters
         assert FormatterFactory._formatters["mock"] is MockFormatter
 
-        self.tearDown()
-
     def test_create_formatter(self):
         """Test creating a formatter instance."""
-        self.setUp()
-
         FormatterFactory.register("mock", MockFormatter)
 
         formatter = FormatterFactory.create("mock", test_option="value")
@@ -343,23 +334,16 @@ class TestFormatterFactory:
         assert isinstance(formatter, MockFormatter)
         assert formatter.options == {"test_option": "value"}
 
-        self.tearDown()
-
     def test_create_unknown_formatter(self):
         """Test creating an unknown formatter raises error."""
-        self.setUp()
-
         with pytest.raises(FormatterError) as excinfo:
             FormatterFactory.create("unknown")
 
         assert "Unknown formatter 'unknown'" in str(excinfo.value)
         assert "Available formatters:" in str(excinfo.value)
 
-        self.tearDown()
-
     def test_create_formatter_with_error(self):
         """Test creating a formatter that raises an error during construction."""
-        self.setUp()
 
         class FailingFormatter(MockFormatter):
             def __init__(self, **options):
@@ -380,12 +364,8 @@ class TestFormatterFactory:
         assert "Failed to create formatter 'failing'" in str(excinfo.value)
         assert isinstance(excinfo.value.original_error, ValueError)
 
-        self.tearDown()
-
     def test_list_formatters(self):
         """Test listing available formatters."""
-        self.setUp()
-
         assert FormatterFactory.list_formatters() == []
 
         FormatterFactory.register("mock1", MockFormatter)
@@ -394,20 +374,14 @@ class TestFormatterFactory:
         formatters = FormatterFactory.list_formatters()
         assert set(formatters) == {"mock1", "mock2"}
 
-        self.tearDown()
-
     def test_is_registered(self):
         """Test checking if a formatter is registered."""
-        self.setUp()
-
         assert FormatterFactory.is_registered("mock") is False
 
         FormatterFactory.register("mock", MockFormatter)
 
         assert FormatterFactory.is_registered("mock") is True
         assert FormatterFactory.is_registered("other") is False
-
-        self.tearDown()
 
 
 class TestFormatterIntegration:
