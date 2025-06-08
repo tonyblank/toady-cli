@@ -1,6 +1,6 @@
 """Service for resolving and unresolving review threads via GitHub GraphQL API."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 from .resolve_mutations import create_resolve_mutation, create_unresolve_mutation
@@ -131,7 +131,9 @@ class ResolveService:
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
 
-    def _handle_graphql_errors(self, errors: list, thread_id: str, action: str) -> None:
+    def _handle_graphql_errors(
+        self, errors: List[Dict[str, Any]], thread_id: str, action: str
+    ) -> None:
         """Handle GraphQL errors and raise appropriate exceptions.
 
         Args:
