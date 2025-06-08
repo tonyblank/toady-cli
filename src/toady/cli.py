@@ -27,6 +27,34 @@ from toady.resolve_service import (
     ThreadPermissionError,
 )
 
+# Constants
+MAX_PR_NUMBER = 999999
+
+
+def _emit_error(
+    ctx: click.Context, pr_number: int, code: str, msg: str, pretty: bool
+) -> None:
+    """Helper function to emit consistent error messages in JSON or pretty format.
+
+    Args:
+        ctx: Click context for exit handling
+        pr_number: PR number for error context
+        code: Error code for JSON output
+        msg: Error message
+        pretty: Whether to use pretty output format
+    """
+    if pretty:
+        click.echo(msg, err=True)
+    else:
+        error_result = {
+            "pr_number": pr_number,
+            "threads_fetched": False,
+            "error": code,
+            "error_message": msg,
+        }
+        click.echo(json.dumps(error_result), err=True)
+    ctx.exit(1)
+
 
 @click.group()
 @click.version_option(version=__version__, prog_name="toady")
@@ -87,7 +115,7 @@ def fetch(
         raise click.BadParameter("PR number must be positive", param_hint="--pr")
 
     # Enhanced PR number validation
-    if pr_number > 999999:
+    if pr_number > MAX_PR_NUMBER:
         raise click.BadParameter(
             "PR number appears unreasonably large (maximum: 999,999)",
             param_hint="--pr",
@@ -126,15 +154,9 @@ def fetch(
             click.echo("💡 Try running: gh auth login", err=True)
             click.echo("💡 Ensure you have access to the repository", err=True)
             click.echo("💡 Check: gh auth status", err=True)
+            ctx.exit(1)
         else:
-            error_result = {
-                "pr_number": pr_number,
-                "threads_fetched": False,
-                "error": "authentication_failed",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+            _emit_error(ctx, pr_number, "authentication_failed", str(e), pretty)
 
     except GitHubTimeoutError as e:
         if pretty:
@@ -143,15 +165,9 @@ def fetch(
             click.echo("   • Try again with a smaller --limit", err=True)
             click.echo("   • Check your internet connection", err=True)
             click.echo("   • GitHub API may be experiencing issues", err=True)
+            ctx.exit(1)
         else:
-            error_result = {
-                "pr_number": pr_number,
-                "threads_fetched": False,
-                "error": "timeout",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+            _emit_error(ctx, pr_number, "timeout", str(e), pretty)
 
     except GitHubRateLimitError as e:
         if pretty:
@@ -160,15 +176,9 @@ def fetch(
             click.echo("   • Wait a few minutes before trying again", err=True)
             click.echo("   • Consider using a smaller --limit", err=True)
             click.echo("   • Check rate limit status: gh api rate_limit", err=True)
+            ctx.exit(1)
         else:
-            error_result = {
-                "pr_number": pr_number,
-                "threads_fetched": False,
-                "error": "rate_limit_exceeded",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+            _emit_error(ctx, pr_number, "rate_limit_exceeded", str(e), pretty)
 
     except GitHubAPIError as e:
         # Handle specific API errors
@@ -179,14 +189,9 @@ def fetch(
                 click.echo(f"   • PR #{pr_number} may not exist", err=True)
                 click.echo("   • You may not have access to this repository", err=True)
                 click.echo("   • The repository may be private", err=True)
+                ctx.exit(1)
             else:
-                error_result = {
-                    "pr_number": pr_number,
-                    "threads_fetched": False,
-                    "error": "pr_not_found",
-                    "error_message": str(e),
-                }
-                click.echo(json.dumps(error_result), err=True)
+                _emit_error(ctx, pr_number, "pr_not_found", str(e), pretty)
         elif "403" in str(e) or "forbidden" in str(e).lower():
             if pretty:
                 click.echo(f"❌ Permission denied: {e}", err=True)
@@ -198,14 +203,9 @@ def fetch(
                 click.echo(
                     "   • Your GitHub token may lack required permissions", err=True
                 )
+                ctx.exit(1)
             else:
-                error_result = {
-                    "pr_number": pr_number,
-                    "threads_fetched": False,
-                    "error": "permission_denied",
-                    "error_message": str(e),
-                }
-                click.echo(json.dumps(error_result), err=True)
+                _emit_error(ctx, pr_number, "permission_denied", str(e), pretty)
         else:
             if pretty:
                 click.echo(f"❌ GitHub API error: {e}", err=True)
@@ -214,15 +214,9 @@ def fetch(
                 click.echo(
                     "   • Check GitHub status: https://www.githubstatus.com/", err=True
                 )
+                ctx.exit(1)
             else:
-                error_result = {
-                    "pr_number": pr_number,
-                    "threads_fetched": False,
-                    "error": "api_error",
-                    "error_message": str(e),
-                }
-                click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+                _emit_error(ctx, pr_number, "api_error", str(e), pretty)
 
     except Exception as e:
         # Catch-all for unexpected errors
@@ -232,15 +226,9 @@ def fetch(
             click.echo("   • Check your command parameters", err=True)
             click.echo("   • Try again with different options", err=True)
             click.echo("   • Report this issue if it persists", err=True)
+            ctx.exit(1)
         else:
-            error_result = {
-                "pr_number": pr_number,
-                "threads_fetched": False,
-                "error": "internal_error",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+            _emit_error(ctx, pr_number, "internal_error", str(e), pretty)
 
 
 @cli.command()
