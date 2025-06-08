@@ -310,7 +310,7 @@ class TestReplyService:
         request = ReplyRequest(
             comment_id="123456789", reply_body="Test reply with context"
         )
-        result = service.post_reply(request)
+        result = service.post_reply(request, fetch_context=True)
 
         assert result["reply_id"] == "987654321"
         assert result["pr_number"] == "42"

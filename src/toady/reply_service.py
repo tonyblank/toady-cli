@@ -2,7 +2,7 @@
 
 import json
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 
@@ -40,11 +40,16 @@ class ReplyService:
         """
         self.github_service = github_service or GitHubService()
 
-    def post_reply(self, request: ReplyRequest) -> Dict[str, str]:
+    def post_reply(
+        self, request: ReplyRequest, fetch_context: bool = False
+    ) -> Dict[str, Any]:
         """Post a reply to a pull request review comment.
 
         Args:
             request: ReplyRequest object containing all necessary parameters.
+            fetch_context: Whether to fetch additional context (PR info, parent
+                          comment, etc.). Set to True when verbose output is
+                          needed. Default: False.
 
         Returns:
             Dictionary containing comprehensive reply information including:
@@ -111,10 +116,13 @@ class ReplyService:
             if "pull_request_review_id" in response_data:
                 reply_info["review_id"] = str(response_data["pull_request_review_id"])
 
-            # Try to get parent comment info for context
-            parent_info = self._get_parent_comment_info(owner, repo, request.comment_id)
-            if parent_info:
-                reply_info.update(parent_info)
+            # Try to get parent comment info for context only if requested
+            if fetch_context:
+                parent_info = self._get_parent_comment_info(
+                    owner, repo, request.comment_id
+                )
+                if parent_info:
+                    reply_info.update(parent_info)
 
             return reply_info
 
