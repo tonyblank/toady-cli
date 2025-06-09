@@ -16,7 +16,6 @@ from toady.reply_service import (
     CommentNotFoundError,
     ReplyRequest,
     ReplyService,
-    ReplyServiceError,
 )
 
 
@@ -167,6 +166,175 @@ def _build_json_reply(
     return result
 
 
+def _show_warnings(body: str, pretty: bool) -> None:
+    """Show warnings for potentially problematic reply content.
+
+    Args:
+        body: The reply body to check
+        pretty: Whether to show warnings in pretty mode
+    """
+    if not pretty:
+        return
+
+    # Warning for mentions
+    if body.startswith("@"):
+        click.echo(
+            "⚠️  Note: Reply starts with '@' - this will mention users",
+            err=True,
+        )
+
+    # Warning for potential spam patterns
+    if len(set(body.lower().replace(" ", ""))) < 3 and len(body) > 10:
+        click.echo(
+            "⚠️  Note: Reply contains very repetitive content",
+            err=True,
+        )
+
+
+def _show_progress(comment_id: str, body: str, pretty: bool) -> None:
+    """Show progress messages for the reply operation.
+
+    Args:
+        comment_id: The comment ID being replied to
+        body: The reply body
+        pretty: Whether to show pretty progress messages
+    """
+    if pretty:
+        click.echo(f"💬 Posting reply to comment {comment_id}")
+        click.echo(f"📝 Reply: {body[:100]}{'...' if len(body) > 100 else ''}")
+
+
+def _handle_reply_error(
+    ctx: click.Context, error: Exception, comment_id: str, pretty: bool
+) -> None:
+    """Handle different types of reply errors with appropriate output.
+
+    Args:
+        ctx: Click context for exit handling
+        error: The exception that occurred
+        comment_id: The comment ID that failed
+        pretty: Whether to use pretty output format
+    """
+    error_handlers = {
+        CommentNotFoundError: {
+            "error_code": "comment_not_found",
+            "pretty_msg": "❌ Comment not found: {error}",
+            "hints": [
+                "💡 Possible causes:",
+                "   • Comment ID may be incorrect",
+                "   • Comment may have been deleted",
+                "   • You may not have access to this comment",
+            ],
+        },
+        GitHubAuthenticationError: {
+            "error_code": "authentication_failed",
+            "pretty_msg": "❌ Authentication failed: {error}",
+            "hints": [
+                "💡 Try running: gh auth login",
+                "💡 Ensure you have the 'repo' scope enabled",
+                "💡 Check: gh auth status",
+            ],
+        },
+        GitHubTimeoutError: {
+            "error_code": "timeout",
+            "pretty_msg": "❌ Request timed out: {error}",
+            "hints": [
+                "💡 Try again in a moment. If the problem persists:",
+                "   • Check your internet connection",
+                "   • GitHub API may be experiencing issues",
+            ],
+        },
+        GitHubRateLimitError: {
+            "error_code": "rate_limit_exceeded",
+            "pretty_msg": "❌ Rate limit exceeded: {error}",
+            "hints": [
+                "💡 You've made too many requests. Please:",
+                "   • Wait a few minutes before trying again",
+                "   • Check rate limit status: gh api rate_limit",
+            ],
+        },
+    }
+
+    # Handle specific error types
+    for error_type, handler in error_handlers.items():
+        if isinstance(error, error_type):
+            if pretty:
+                pretty_msg = str(handler["pretty_msg"]).format(error=error)
+                click.echo(pretty_msg, err=True)
+                for hint in handler["hints"]:
+                    click.echo(hint, err=True)
+            else:
+                error_result = {
+                    "comment_id": comment_id,
+                    "success": False,
+                    "reply_posted": False,
+                    "error": handler["error_code"],
+                    "error_message": str(error),
+                }
+                click.echo(json.dumps(error_result), err=True)
+            ctx.exit(1)
+
+    # Handle GitHubAPIError with specific status codes
+    if isinstance(error, GitHubAPIError):
+        if "403" in str(error) or "forbidden" in str(error).lower():
+            if pretty:
+                click.echo(f"❌ Permission denied: {error}", err=True)
+                click.echo("💡 Possible causes:", err=True)
+                click.echo(
+                    "   • You don't have write access to this repository", err=True
+                )
+                click.echo(
+                    "   • The comment may be locked or in a restricted thread", err=True
+                )
+                click.echo(
+                    "   • Your GitHub token may lack required permissions", err=True
+                )
+            else:
+                error_result = {
+                    "comment_id": comment_id,
+                    "success": False,
+                    "reply_posted": False,
+                    "error": "permission_denied",
+                    "error_message": str(error),
+                }
+                click.echo(json.dumps(error_result), err=True)
+        else:
+            if pretty:
+                click.echo(f"❌ GitHub API error: {error}", err=True)
+                click.echo("💡 This may be a temporary issue. Please:", err=True)
+                click.echo("   • Try again in a few moments", err=True)
+                click.echo(
+                    "   • Check GitHub status: https://www.githubstatus.com/", err=True
+                )
+            else:
+                error_result = {
+                    "comment_id": comment_id,
+                    "success": False,
+                    "reply_posted": False,
+                    "error": "api_error",
+                    "error_message": str(error),
+                }
+                click.echo(json.dumps(error_result), err=True)
+        ctx.exit(1)
+
+    # Handle ReplyServiceError and other exceptions
+    if pretty:
+        click.echo(f"❌ Failed to post reply: {error}", err=True)
+        click.echo("💡 This is likely a service error. Please:", err=True)
+        click.echo("   • Check your input parameters", err=True)
+        click.echo("   • Try again with a different comment", err=True)
+    else:
+        error_result = {
+            "comment_id": comment_id,
+            "success": False,
+            "reply_posted": False,
+            "error": "api_error",
+            "error_message": str(error),
+        }
+        click.echo(json.dumps(error_result), err=True)
+    ctx.exit(1)
+
+
 @click.command()
 @click.option(
     "--comment-id",
@@ -227,27 +395,11 @@ def reply(
     # Validate arguments using helper function
     comment_id, body = _validate_reply_args(comment_id, body)
 
-    # Warning for mentions (only in pretty mode to avoid JSON pollution)
-    if body.startswith("@") and pretty:
-        click.echo(
-            "⚠️  Note: Reply starts with '@' - this will mention users",
-            err=True,
-        )
+    # Show warnings if needed
+    _show_warnings(body, pretty)
 
-    # Warning for potential spam patterns
-    if len(set(body.lower().replace(" ", ""))) < 3 and len(body) > 10 and pretty:
-        click.echo(
-            "⚠️  Note: Reply contains very repetitive content",
-            err=True,
-        )
-
-    # Show what we're doing
-    if pretty:
-        click.echo(f"💬 Posting reply to comment {comment_id}")
-        click.echo(f"📝 Reply: {body[:100]}{'...' if len(body) > 100 else ''}")
-    else:
-        # For JSON output, we'll just return the result without progress messages
-        pass
+    # Show progress messages
+    _show_progress(comment_id, body, pretty)
 
     # Post the reply using the reply service
     reply_service = ReplyService()
@@ -262,131 +414,5 @@ def reply(
             result = _build_json_reply(comment_id, reply_info, verbose)
             click.echo(json.dumps(result))
 
-    except CommentNotFoundError as e:
-        if pretty:
-            click.echo(f"❌ Comment not found: {e}", err=True)
-            click.echo("💡 Possible causes:", err=True)
-            click.echo("   • Comment ID may be incorrect", err=True)
-            click.echo("   • Comment may have been deleted", err=True)
-            click.echo("   • You may not have access to this comment", err=True)
-        else:
-            error_result = {
-                "comment_id": comment_id,
-                "success": False,
-                "reply_posted": False,
-                "error": "comment_not_found",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
-
-    except GitHubAuthenticationError as e:
-        if pretty:
-            click.echo(f"❌ Authentication failed: {e}", err=True)
-            click.echo("💡 Try running: gh auth login", err=True)
-            click.echo("💡 Ensure you have the 'repo' scope enabled", err=True)
-            click.echo("💡 Check: gh auth status", err=True)
-        else:
-            error_result = {
-                "comment_id": comment_id,
-                "success": False,
-                "reply_posted": False,
-                "error": "authentication_failed",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
-
-    except GitHubTimeoutError as e:
-        if pretty:
-            click.echo(f"❌ Request timed out: {e}", err=True)
-            click.echo("💡 Try again in a moment. If the problem persists:", err=True)
-            click.echo("   • Check your internet connection", err=True)
-            click.echo("   • GitHub API may be experiencing issues", err=True)
-        else:
-            error_result = {
-                "comment_id": comment_id,
-                "success": False,
-                "reply_posted": False,
-                "error": "timeout",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
-
-    except GitHubRateLimitError as e:
-        if pretty:
-            click.echo(f"❌ Rate limit exceeded: {e}", err=True)
-            click.echo("💡 You've made too many requests. Please:", err=True)
-            click.echo("   • Wait a few minutes before trying again", err=True)
-            click.echo("   • Check rate limit status: gh api rate_limit", err=True)
-        else:
-            error_result = {
-                "comment_id": comment_id,
-                "success": False,
-                "reply_posted": False,
-                "error": "rate_limit_exceeded",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
-
-    except GitHubAPIError as e:
-        # Handle permission errors specifically
-        if "403" in str(e) or "forbidden" in str(e).lower():
-            if pretty:
-                click.echo(f"❌ Permission denied: {e}", err=True)
-                click.echo("💡 Possible causes:", err=True)
-                click.echo(
-                    "   • You don't have write access to this repository", err=True
-                )
-                click.echo(
-                    "   • The comment may be locked or in a restricted thread", err=True
-                )
-                click.echo(
-                    "   • Your GitHub token may lack required permissions", err=True
-                )
-            else:
-                error_result = {
-                    "comment_id": comment_id,
-                    "success": False,
-                    "reply_posted": False,
-                    "error": "permission_denied",
-                    "error_message": str(e),
-                }
-                click.echo(json.dumps(error_result), err=True)
-        else:
-            if pretty:
-                click.echo(f"❌ GitHub API error: {e}", err=True)
-                click.echo("💡 This may be a temporary issue. Please:", err=True)
-                click.echo("   • Try again in a few moments", err=True)
-                click.echo(
-                    "   • Check GitHub status: https://www.githubstatus.com/", err=True
-                )
-            else:
-                error_result = {
-                    "comment_id": comment_id,
-                    "success": False,
-                    "reply_posted": False,
-                    "error": "api_error",
-                    "error_message": str(e),
-                }
-                click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
-
-    except ReplyServiceError as e:
-        if pretty:
-            click.echo(f"❌ Failed to post reply: {e}", err=True)
-            click.echo("💡 This is likely a service error. Please:", err=True)
-            click.echo("   • Check your input parameters", err=True)
-            click.echo("   • Try again with a different comment", err=True)
-        else:
-            error_result = {
-                "comment_id": comment_id,
-                "success": False,
-                "reply_posted": False,
-                "error": "api_error",
-                "error_message": str(e),
-            }
-            click.echo(json.dumps(error_result), err=True)
-        ctx.exit(1)
+    except Exception as e:
+        _handle_reply_error(ctx, e, comment_id, pretty)
