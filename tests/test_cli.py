@@ -584,7 +584,7 @@ class TestReplyCommand:
             cli, ["reply", "--comment-id", "invalid123", "--body", "test"]
         )
         assert result.exit_code != 0
-        assert "Comment ID must be numeric" in result.output
+        assert "Comment ID must start with one of" in result.output
 
     def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test reply with too short node ID."""
@@ -592,7 +592,7 @@ class TestReplyCommand:
             cli, ["reply", "--comment-id", "IC_abc", "--body", "test"]
         )
         assert result.exit_code != 0
-        assert "GitHub node ID appears too short to be valid" in result.output
+        assert "appears too short to be valid" in result.output
 
     def test_reply_empty_body(self, runner: CliRunner) -> None:
         """Test reply with empty body."""
@@ -957,12 +957,12 @@ class TestReplyCommand:
             ("0", "Comment ID must be a positive integer"),
             (
                 "123456789012345678901",
-                "Numeric comment ID must be between 1 and 20 digits",
+                "Numeric comment id must be between 1 and 20 digits",
             ),
-            ("abc123", "Comment ID must be numeric"),
-            ("IC_", "GitHub node ID appears too short"),
-            ("IC_" + "a" * 98, "GitHub node ID appears too long"),
-            ("IC_kwDO@#$%", "GitHub node ID contains invalid characters"),
+            ("abc123", "Comment ID must start with one of"),
+            ("IC_", "appears too short"),
+            ("IC_" + "a" * 101, "appears too long"),
+            ("IC_kwDO@#$%", "contains invalid characters"),
         ]
 
         for comment_id, expected_error in test_cases:
@@ -1428,13 +1428,13 @@ class TestResolveCommand:
         """Test resolve with invalid thread ID format."""
         result = runner.invoke(cli, ["resolve", "--thread-id", "invalid123"])
         assert result.exit_code != 0
-        assert "Thread ID must be numeric" in result.output
+        assert "Thread ID must start with one of" in result.output
 
     def test_resolve_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test resolve with too short node ID."""
         result = runner.invoke(cli, ["resolve", "--thread-id", "PRT_abc"])
         assert result.exit_code != 0
-        assert "GitHub node ID appears too short to be valid" in result.output
+        assert "appears too short to be valid" in result.output
 
     def test_resolve_various_thread_id_formats(self, runner: CliRunner) -> None:
         """Test resolve with various valid thread ID formats."""

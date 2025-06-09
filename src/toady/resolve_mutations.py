@@ -2,6 +2,8 @@
 
 from typing import Any, Dict, Tuple
 
+from .node_id_validation import validate_thread_id
+
 
 class ResolveThreadMutationBuilder:
     """Builder for GraphQL mutations to resolve and unresolve review threads."""
@@ -22,6 +24,7 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
+                    url
                 }
             }
         }
@@ -39,6 +42,7 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
+                    url
                 }
             }
         }
@@ -61,12 +65,8 @@ class ResolveThreadMutationBuilder:
 
         thread_id = thread_id.strip()
 
-        # Validate thread ID format
-        if not (thread_id.isdigit() or thread_id.startswith(("PRT_", "PRRT_"))):
-            raise ValueError(
-                "Thread ID must be numeric (e.g., 123456789) or a "
-                "GitHub node ID starting with 'PRT_' or 'PRRT_'"
-            )
+        # Use centralized validation
+        validate_thread_id(thread_id)
 
         return {"threadId": thread_id}
 
