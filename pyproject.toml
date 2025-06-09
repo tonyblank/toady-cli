@@ -42,6 +42,18 @@ dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
+    "pytest-xdist>=3.3.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-html>=3.2.0",
+    "pytest-json-report>=1.5.0",
+    "pytest-clarity>=1.0.1",
+    "pytest-sugar>=0.9.7",
+    "pytest-emoji>=0.2.0",
+    "pytest-randomly>=3.12.0",
+    "pytest-memorywatch>=0.6.0",
+    "pytest-profiling>=1.7.0",
+    "pytest-deadfixtures>=2.2.1",
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.5.0",
@@ -50,6 +62,14 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
     "tomli>=2.0.0;python_version<'3.11'",
+    "coverage[toml]>=7.3.0",
+]
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "pytest-xdist>=3.3.0",
+    "pytest-timeout>=2.1.0",
 ]
 
 [project.urls]
@@ -116,22 +136,95 @@ minversion = "7.0"
 addopts = [
     "-ra",
     "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+    "--tb=short",
+    "--maxfail=1",
+    "--durations=10",
+    "--durations-min=1.0",
     "--cov=toady",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=80",
+    "-p", "no:warnings",
+    "--disable-warnings",
 ]
 testpaths = ["tests"]
 pythonpath = ["src"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*", "*Tests"]
+python_functions = ["test_*", "check_*"]
+norecursedirs = [".git", ".tox", "dist", "build", "*.egg", "htmlcov", ".pytest_cache"]
+markers = [
+    "unit: Unit tests (fast, isolated, no external dependencies)",
+    "integration: Integration tests (may require authentication or external services)",
+    "slow: Slow running tests (>1s execution time)",
+    "cli: CLI integration tests using CliRunner",
+    "service: Service layer tests (GitHub API interactions, business logic)",
+    "model: Model/data structure tests (serialization, validation)",
+    "formatter: Output formatting tests (JSON, pretty print, tables)",
+    "parser: Data parsing tests (GraphQL responses, API data)",
+    "validator: Validation logic tests (input validation, error handling)",
+    "smoke: Basic smoke tests for critical functionality",
+    "regression: Regression tests for specific bug fixes",
+    "parametrized: Parametrized tests with multiple input scenarios",
+    "mock: Tests that heavily use mocking",
+    "real_api: Tests that make actual API calls (requires auth)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:pytest_mock.*",
+    "error::pytest.PytestUnraisableExceptionWarning",
+]
+timeout = 300
+timeout_method = "thread"
+junit_family = "xunit2"
+junit_logging = "all"
+junit_log_passing_tests = false
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["*/tests/*", "*/test_*.py"]
+source = ["src/toady"]
+branch = true
+parallel = true
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/venv/*",
+    "*/env/*",
+    "setup.py",
+    "conftest.py",
+]
 
 [tool.coverage.report]
-precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if False:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
 show_missing = true
 skip_covered = false
+precision = 2
+sort = "Cover"
+
+[tool.coverage.html]
+directory = "htmlcov"
+title = "Toady CLI Test Coverage Report"
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 [tool.tox]
 legacy_tox_ini = """
