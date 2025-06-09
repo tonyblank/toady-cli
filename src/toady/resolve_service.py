@@ -97,7 +97,7 @@ class ResolveService:
             # Handle specific GraphQL errors
             if "not found" in str(e).lower():
                 raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
-            elif "permission" in str(e).lower() or "forbidden" in str(e).lower():
+            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
                 raise ThreadPermissionError(
                     f"Permission denied to resolve thread {thread_id}"
                 ) from e
@@ -160,7 +160,7 @@ class ResolveService:
             # Handle specific GraphQL errors
             if "not found" in str(e).lower():
                 raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
-            elif "permission" in str(e).lower() or "forbidden" in str(e).lower():
+            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
                 raise ThreadPermissionError(
                     f"Permission denied to unresolve thread {thread_id}"
                 ) from e
