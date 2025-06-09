@@ -584,7 +584,7 @@ class TestReplyCommand:
             cli, ["reply", "--comment-id", "invalid123", "--body", "test"]
         )
         assert result.exit_code != 0
-        assert "Comment ID must start with one of" in result.output
+        assert "Comment/Thread ID must start with one of" in result.output
 
     def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test reply with too short node ID."""
@@ -954,12 +954,12 @@ class TestReplyCommand:
         """Test enhanced comment ID validation edge cases."""
         # Test numeric ID validation
         test_cases = [
-            ("0", "Comment ID must be a positive integer"),
+            ("0", "Comment/Thread ID must be a positive integer"),
             (
                 "123456789012345678901",
-                "Numeric comment id must be between 1 and 20 digits",
+                "Numeric comment/thread id must be between 1 and 20 digits",
             ),
-            ("abc123", "Comment ID must start with one of"),
+            ("abc123", "Comment/Thread ID must start with one of"),
             ("IC_", "appears too short"),
             ("IC_" + "a" * 101, "appears too long"),
             ("IC_kwDO@#$%", "contains invalid characters"),

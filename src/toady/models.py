@@ -181,6 +181,8 @@ class Comment:
         updated_at: When the comment was last updated
         parent_id: ID of parent comment if this is a reply (None for top-level)
         thread_id: ID of the review thread this comment belongs to
+        review_id: ID of the pull request review this comment belongs to (optional)
+        review_state: State of the review (PENDING, SUBMITTED, etc.) (optional)
     """
 
     comment_id: str
@@ -190,6 +192,8 @@ class Comment:
     updated_at: datetime
     parent_id: Optional[str]
     thread_id: str
+    review_id: Optional[str] = None
+    review_state: Optional[str] = None
 
     # Content length limit (GitHub's actual limit)
     MAX_CONTENT_LENGTH = 65536
@@ -235,6 +239,8 @@ class Comment:
             "updated_at": self.updated_at.isoformat(),
             "parent_id": self.parent_id,
             "thread_id": self.thread_id,
+            "review_id": self.review_id,
+            "review_state": self.review_state,
         }
 
     @classmethod
@@ -287,6 +293,8 @@ class Comment:
             updated_at=updated_at,
             parent_id=data.get("parent_id"),
             thread_id=data["thread_id"],
+            review_id=data.get("review_id"),
+            review_state=data.get("review_state"),
         )
 
     @staticmethod

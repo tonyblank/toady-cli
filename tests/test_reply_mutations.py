@@ -76,7 +76,9 @@ class TestReplyMutationBuilder:
             builder.build_variables_for_thread_reply("   ", "test reply")
 
         with pytest.raises(ValueError, match="Reply body cannot be empty"):
-            builder.build_variables_for_thread_reply("PRT_kwDOABcD12MAAAABcDE3fg", "   ")
+            builder.build_variables_for_thread_reply(
+                "PRT_kwDOABcD12MAAAABcDE3fg", "   "
+            )
 
     def test_build_variables_for_thread_reply_strips_whitespace(self):
         """Test that variables strip leading/trailing whitespace."""
@@ -194,12 +196,17 @@ class TestDetermineReplyStrategy:
     def test_comment_node_ids(self):
         """Test comment node IDs return comment_reply strategy."""
         assert determine_reply_strategy("IC_kwDOABcD12MAAAABcDE3fg") == "comment_reply"
-        assert determine_reply_strategy("PRRC_kwDOABcD12MAAAABcDE3fg") == "comment_reply"
+        assert (
+            determine_reply_strategy("PRRC_kwDOABcD12MAAAABcDE3fg") == "comment_reply"
+        )
         assert determine_reply_strategy("RP_kwDOABcD12MAAAABcDE3fg") == "comment_reply"
 
     def test_unknown_format_defaults_to_comment_reply(self):
         """Test unknown formats default to comment_reply strategy."""
-        assert determine_reply_strategy("UNKNOWN_kwDOABcD12MAAAABcDE3fg") == "comment_reply"
+        assert (
+            determine_reply_strategy("UNKNOWN_kwDOABcD12MAAAABcDE3fg")
+            == "comment_reply"
+        )
         assert determine_reply_strategy("XYZ_123") == "comment_reply"
         assert determine_reply_strategy("random_string") == "comment_reply"
 
@@ -291,7 +298,7 @@ class TestEdgeCases:
         """Test handling of special characters in reply body."""
         builder = ReplyMutationBuilder()
         thread_id = "PRT_kwDOABcD12MAAAABcDE3fg"
-        special_body = 'Test with "quotes" and \'apostrophes\' and <tags> and &amp;'
+        special_body = "Test with \"quotes\" and 'apostrophes' and <tags> and &amp;"
 
         variables = builder.build_variables_for_thread_reply(thread_id, special_body)
         assert variables["body"] == special_body

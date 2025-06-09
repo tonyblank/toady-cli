@@ -148,6 +148,10 @@ class ReviewThreadQueryBuilder:
                       replyTo {{
                         id
                       }}
+                      pullRequestReview {{
+                        id
+                        state
+                      }}
                     }}
                   }}
                 }}
@@ -255,6 +259,10 @@ def create_paginated_query(limit: int = 100, after_cursor: Optional[str] = None)
                   url
                   replyTo {{
                     id
+                  }}
+                  pullRequestReview {{
+                    id
+                    state
                   }}
                 }}
               }}

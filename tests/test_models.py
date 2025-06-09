@@ -492,6 +492,8 @@ class TestComment:
             "updated_at": "2024-01-01T12:05:00",
             "parent_id": "C_123",
             "thread_id": "RT_123",
+            "review_id": None,
+            "review_state": None,
         }
 
         assert result == expected
@@ -518,6 +520,8 @@ class TestComment:
             "updated_at": "2024-01-01T12:05:00",
             "parent_id": None,
             "thread_id": "RT_123",
+            "review_id": None,
+            "review_state": None,
         }
 
         assert result == expected

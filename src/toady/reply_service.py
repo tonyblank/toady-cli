@@ -95,9 +95,11 @@ class ReplyService:
             if strategy == "thread_reply":
                 # Use addPullRequestReviewThreadReply for thread node IDs
                 return self._post_thread_reply(request, fetch_context, owner, repo)
+            elif strategy == "comment_reply" and not request.comment_id.isdigit():
+                # Use addPullRequestReviewComment with inReplyTo for comment node IDs
+                return self._post_comment_reply(request, fetch_context, owner, repo)
             else:
-                # Use REST API for all other cases (numeric IDs and comment node IDs)
-                # This maintains maximum backward compatibility
+                # Use REST API for numeric IDs to maintain backward compatibility
                 return self._post_reply_fallback_rest(
                     request, fetch_context, owner, repo
                 )
@@ -341,6 +343,13 @@ class ReplyService:
             if "404" in str(e) or "not found" in str(e).lower():
                 raise CommentNotFoundError(
                     f"Comment {request.comment_id} not found"
+                ) from e
+            # Check if it's a "review already submitted" error
+            elif "review has already been submitted" in str(e).lower():
+                raise ReplyServiceError(
+                    f"Cannot reply to comment {request.comment_id} because the review "
+                    f"has already been submitted. Try using the thread ID instead, or "
+                    f"resolve the thread to acknowledge the comment."
                 ) from e
             raise ReplyServiceError(f"Failed to post reply: {e}") from e
 

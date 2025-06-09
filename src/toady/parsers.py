@@ -126,6 +126,14 @@ class GraphQLResponseParser:
         if reply_to:
             parent_id = reply_to["id"]
 
+        # Extract review information
+        review_id = None
+        review_state = None
+        review_data = comment_data.get("pullRequestReview")
+        if review_data:
+            review_id = review_data.get("id")
+            review_state = review_data.get("state")
+
         return Comment(
             comment_id=comment_id,
             content=content,
@@ -134,6 +142,8 @@ class GraphQLResponseParser:
             updated_at=updated_at,
             parent_id=parent_id,
             thread_id=thread_id,
+            review_id=review_id,
+            review_state=review_state,
         )
 
     def _extract_title_from_comment(self, content: str) -> str:
