@@ -221,7 +221,7 @@ class TestFetchCommand:
         import json
 
         output = json.loads(result.output)
-        assert output["threads_fetched"] is False
+        assert output["success"] is False
         assert output["error"] == "authentication_failed"
         assert "Authentication failed" in output["error_message"]
 

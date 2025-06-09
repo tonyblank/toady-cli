@@ -138,6 +138,7 @@ def _build_json_reply(
     # Return JSON response with all available reply information
     result = {
         "comment_id": comment_id,
+        "success": True,
         "reply_posted": True,
         "reply_id": reply_info.get("reply_id", ""),
         "reply_url": reply_info.get("reply_url", ""),
@@ -271,6 +272,7 @@ def reply(
         else:
             error_result = {
                 "comment_id": comment_id,
+                "success": False,
                 "reply_posted": False,
                 "error": "comment_not_found",
                 "error_message": str(e),
@@ -287,6 +289,7 @@ def reply(
         else:
             error_result = {
                 "comment_id": comment_id,
+                "success": False,
                 "reply_posted": False,
                 "error": "authentication_failed",
                 "error_message": str(e),
@@ -303,6 +306,7 @@ def reply(
         else:
             error_result = {
                 "comment_id": comment_id,
+                "success": False,
                 "reply_posted": False,
                 "error": "timeout",
                 "error_message": str(e),
@@ -319,6 +323,7 @@ def reply(
         else:
             error_result = {
                 "comment_id": comment_id,
+                "success": False,
                 "reply_posted": False,
                 "error": "rate_limit_exceeded",
                 "error_message": str(e),
@@ -344,6 +349,7 @@ def reply(
             else:
                 error_result = {
                     "comment_id": comment_id,
+                    "success": False,
                     "reply_posted": False,
                     "error": "permission_denied",
                     "error_message": str(e),
@@ -360,6 +366,7 @@ def reply(
             else:
                 error_result = {
                     "comment_id": comment_id,
+                    "success": False,
                     "reply_posted": False,
                     "error": "api_error",
                     "error_message": str(e),
@@ -376,6 +383,7 @@ def reply(
         else:
             error_result = {
                 "comment_id": comment_id,
+                "success": False,
                 "reply_posted": False,
                 "error": "api_error",
                 "error_message": str(e),

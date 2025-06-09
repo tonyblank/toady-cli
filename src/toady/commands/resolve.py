@@ -22,19 +22,22 @@ from toady.resolve_service import (
 from toady.utils import MAX_PR_NUMBER
 
 
-def _fetch_and_filter_threads(pr_number: int, undo: bool, pretty: bool) -> List[Any]:
+def _fetch_and_filter_threads(
+    pr_number: int, undo: bool, pretty: bool, limit: int
+) -> List[Any]:
     """Fetch and filter threads based on resolution action.
 
     Args:
         pr_number: Pull request number
         undo: Whether to fetch resolved threads (for unresolve) or unresolved (resolve)
         pretty: Whether to show pretty progress messages
+        limit: Maximum number of threads to fetch
 
     Returns:
         List of filtered threads ready for processing
     """
     if pretty:
-        click.echo(f"🔍 Fetching threads from PR #{pr_number}...")
+        click.echo(f"🔍 Fetching threads from PR #{pr_number} (limit: {limit})...")
 
     fetch_service = FetchService()
     # For unresolve, we need to fetch resolved threads; for resolve, unresolved threads
@@ -42,7 +45,7 @@ def _fetch_and_filter_threads(pr_number: int, undo: bool, pretty: bool) -> List[
     threads = fetch_service.fetch_review_threads_from_current_repo(
         pr_number=pr_number,
         include_resolved=include_resolved,
-        limit=100,  # Maximum allowed limit for bulk operations
+        limit=limit,
     )
 
     # Filter threads based on action
@@ -211,7 +214,7 @@ def _display_summary(
 
 
 def _handle_bulk_resolve(
-    ctx: click.Context, pr_number: int, undo: bool, yes: bool, pretty: bool
+    ctx: click.Context, pr_number: int, undo: bool, yes: bool, pretty: bool, limit: int
 ) -> None:
     """Handle bulk resolution of all threads in a pull request.
 
@@ -221,6 +224,7 @@ def _handle_bulk_resolve(
         undo: Whether to unresolve instead of resolve
         yes: Whether to skip confirmation prompt
         pretty: Whether to use pretty output format
+        limit: Maximum number of threads to process
     """
     action = "unresolve" if undo else "resolve"
     action_past = "unresolved" if undo else "resolved"
@@ -229,7 +233,7 @@ def _handle_bulk_resolve(
 
     try:
         # Fetch and filter threads
-        target_threads = _fetch_and_filter_threads(pr_number, undo, pretty)
+        target_threads = _fetch_and_filter_threads(pr_number, undo, pretty, limit)
 
         # Handle empty result
         if not target_threads:
@@ -359,6 +363,13 @@ def _handle_bulk_resolve(
     is_flag=True,
     help="Output in human-readable format instead of JSON",
 )
+@click.option(
+    "--limit",
+    type=int,
+    default=100,
+    help="Maximum number of threads to process (default: 100, max: 1000)",
+    metavar="COUNT",
+)
 @click.pass_context
 def resolve(
     ctx: click.Context,
@@ -368,6 +379,7 @@ def resolve(
     undo: bool,
     yes: bool,
     pretty: bool,
+    limit: int,
 ) -> None:
     """Mark a review thread as resolved or unresolved.
 
@@ -390,6 +402,8 @@ def resolve(
         toady resolve --all --pr 123
 
         toady resolve --all --pr 123 --yes --pretty
+
+        toady resolve --all --pr 123 --limit 500
     """
     # Validate mutually exclusive options
     if bulk_resolve and thread_id:
@@ -414,10 +428,16 @@ def resolve(
     if bulk_resolve and pr_number is None:
         raise click.BadParameter("--pr is required when using --all", param_hint="--pr")
 
+    # Validate limit parameter
+    if limit <= 0:
+        raise click.BadParameter("Limit must be positive", param_hint="--limit")
+    if limit > 1000:
+        raise click.BadParameter("Limit cannot exceed 1000", param_hint="--limit")
+
     # Handle bulk resolution mode
     if bulk_resolve:
         try:
-            _handle_bulk_resolve(ctx, pr_number, undo, yes, pretty)
+            _handle_bulk_resolve(ctx, pr_number, undo, yes, pretty, limit)
         except SystemExit:
             # Re-raise SystemExit to avoid being caught by outer exception handlers
             raise

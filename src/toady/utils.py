@@ -63,7 +63,7 @@ def emit_error(
     else:
         error_result = {
             "pr_number": pr_number,
-            "threads_fetched": False,
+            "success": False,
             "error": code,
             "error_message": msg,
         }
