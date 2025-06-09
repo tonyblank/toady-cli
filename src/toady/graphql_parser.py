@@ -61,7 +61,7 @@ class GraphQLParser:
         """Clean up GraphQL query by removing comments and extra whitespace."""
         # Remove single-line comments
         query = re.sub(r"#.*$", "", query, flags=re.MULTILINE)
-        
+
         # Remove extra whitespace while preserving structure
         query = re.sub(r"\s+", " ", query)
         query = query.strip()
@@ -70,9 +70,9 @@ class GraphQLParser:
 
     def _parse_operation(self, query: str) -> GraphQLOperation:
         """Parse the main operation from the query."""
-        # Match operation type and name
+        # Match operation type and name - support subscriptions and shorthand queries
         op_match = re.match(
-            r"^(query|mutation)\s*(\w+)?\s*(\([^)]*\))?\s*{",
+            r"^(query|mutation|subscription)?\s*(\w+)?\s*(\([^)]*\))?\s*{",
             query,
             re.IGNORECASE,
         )
@@ -80,7 +80,9 @@ class GraphQLParser:
         if not op_match:
             raise ValueError("Invalid GraphQL operation format")
 
-        op_type = op_match.group(1).lower()
+        op_type = (
+            op_match.group(1) or "query"
+        ).lower()  # Default to query for shorthand
         op_name = op_match.group(2)
         variables_str = op_match.group(3)
 
@@ -92,7 +94,7 @@ class GraphQLParser:
         # Find the main selection set
         selection_start = query.find("{", op_match.end() - 1)
         selection_end = self._find_matching_brace(query, selection_start)
-        
+
         if selection_end == -1:
             raise ValueError("Unmatched braces in query")
 
@@ -111,10 +113,10 @@ class GraphQLParser:
     def _parse_variables(self, variables_str: str) -> Dict[str, str]:
         """Parse variable declarations."""
         variables = {}
-        
+
         # Remove parentheses
         variables_str = variables_str.strip("()")
-        
+
         # Simple variable parsing (doesn't handle all cases)
         var_pattern = r"\$(\w+)\s*:\s*([^,\s]+)"
         for match in re.finditer(var_pattern, variables_str):
@@ -130,12 +132,15 @@ class GraphQLParser:
         """Parse a selection set."""
         selections = []
         current_pos = 0
-        
+
         while current_pos < len(selection_str):
             # Skip whitespace
-            while current_pos < len(selection_str) and selection_str[current_pos].isspace():
+            while (
+                current_pos < len(selection_str)
+                and selection_str[current_pos].isspace()
+            ):
                 current_pos += 1
-            
+
             if current_pos >= len(selection_str):
                 break
 
@@ -143,7 +148,7 @@ class GraphQLParser:
             field, next_pos = self._parse_field(selection_str, current_pos, parent_type)
             if field:
                 selections.append(field)
-            
+
             current_pos = next_pos
 
         return selections
@@ -155,17 +160,17 @@ class GraphQLParser:
         # Skip whitespace
         while start_pos < len(selection_str) and selection_str[start_pos].isspace():
             start_pos += 1
-        
+
         if start_pos >= len(selection_str):
             return None, start_pos
-        
+
         # Check for inline fragment (... on Type)
-        if selection_str[start_pos:start_pos + 3] == "...":
+        if selection_str[start_pos : start_pos + 3] == "...":
             return self._parse_inline_fragment(selection_str, start_pos, parent_type)
-        
+
         # Match field pattern: [alias:] fieldName [(args)] [{selections}]
         field_pattern = r"(\w+\s*:\s*)?(\w+)\s*(\([^)]*\))?\s*({)?"
-        
+
         match = re.match(field_pattern, selection_str[start_pos:])
         if not match:
             return None, start_pos + 1
@@ -188,17 +193,15 @@ class GraphQLParser:
         # Parse nested selections if present
         selections = []
         next_pos = start_pos + match.end()
-        
+
         if has_selections:
             # Find matching brace
             selection_start = start_pos + match.end() - 1
-            selection_end = self._find_matching_brace(
-                selection_str, selection_start
-            )
-            
+            selection_end = self._find_matching_brace(selection_str, selection_start)
+
             if selection_end == -1:
                 raise ValueError(f"Unmatched braces for field {field_name}")
-            
+
             nested_str = selection_str[selection_start + 1 : selection_end]
             selections = self._parse_selections(nested_str, field_name)
             next_pos = selection_end + 1
@@ -219,33 +222,33 @@ class GraphQLParser:
         """Parse an inline fragment (... on Type)."""
         # Pattern for inline fragment: ... on TypeName { selections }
         fragment_pattern = r"\.\.\.\s+on\s+(\w+)\s*{"
-        
+
         match = re.match(fragment_pattern, selection_str[start_pos:])
         if not match:
             # Skip this fragment for now
             next_brace = selection_str.find("{", start_pos)
             if next_brace == -1:
                 return None, len(selection_str)
-            
+
             end_brace = self._find_matching_brace(selection_str, next_brace)
             if end_brace == -1:
                 return None, len(selection_str)
-            
+
             return None, end_brace + 1
 
         type_name = match.group(1)
-        
+
         # Find the opening brace
         selection_start = start_pos + match.end() - 1
         selection_end = self._find_matching_brace(selection_str, selection_start)
-        
+
         if selection_end == -1:
             raise ValueError(f"Unmatched braces for inline fragment on {type_name}")
-        
+
         # Parse the fragment's selections
         nested_str = selection_str[selection_start + 1 : selection_end]
         selections = self._parse_selections(nested_str, type_name)
-        
+
         # Create a pseudo-field for the inline fragment
         # We'll treat it as a field with a special name
         field = GraphQLField(
@@ -261,16 +264,16 @@ class GraphQLParser:
     def _parse_arguments(self, args_str: str) -> Dict[str, Any]:
         """Parse field arguments."""
         arguments = {}
-        
+
         # Remove parentheses
         args_str = args_str.strip("()")
-        
+
         # Simple argument parsing
         arg_pattern = r"(\w+)\s*:\s*([^,]+)"
         for match in re.finditer(arg_pattern, args_str):
             arg_name = match.group(1)
             arg_value = match.group(2).strip()
-            
+
             # Handle different value types
             parsed_value: Any
             if arg_value.startswith("$"):
@@ -285,14 +288,12 @@ class GraphQLParser:
             else:
                 # Other (boolean, enum, etc.)
                 parsed_value = arg_value
-            
+
             arguments[arg_name] = parsed_value
 
         return arguments
 
-    def _find_matching_brace(
-        self, text: str, start_pos: int, offset: int = 0
-    ) -> int:
+    def _find_matching_brace(self, text: str, start_pos: int, offset: int = 0) -> int:
         """Find the matching closing brace for an opening brace."""
         if start_pos >= len(text) or text[start_pos] != "{":
             return -1
@@ -300,18 +301,18 @@ class GraphQLParser:
         count = 0
         in_string = False
         escape_next = False
-        
+
         for i in range(start_pos, len(text)):
             char = text[i]
-            
+
             if escape_next:
                 escape_next = False
                 continue
-            
+
             if char == "\\":
                 escape_next = True
                 continue
-            
+
             if char == '"' and not in_string:
                 in_string = True
             elif char == '"' and in_string:
@@ -338,10 +339,10 @@ class GraphQLParser:
         fields = set()
 
         def collect_fields(selections: List[GraphQLField]) -> None:
-            for field in selections:
-                fields.add(field.name)
-                if field.selections:
-                    collect_fields(field.selections)
+            for selection in selections:
+                fields.add(selection.name)
+                if selection.selections:
+                    collect_fields(selection.selections)
 
         collect_fields(operation.selections)
         return fields
@@ -360,12 +361,14 @@ class GraphQLParser:
         def collect_paths(
             selections: List[GraphQLField], parent_path: str = ""
         ) -> None:
-            for field in selections:
-                current_path = f"{parent_path}.{field.name}" if parent_path else field.name
+            for selection in selections:
+                current_path = (
+                    f"{parent_path}.{selection.name}" if parent_path else selection.name
+                )
                 paths.append(current_path)
-                
-                if field.selections:
-                    collect_paths(field.selections, current_path)
+
+                if selection.selections:
+                    collect_paths(selection.selections, current_path)
 
         collect_paths(operation.selections)
         return paths

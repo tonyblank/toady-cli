@@ -4,8 +4,6 @@ import pytest
 
 from toady.graphql_parser import (
     GraphQLParser,
-    GraphQLOperation,
-    GraphQLField,
 )
 
 
@@ -199,10 +197,10 @@ class TestGraphQLParser:
         # Our parser now handles fragments by treating them as pseudo-fields
         operation = parser.parse(query)
         assert operation.type == "query"
-        
+
         user_field = operation.selections[0]
         assert user_field.name == "user"
-        
+
         # Should have id, name, and the fragment pseudo-field
         field_names = [field.name for field in user_field.selections]
         assert "id" in field_names
@@ -268,8 +266,14 @@ class TestGraphQLParser:
         fields = parser.extract_all_fields(operation)
 
         expected_fields = {
-            "repository", "name", "pullRequest", "id", "title",
-            "reviewThreads", "nodes", "isResolved"
+            "repository",
+            "name",
+            "pullRequest",
+            "id",
+            "title",
+            "reviewThreads",
+            "nodes",
+            "isResolved",
         }
         assert fields == expected_fields
 

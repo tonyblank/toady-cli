@@ -74,11 +74,13 @@ class TestSchemaValidationIntegration:
 
         # Should have no errors (or only warnings)
         critical_errors = [e for e in errors if e.get("severity") != "warning"]
-        assert len(critical_errors) == 0, f"Critical validation errors: {critical_errors}"
+        assert (
+            len(critical_errors) == 0
+        ), f"Critical validation errors: {critical_errors}"
 
     @pytest.mark.integration
     def test_validate_resolve_mutations_against_real_schema(self, validator):
-        """Test validating our resolve/unresolve mutations against real GitHub schema."""
+        """Test validating resolve/unresolve mutations against real GitHub schema."""
         if not self._check_gh_auth():
             pytest.skip("gh CLI not authenticated - skipping integration test")
 
@@ -89,14 +91,22 @@ class TestSchemaValidationIntegration:
         # Test resolve mutation
         resolve_mutation = builder.build_resolve_mutation()
         resolve_errors = validator.validate_query(resolve_mutation)
-        critical_resolve_errors = [e for e in resolve_errors if e.get("severity") != "warning"]
-        assert len(critical_resolve_errors) == 0, f"Resolve mutation errors: {critical_resolve_errors}"
+        critical_resolve_errors = [
+            e for e in resolve_errors if e.get("severity") != "warning"
+        ]
+        assert (
+            len(critical_resolve_errors) == 0
+        ), f"Resolve mutation errors: {critical_resolve_errors}"
 
         # Test unresolve mutation
         unresolve_mutation = builder.build_unresolve_mutation()
         unresolve_errors = validator.validate_query(unresolve_mutation)
-        critical_unresolve_errors = [e for e in unresolve_errors if e.get("severity") != "warning"]
-        assert len(critical_unresolve_errors) == 0, f"Unresolve mutation errors: {critical_unresolve_errors}"
+        critical_unresolve_errors = [
+            e for e in unresolve_errors if e.get("severity") != "warning"
+        ]
+        assert (
+            len(critical_unresolve_errors) == 0
+        ), f"Unresolve mutation errors: {critical_unresolve_errors}"
 
     @pytest.mark.integration
     def test_schema_caching_with_real_github_api(self, validator):
@@ -142,7 +152,9 @@ class TestSchemaValidationIntegration:
         mutation_errors = report["mutations"]
         for mutation_name, errors in mutation_errors.items():
             critical_errors = [e for e in errors if e.get("severity") != "warning"]
-            assert len(critical_errors) == 0, f"Critical errors in {mutation_name}: {critical_errors}"
+            assert (
+                len(critical_errors) == 0
+            ), f"Critical errors in {mutation_name}: {critical_errors}"
 
     @pytest.mark.integration
     def test_deprecation_warnings_with_real_schema(self, validator):
@@ -177,7 +189,7 @@ class TestSchemaValidationIntegration:
         # Should likely include "title"
         assert any("title" in s for s in suggestions)
 
-    @pytest.mark.integration 
+    @pytest.mark.integration
     def test_schema_version_tracking(self, validator):
         """Test schema version tracking with real GitHub API."""
         if not self._check_gh_auth():
@@ -197,17 +209,19 @@ class TestSchemaValidationIntegration:
         """Test error handling when GitHub authentication fails."""
         # Create validator and temporarily break auth by using invalid command
         validator = GitHubSchemaValidator()
-        
+
         # Mock the GitHub service to fail
         import unittest.mock
+
         from toady.github_service import GitHubAuthenticationError
+
         validator._github_service.run_gh_command = unittest.mock.Mock(
             side_effect=GitHubAuthenticationError("Authentication failed")
         )
-        
+
         with pytest.raises(SchemaValidationError) as exc_info:
             validator.fetch_schema()
-        
+
         assert "Failed to fetch GitHub schema" in str(exc_info.value)
 
     @pytest.mark.integration
@@ -340,13 +354,16 @@ class TestSchemaValidationIntegration:
         """
 
         import time
+
         start_time = time.time()
         errors = validator.validate_query(large_query)
         validation_time = time.time() - start_time
 
         # Validation should complete within reasonable time (10 seconds)
         assert validation_time < 10.0, f"Validation took too long: {validation_time}s"
-        
+
         # Query should be valid (only warnings acceptable)
         critical_errors = [e for e in errors if e.get("severity") != "warning"]
-        assert len(critical_errors) == 0, f"Critical validation errors: {critical_errors}"
+        assert (
+            len(critical_errors) == 0
+        ), f"Critical validation errors: {critical_errors}"

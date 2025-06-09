@@ -4,7 +4,7 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -45,8 +45,20 @@ class TestGitHubSchemaValidator:
                         {
                             "name": "repository",
                             "args": [
-                                {"name": "owner", "type": {"kind": "NON_NULL", "ofType": {"name": "String"}}},
-                                {"name": "name", "type": {"kind": "NON_NULL", "ofType": {"name": "String"}}},
+                                {
+                                    "name": "owner",
+                                    "type": {
+                                        "kind": "NON_NULL",
+                                        "ofType": {"name": "String"},
+                                    },
+                                },
+                                {
+                                    "name": "name",
+                                    "type": {
+                                        "kind": "NON_NULL",
+                                        "ofType": {"name": "String"},
+                                    },
+                                },
                             ],
                             "type": {"name": "Repository"},
                             "isDeprecated": False,
@@ -60,7 +72,13 @@ class TestGitHubSchemaValidator:
                         {
                             "name": "resolveReviewThread",
                             "args": [
-                                {"name": "input", "type": {"kind": "NON_NULL", "ofType": {"name": "ResolveReviewThreadInput"}}},
+                                {
+                                    "name": "input",
+                                    "type": {
+                                        "kind": "NON_NULL",
+                                        "ofType": {"name": "ResolveReviewThreadInput"},
+                                    },
+                                },
                             ],
                             "type": {"name": "ResolveReviewThreadPayload"},
                             "isDeprecated": False,
@@ -68,7 +86,15 @@ class TestGitHubSchemaValidator:
                         {
                             "name": "unresolveReviewThread",
                             "args": [
-                                {"name": "input", "type": {"kind": "NON_NULL", "ofType": {"name": "UnresolveReviewThreadInput"}}},
+                                {
+                                    "name": "input",
+                                    "type": {
+                                        "kind": "NON_NULL",
+                                        "ofType": {
+                                            "name": "UnresolveReviewThreadInput"
+                                        },
+                                    },
+                                },
                             ],
                             "type": {"name": "UnresolveReviewThreadPayload"},
                             "isDeprecated": False,
@@ -82,7 +108,13 @@ class TestGitHubSchemaValidator:
                         {
                             "name": "pullRequest",
                             "args": [
-                                {"name": "number", "type": {"kind": "NON_NULL", "ofType": {"name": "Int"}}},
+                                {
+                                    "name": "number",
+                                    "type": {
+                                        "kind": "NON_NULL",
+                                        "ofType": {"name": "Int"},
+                                    },
+                                },
                             ],
                             "type": {"name": "PullRequest"},
                             "isDeprecated": False,
@@ -142,7 +174,10 @@ class TestGitHubSchemaValidator:
                         {
                             "name": "nodes",
                             "args": [],
-                            "type": {"kind": "LIST", "ofType": {"name": "ReviewThread"}},
+                            "type": {
+                                "kind": "LIST",
+                                "ofType": {"name": "ReviewThread"},
+                            },
                             "isDeprecated": False,
                         },
                         {
@@ -188,7 +223,10 @@ class TestGitHubSchemaValidator:
     def test_cache_paths(self, validator, temp_cache_dir):
         """Test cache path generation."""
         assert validator._get_cache_path() == temp_cache_dir / "github_schema.json"
-        assert validator._get_cache_metadata_path() == temp_cache_dir / "github_schema_metadata.json"
+        assert (
+            validator._get_cache_metadata_path()
+            == temp_cache_dir / "github_schema_metadata.json"
+        )
 
     def test_cache_validity_no_metadata(self, validator):
         """Test cache validity when metadata doesn't exist."""
@@ -250,14 +288,14 @@ class TestGitHubSchemaValidator:
         # Check schema file
         cache_path = validator._get_cache_path()
         assert cache_path.exists()
-        with open(cache_path, "r") as f:
+        with open(cache_path) as f:
             saved_schema = json.load(f)
         assert saved_schema == mock_schema
 
         # Check metadata file
         metadata_path = validator._get_cache_metadata_path()
         assert metadata_path.exists()
-        with open(metadata_path, "r") as f:
+        with open(metadata_path) as f:
             metadata = json.load(f)
         assert "timestamp" in metadata
         assert "schema_hash" in metadata
@@ -265,7 +303,7 @@ class TestGitHubSchemaValidator:
     def test_fetch_schema_success(self, validator, mock_schema):
         """Test successful schema fetching."""
         # Mock the GitHub service's run_gh_command method
-        from unittest.mock import Mock
+
         mock_result = Mock()
         mock_result.stdout = json.dumps({"data": {"__schema": mock_schema}})
         validator._github_service.run_gh_command = Mock(return_value=mock_result)
@@ -287,7 +325,7 @@ class TestGitHubSchemaValidator:
         validator._save_schema_to_cache(mock_schema)
 
         # Mock the GitHub service (should not be called)
-        from unittest.mock import Mock
+
         validator._github_service.run_gh_command = Mock()
 
         # Fetch should use cache
@@ -302,7 +340,7 @@ class TestGitHubSchemaValidator:
         validator._save_schema_to_cache(mock_schema)
 
         # Mock the GitHub service
-        from unittest.mock import Mock
+
         mock_result = Mock()
         mock_result.stdout = json.dumps({"data": {"__schema": mock_schema}})
         validator._github_service.run_gh_command = Mock(return_value=mock_result)
@@ -315,8 +353,10 @@ class TestGitHubSchemaValidator:
 
     def test_fetch_schema_api_error(self, validator):
         """Test schema fetching with API error."""
-        from unittest.mock import Mock
-        validator._github_service.run_gh_command = Mock(side_effect=Exception("API error"))
+
+        validator._github_service.run_gh_command = Mock(
+            side_effect=Exception("API error")
+        )
 
         with pytest.raises(SchemaValidationError) as exc_info:
             validator.fetch_schema()
@@ -325,7 +365,7 @@ class TestGitHubSchemaValidator:
 
     def test_fetch_schema_invalid_response(self, validator):
         """Test schema fetching with invalid response."""
-        from unittest.mock import Mock
+
         mock_result = Mock()
         mock_result.stdout = json.dumps({"error": "Invalid query"})
         validator._github_service.run_gh_command = Mock(return_value=mock_result)
@@ -369,7 +409,8 @@ class TestGitHubSchemaValidator:
         validator._schema = mock_schema
         validator._build_type_map()
 
-        errors = validator.validate_query("invalid { field }")
+        # Test with truly invalid syntax that can't be parsed
+        errors = validator.validate_query("invalid syntax {")
         assert len(errors) == 1
         assert errors[0]["type"] == "parse_error"
 
@@ -525,26 +566,17 @@ class TestGitHubSchemaValidator:
         assert validator._resolve_field_type(type_ref) == "String"
 
         # NON_NULL wrapper
-        type_ref = {
-            "kind": "NON_NULL",
-            "ofType": {"kind": "OBJECT", "name": "String"}
-        }
+        type_ref = {"kind": "NON_NULL", "ofType": {"kind": "OBJECT", "name": "String"}}
         assert validator._resolve_field_type(type_ref) == "String"
 
         # LIST wrapper
-        type_ref = {
-            "kind": "LIST",
-            "ofType": {"kind": "OBJECT", "name": "String"}
-        }
+        type_ref = {"kind": "LIST", "ofType": {"kind": "OBJECT", "name": "String"}}
         assert validator._resolve_field_type(type_ref) == "String"
 
         # Nested wrappers
         type_ref = {
             "kind": "NON_NULL",
-            "ofType": {
-                "kind": "LIST",
-                "ofType": {"kind": "OBJECT", "name": "String"}
-            }
+            "ofType": {"kind": "LIST", "ofType": {"kind": "OBJECT", "name": "String"}},
         }
         assert validator._resolve_field_type(type_ref) == "String"
 

@@ -50,7 +50,6 @@ check:
 	mypy --strict --ignore-missing-imports src
 	@echo "🧪 Running tests..."
 	pytest -v
-	@echo "✅ All checks passed!"
 
 # Strict checking without auto-fixing (fails if formatting needed)
 check-strict: format-check lint type-check test

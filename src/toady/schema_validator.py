@@ -8,17 +8,13 @@ breaking changes early.
 import hashlib
 import json
 import logging
-import os
 import subprocess
-import tempfile
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from .github_service import GitHubService
-from .graphql_parser import GraphQLParser, GraphQLOperation, GraphQLField
-
+from .graphql_parser import GraphQLField, GraphQLParser
 
 logger = logging.getLogger(__name__)
 
@@ -48,99 +44,23 @@ class GitHubSchemaValidator:
     """Validator for GitHub GraphQL queries against the live API schema."""
 
     # Introspection query to fetch the GitHub GraphQL schema
-    INTROSPECTION_QUERY = """
-    query IntrospectionQuery {
-      __schema {
-        queryType { name }
-        mutationType { name }
-        subscriptionType { name }
-        types {
-          ...FullType
-        }
-        directives {
-          name
-          description
-          locations
-          args {
-            ...InputValue
-          }
-        }
-      }
-    }
-
-    fragment FullType on __Type {
-      kind
-      name
-      description
-      fields(includeDeprecated: true) {
-        name
-        description
-        args {
-          ...InputValue
-        }
-        type {
-          ...TypeRef
-        }
-        isDeprecated
-        deprecationReason
-      }
-      inputFields {
-        ...InputValue
-      }
-      interfaces {
-        ...TypeRef
-      }
-      enumValues(includeDeprecated: true) {
-        name
-        description
-        isDeprecated
-        deprecationReason
-      }
-      possibleTypes {
-        ...TypeRef
-      }
-    }
-
-    fragment InputValue on __InputValue {
-      name
-      description
-      type { ...TypeRef }
-      defaultValue
-    }
-
-    fragment TypeRef on __Type {
-      kind
-      name
-      ofType {
-        kind
-        name
-        ofType {
-          kind
-          name
-          ofType {
-            kind
-            name
-            ofType {
-              kind
-              name
-              ofType {
-                kind
-                name
-                ofType {
-                  kind
-                  name
-                  ofType {
-                    kind
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    """
+    # (compact to avoid shell parsing issues)
+    INTROSPECTION_QUERY = (
+        "query IntrospectionQuery { __schema { queryType { name } "
+        "mutationType { name } subscriptionType { name } types { ...FullType } "
+        "directives { name description locations args { ...InputValue } } } } "
+        "fragment FullType on __Type { kind name description "
+        "fields(includeDeprecated: true) { name description args { ...InputValue } "
+        "type { ...TypeRef } isDeprecated deprecationReason } "
+        "inputFields { ...InputValue } interfaces { ...TypeRef } "
+        "enumValues(includeDeprecated: true) { name description isDeprecated "
+        "deprecationReason } possibleTypes { ...TypeRef } } "
+        "fragment InputValue on __InputValue { name description "
+        "type { ...TypeRef } defaultValue } "
+        "fragment TypeRef on __Type { kind name ofType { kind name "
+        "ofType { kind name ofType { kind name ofType { kind name "
+        "ofType { kind name ofType { kind name ofType { kind name } } } } } } } }"
+    )
 
     def __init__(
         self,
@@ -175,7 +95,7 @@ class GitHubSchemaValidator:
             return False
 
         try:
-            with open(metadata_path, "r") as f:
+            with open(metadata_path) as f:
                 metadata = json.load(f)
 
             cached_time = datetime.fromisoformat(metadata["timestamp"])
@@ -193,7 +113,7 @@ class GitHubSchemaValidator:
             return None
 
         try:
-            with open(cache_path, "r") as f:
+            with open(cache_path) as f:
                 data = json.load(f)
                 return data if isinstance(data, dict) else None
         except json.JSONDecodeError:
@@ -244,17 +164,15 @@ class GitHubSchemaValidator:
 
         try:
             # Use GitHub service to execute introspection query
-            process_result = self._github_service.run_gh_command([
-                "api", "graphql", "-f", f"query={self.INTROSPECTION_QUERY}"
-            ])
-            
+            process_result = self._github_service.run_gh_command(
+                ["api", "graphql", "-f", f"query={self.INTROSPECTION_QUERY}"]
+            )
+
             # Parse JSON response
             result = json.loads(process_result.stdout)
 
             if "data" not in result or "__schema" not in result["data"]:
-                raise SchemaValidationError(
-                    "Invalid schema response from GitHub API"
-                )
+                raise SchemaValidationError("Invalid schema response from GitHub API")
 
             schema = result["data"]["__schema"]
             if isinstance(schema, dict):
@@ -268,11 +186,11 @@ class GitHubSchemaValidator:
                 raise SchemaValidationError("Schema data is not a dictionary")
 
         except subprocess.CalledProcessError as e:
-            raise SchemaValidationError(f"Failed to fetch GitHub schema: {e}")
+            raise SchemaValidationError(f"Failed to fetch GitHub schema: {e}") from e
         except json.JSONDecodeError as e:
-            raise SchemaValidationError(f"Failed to parse schema response: {e}")
+            raise SchemaValidationError(f"Failed to parse schema response: {e}") from e
         except Exception as e:
-            raise SchemaValidationError(f"Failed to fetch GitHub schema: {e}")
+            raise SchemaValidationError(f"Failed to fetch GitHub schema: {e}") from e
 
     def _build_type_map(self) -> None:
         """Build a map of type names to type definitions."""
@@ -314,10 +232,12 @@ class GitHubSchemaValidator:
 
         # Basic query structure validation
         if not query.strip():
-            errors.append({
-                "type": "empty_query",
-                "message": "Query cannot be empty",
-            })
+            errors.append(
+                {
+                    "type": "empty_query",
+                    "message": "Query cannot be empty",
+                }
+            )
             return errors
 
         # Parse the query
@@ -325,20 +245,24 @@ class GitHubSchemaValidator:
         try:
             operation = parser.parse(query)
         except ValueError as e:
-            errors.append({
-                "type": "parse_error",
-                "message": f"Failed to parse query: {str(e)}",
-            })
+            errors.append(
+                {
+                    "type": "parse_error",
+                    "message": f"Failed to parse query: {str(e)}",
+                }
+            )
             return errors
 
         # Validate operation type
         root_type_name = operation.type.capitalize()
         root_type = self.get_type(root_type_name)
         if not root_type:
-            errors.append({
-                "type": "missing_type",
-                "message": f"{root_type_name} type not found in schema",
-            })
+            errors.append(
+                {
+                    "type": "missing_type",
+                    "message": f"{root_type_name} type not found in schema",
+                }
+            )
             return errors
 
         # Validate fields recursively
@@ -370,10 +294,8 @@ class GitHubSchemaValidator:
         fields = parent_type.get("fields")
         if not fields:
             return
-        
-        available_fields = {
-            field["name"]: field for field in fields
-        }
+
+        available_fields = {field["name"]: field for field in fields}
 
         for selection in selections:
             # Skip inline fragments (they start with __fragment_)
@@ -390,31 +312,37 @@ class GitHubSchemaValidator:
                         type_path + [fragment_type_name],
                     )
                 continue
-            
+
             field_def = available_fields.get(selection.name)
-            
+
             if not field_def:
                 # Field not found
                 path = ".".join(type_path + [selection.name])
-                errors.append({
-                    "type": "unknown_field",
-                    "message": f"Field '{selection.name}' not found on type '{parent_type.get('name', 'Unknown')}'",
-                    "path": path,
-                    "suggestions": self.get_field_suggestions(
-                        parent_type.get("name", ""), selection.name
-                    ),
-                })
+                errors.append(
+                    {
+                        "type": "unknown_field",
+                        "message": f"Field '{selection.name}' not found on type "
+                        f"'{parent_type.get('name', 'Unknown')}'",
+                        "path": path,
+                        "suggestions": self.get_field_suggestions(
+                            parent_type.get("name", ""), selection.name
+                        ),
+                    }
+                )
                 continue
 
             # Check if field is deprecated
             if field_def.get("isDeprecated"):
                 path = ".".join(type_path + [selection.name])
-                errors.append({
-                    "type": "deprecated_field",
-                    "message": f"Field '{selection.name}' is deprecated: {field_def.get('deprecationReason', 'No reason provided')}",
-                    "path": path,
-                    "severity": "warning",
-                })
+                reason = field_def.get("deprecationReason", "No reason provided")
+                errors.append(
+                    {
+                        "type": "deprecated_field",
+                        "message": f"Field '{selection.name}' is deprecated: {reason}",
+                        "path": path,
+                        "severity": "warning",
+                    }
+                )
 
             # Validate arguments
             self._validate_arguments(
@@ -450,29 +378,36 @@ class GitHubSchemaValidator:
             errors: List to append errors to
             type_path: Current type path for error messages
         """
-        available_args = {
-            arg["name"]: arg for arg in field_def.get("args", [])
-        }
+        available_args = {arg["name"]: arg for arg in field_def.get("args", [])}
 
         # Check provided arguments
-        for arg_name, arg_value in field.arguments.items():
+        for arg_name, _arg_value in field.arguments.items():
             if arg_name not in available_args:
                 path = ".".join(type_path)
-                errors.append({
-                    "type": "unknown_argument",
-                    "message": f"Unknown argument '{arg_name}' on field '{field.name}'",
-                    "path": path,
-                })
+                errors.append(
+                    {
+                        "type": "unknown_argument",
+                        "message": f"Unknown argument '{arg_name}' on field "
+                        f"'{field.name}'",
+                        "path": path,
+                    }
+                )
 
         # Check required arguments
         for arg_name, arg_def in available_args.items():
-            if self._is_required_type(arg_def.get("type")) and arg_name not in field.arguments:
+            if (
+                self._is_required_type(arg_def.get("type"))
+                and arg_name not in field.arguments
+            ):
                 path = ".".join(type_path)
-                errors.append({
-                    "type": "missing_argument",
-                    "message": f"Missing required argument '{arg_name}' on field '{field.name}'",
-                    "path": path,
-                })
+                errors.append(
+                    {
+                        "type": "missing_argument",
+                        "message": f"Missing required argument '{arg_name}' on field "
+                        f"'{field.name}'",
+                        "path": path,
+                    }
+                )
 
     def _resolve_field_type(self, type_ref: Optional[Dict[str, Any]]) -> Optional[str]:
         """Resolve the actual type name from a type reference.
@@ -519,6 +454,9 @@ class GitHubSchemaValidator:
 
         # TODO: Implement deprecation checking by parsing query
         # and checking each field against schema
+        # For now, just validate and return deprecation warnings from validation
+        errors = self.validate_query(query)
+        warnings = [e for e in errors if e.get("severity") == "warning"]
 
         return warnings
 
@@ -535,9 +473,7 @@ class GitHubSchemaValidator:
         schema_str = json.dumps(self._schema, sort_keys=True)
         return hashlib.sha256(schema_str.encode()).hexdigest()[:12]
 
-    def get_field_suggestions(
-        self, type_name: str, field_name: str
-    ) -> List[str]:
+    def get_field_suggestions(self, type_name: str, field_name: str) -> List[str]:
         """Get suggestions for a field name on a type.
 
         Args:
@@ -552,10 +488,11 @@ class GitHubSchemaValidator:
             return []
 
         field_names = [f["name"] for f in type_def["fields"] if f.get("name")]
-        
+
         # Simple similarity check - fields starting with same letter
         suggestions = [
-            name for name in field_names
+            name
+            for name in field_names
             if name.lower().startswith(field_name[0].lower())
         ]
 
