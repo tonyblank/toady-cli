@@ -24,7 +24,6 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
-                    url
                 }
             }
         }
@@ -42,7 +41,6 @@ class ResolveThreadMutationBuilder:
                 thread {
                     id
                     isResolved
-                    url
                 }
             }
         }
