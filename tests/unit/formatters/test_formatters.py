@@ -22,58 +22,32 @@ class TestJSONFormatter:
         expected = "[]"
         assert result == expected
 
-    def test_format_single_thread(self) -> None:
+    def test_format_single_thread(self, sample_review_thread) -> None:
         """Test formatting single thread."""
-        # Create a sample thread with comment
-        comment = Comment(
-            comment_id="IC_123",
-            content="Test comment",
-            author="testuser",
-            created_at=datetime(2024, 1, 15, 10, 30, 0),
-            updated_at=datetime(2024, 1, 15, 10, 30, 0),
-            parent_id=None,
-            thread_id="RT_456",
-        )
 
-        thread = ReviewThread(
-            thread_id="RT_456",
-            title="Test thread",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            updated_at=datetime(2024, 1, 15, 10, 30, 0),
-            status="UNRESOLVED",
-            author="reviewer1",
-            comments=[comment],
-        )
-
-        result = JSONFormatter.format_threads([thread])
+        result = JSONFormatter.format_threads([sample_review_thread])
         parsed = json.loads(result)
 
         assert len(parsed) == 1
-        assert parsed[0]["thread_id"] == "RT_456"
-        assert parsed[0]["title"] == "Test thread"
+        assert parsed[0]["thread_id"] == "RT_kwDOABcD12MAAAABcDE3fg"
+        assert parsed[0]["title"] == "Sample review thread for testing"
         assert parsed[0]["status"] == "UNRESOLVED"
-        assert parsed[0]["author"] == "reviewer1"
+        assert parsed[0]["author"] == "reviewer"
 
-    def test_format_multiple_threads(self) -> None:
+    def test_format_multiple_threads(self, thread_factory) -> None:
         """Test formatting multiple threads."""
-        thread1 = ReviewThread(
+        thread1 = thread_factory(
             thread_id="RT_1",
             title="First thread",
-            created_at=datetime(2024, 1, 15, 10, 0, 0),
-            updated_at=datetime(2024, 1, 15, 10, 30, 0),
             status="UNRESOLVED",
             author="user1",
-            comments=[],
         )
 
-        thread2 = ReviewThread(
+        thread2 = thread_factory(
             thread_id="RT_2",
             title="Second thread",
-            created_at=datetime(2024, 1, 15, 11, 0, 0),
-            updated_at=datetime(2024, 1, 15, 11, 15, 0),
             status="RESOLVED",
             author="user2",
-            comments=[],
         )
 
         result = JSONFormatter.format_threads([thread1, thread2])
