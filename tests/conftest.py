@@ -17,14 +17,6 @@ def pytest_configure(config):
         "markers",
         "integration: marks tests as integration tests (may require authentication)",
     )
-    config.addinivalue_line(
-        "markers",
-        "slow: marks tests as slow running",
-    )
-    config.addinivalue_line(
-        "markers",
-        "unit: marks tests as unit tests",
-    )
 
 
 @pytest.fixture
@@ -226,15 +218,8 @@ def common_test_dates():
 
 # Module-scoped fixtures for expensive operations
 @pytest.fixture(scope="module")
-def temp_cache_directory():
-    """Shared temporary directory per test module."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture(scope="module")
 def temp_directory():
-    """Shared temporary directory for file operations."""
+    """Shared temporary directory for file operations and caching."""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
 
