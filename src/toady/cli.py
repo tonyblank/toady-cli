@@ -30,6 +30,7 @@ from toady.resolve_service import (
     ThreadNotFoundError,
     ThreadPermissionError,
 )
+from toady.schema_cli import schema
 
 # Constants
 MAX_PR_NUMBER = 999999
@@ -733,6 +734,10 @@ def resolve(ctx: click.Context, thread_id: str, undo: bool, pretty: bool) -> Non
             }
             click.echo(json.dumps(error_result), err=True)
         ctx.exit(1)
+
+
+# Add schema command group
+cli.add_command(schema)
 
 
 def main() -> None:
