@@ -34,7 +34,7 @@ class TestSchemaCLI:
     def test_schema_invalid_subcommand(self, runner: CliRunner) -> None:
         """Test schema with invalid subcommand."""
         result = runner.invoke(cli, ["schema", "invalid"])
-        assert result.exit_code != 0
+        assert result.exit_code == 2
         assert "No such command 'invalid'" in result.output
 
     def test_schema_no_subcommand(self, runner: CliRunner) -> None:

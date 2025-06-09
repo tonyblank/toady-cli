@@ -25,7 +25,7 @@ class TestMainCLI:
     def test_invalid_command(self, runner: CliRunner) -> None:
         """Test invalid command handling."""
         result = runner.invoke(cli, ["invalid-command"])
-        assert result.exit_code != 0
+        assert result.exit_code == 2
         assert "No such command 'invalid-command'" in result.output
 
     def test_all_commands_registered(self, runner: CliRunner) -> None:
