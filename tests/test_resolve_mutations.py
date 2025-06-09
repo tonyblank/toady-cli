@@ -77,16 +77,15 @@ class TestResolveThreadMutationBuilder:
 
         with pytest.raises(ValueError) as exc_info:
             builder.build_variables("invalid-id")
-        assert "Thread ID must be numeric" in str(exc_info.value)
-        assert "or a GitHub node ID starting with 'PRT_'" in str(exc_info.value)
+        assert "Thread ID must start with one of" in str(exc_info.value)
 
     def test_build_variables_short_node_id(self) -> None:
         """Test building variables with short node ID."""
         builder = ResolveThreadMutationBuilder()
 
-        # Short PRT_ IDs are now accepted - length validation was removed
-        variables = builder.build_variables("PRT_abc")
-        assert variables == {"threadId": "PRT_abc"}
+        # Short PRT_ IDs should fail with new validation
+        with pytest.raises(ValueError, match="appears too short to be valid"):
+            builder.build_variables("PRT_abc")
 
     def test_build_variables_strips_whitespace(self) -> None:
         """Test that build_variables strips whitespace from thread ID."""
@@ -105,6 +104,8 @@ class TestResolveThreadMutationBuilder:
             "123456789",
             "PRT_kwDOABcD12M",
             "PRT_kwDOABcD12MAAAABcDE3fg",
+            "PRRT_kwDOABcD12M",
+            "RT_kwDOABcD12M",
         ]
 
         for thread_id in test_cases:
@@ -129,13 +130,14 @@ class TestResolveThreadMutationBuilder:
             with pytest.raises(ValueError):
                 builder.build_variables(thread_id)
 
-        # Test cases that should now be accepted (PRT_ prefix, even if short)
-        valid_prt_cases = [
-            "PRT_a",  # Short but valid PRT_ ID
-            "PRT_abc",  # Another short but valid PRT_ ID
+        # Test cases that should now be accepted (longer node IDs with valid prefixes)
+        valid_node_cases = [
+            "PRT_kwDOABcD12M",  # Valid PRT_ ID
+            "PRRT_kwDOABcD12M",  # Valid PRRT_ ID
+            "RT_kwDOABcD12M",  # Valid RT_ ID
         ]
 
-        for thread_id in valid_prt_cases:
+        for thread_id in valid_node_cases:
             variables = builder.build_variables(thread_id)
             assert variables == {"threadId": thread_id}
 
@@ -157,11 +159,25 @@ class TestCreateResolveMutation:
         assert "mutation ResolveReviewThread" in mutation
         assert variables == {"threadId": "PRT_kwDOABcD12MAAAABcDE3fg"}
 
+    def test_create_resolve_mutation_with_prrt_node_id(self) -> None:
+        """Test creating resolve mutation with PRRT_ GitHub node ID."""
+        mutation, variables = create_resolve_mutation("PRRT_kwDOO3WQIc5RvXMO")
+
+        assert "mutation ResolveReviewThread" in mutation
+        assert variables == {"threadId": "PRRT_kwDOO3WQIc5RvXMO"}
+
+    def test_create_resolve_mutation_with_rt_node_id(self) -> None:
+        """Test creating resolve mutation with RT_ GitHub node ID."""
+        mutation, variables = create_resolve_mutation("RT_kwDOABcD12MAAAABcDE3fg")
+
+        assert "mutation ResolveReviewThread" in mutation
+        assert variables == {"threadId": "RT_kwDOABcD12MAAAABcDE3fg"}
+
     def test_create_resolve_mutation_invalid_id(self) -> None:
         """Test creating resolve mutation with invalid thread ID."""
         with pytest.raises(ValueError) as exc_info:
             create_resolve_mutation("invalid-id")
-        assert "Thread ID must be numeric" in str(exc_info.value)
+        assert "Thread ID must start with one of" in str(exc_info.value)
 
 
 class TestCreateUnresolveMutation:
@@ -181,11 +197,25 @@ class TestCreateUnresolveMutation:
         assert "mutation UnresolveReviewThread" in mutation
         assert variables == {"threadId": "PRT_kwDOABcD12MAAAABcDE3fg"}
 
+    def test_create_unresolve_mutation_with_prrt_node_id(self) -> None:
+        """Test creating unresolve mutation with PRRT_ GitHub node ID."""
+        mutation, variables = create_unresolve_mutation("PRRT_kwDOO3WQIc5RvXMO")
+
+        assert "mutation UnresolveReviewThread" in mutation
+        assert variables == {"threadId": "PRRT_kwDOO3WQIc5RvXMO"}
+
+    def test_create_unresolve_mutation_with_rt_node_id(self) -> None:
+        """Test creating unresolve mutation with RT_ GitHub node ID."""
+        mutation, variables = create_unresolve_mutation("RT_kwDOABcD12MAAAABcDE3fg")
+
+        assert "mutation UnresolveReviewThread" in mutation
+        assert variables == {"threadId": "RT_kwDOABcD12MAAAABcDE3fg"}
+
     def test_create_unresolve_mutation_invalid_id(self) -> None:
         """Test creating unresolve mutation with invalid thread ID."""
         with pytest.raises(ValueError) as exc_info:
             create_unresolve_mutation("invalid-id")
-        assert "Thread ID must be numeric" in str(exc_info.value)
+        assert "Thread ID must start with one of" in str(exc_info.value)
 
 
 class TestMutationStructure:
