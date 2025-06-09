@@ -101,7 +101,7 @@ class TestReplyService:
 
         service = ReplyService(mock_github_service)
         request = ReplyRequest(
-            comment_id="IC_kwDOABcD12MAAAABcDE3fg",
+            comment_id="123456789",
             reply_body="Thanks for the feedback!",
             owner="testowner",
             repo="testrepo",
@@ -114,7 +114,7 @@ class TestReplyService:
         # Verify the API call with explicit parameters
         expected_args = [
             "api",
-            "repos/testowner/testrepo/pulls/comments/IC_kwDOABcD12MAAAABcDE3fg/replies",
+            "repos/testowner/testrepo/pulls/comments/123456789/replies",
             "--method",
             "POST",
             "--field",
@@ -135,11 +135,11 @@ class TestReplyService:
         mock_get_repo_info.return_value = ("owner", "repo")
 
         service = ReplyService(mock_github_service)
-        request = ReplyRequest(comment_id="nonexistent", reply_body="Test reply")
+        request = ReplyRequest(comment_id="999999999", reply_body="Test reply")
         with pytest.raises(CommentNotFoundError) as exc_info:
             service.post_reply(request)
 
-        assert "Comment nonexistent not found" in str(exc_info.value)
+        assert "Comment 999999999 not found" in str(exc_info.value)
 
     @patch.object(ReplyService, "_get_repository_info")
     def test_post_reply_authentication_error(self, mock_get_repo_info: Mock) -> None:

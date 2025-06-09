@@ -1,6 +1,6 @@
 """GraphQL mutations for replying to pull request review comments."""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from .node_id_validation import validate_comment_id
 
@@ -57,7 +57,9 @@ class ReplyMutationBuilder:
             GraphQL mutation string for posting a reply to a specific comment.
         """
         return """
-        mutation AddPullRequestReviewComment($reviewId: ID!, $commentId: ID!, $body: String!) {
+        mutation AddPullRequestReviewComment(
+            $reviewId: ID!, $commentId: ID!, $body: String!
+        ) {
             addPullRequestReviewComment(input: {
                 pullRequestReviewId: $reviewId,
                 inReplyTo: $commentId,
@@ -89,7 +91,8 @@ class ReplyMutationBuilder:
         """Build variables dictionary for the thread reply mutation.
 
         Args:
-            thread_id: The GitHub thread ID (must be a node ID starting with PRT_/PRRT_/RT_).
+            thread_id: The GitHub thread ID (must be a node ID starting with
+                PRT_/PRRT_/RT_).
             reply_body: The reply message body.
 
         Returns:

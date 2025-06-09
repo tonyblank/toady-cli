@@ -15,7 +15,7 @@ from toady.github_service import (
     GitHubTimeoutError,
 )
 from toady.node_id_validation import (
-    validate_comment_id,
+    create_universal_validator,
     validate_thread_id,
 )
 from toady.reply_service import (
@@ -270,7 +270,10 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
         )
 
     try:
-        validate_comment_id(comment_id)
+        # Accept both comment IDs and thread IDs for the reply command
+        # This allows users to reply to either a specific comment or a thread
+        universal_validator = create_universal_validator()
+        universal_validator.validate_id(comment_id, "Comment/Thread ID")
     except ValueError as e:
         raise click.BadParameter(str(e), param_hint="--comment-id") from e
 
@@ -400,7 +403,7 @@ def _build_json_reply(
     "--comment-id",
     required=True,
     type=str,
-    help="GitHub comment ID (numeric ID or node ID starting with IC_/PRRC_/RP_)",
+    help="GitHub comment or thread ID (numeric, IC_/PRRC_/RP_, or PRT_/PRRT_/RT_)",
     metavar="ID",
 )
 @click.option(
@@ -425,10 +428,12 @@ def _build_json_reply(
 def reply(
     ctx: click.Context, comment_id: str, body: str, pretty: bool, verbose: bool
 ) -> None:
-    """Post a reply to a specific review comment.
+    """Post a reply to a specific review comment or thread.
 
-    Reply to comments using either numeric IDs (e.g., 123456789) or
-    GitHub node IDs for issue comments (IC_), review comments (PRRC_), or replies (RP_).
+    Reply to comments or threads using:
+    • Numeric IDs (e.g., 123456789) for legacy compatibility
+    • Comment node IDs (IC_, PRRC_, RP_) to reply to specific comments
+    • Thread node IDs (PRT_, PRRT_, RT_) to reply to entire threads
 
     Use --verbose/-v flag to show additional context including the PR title,
     parent comment author, and thread details.
