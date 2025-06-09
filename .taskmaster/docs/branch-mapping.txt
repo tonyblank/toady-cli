@@ -52,3 +52,4 @@ Task 14: tony/bur-72-validate-graphql-schemas-against-current-github-api
 Task 15: tony/bur-73-implement-graphql-mutations-for-replying-to-review-comments
 Task 16: tony/bur-74-add-all-flag-to-resolve-all-unresolved-threads-at-once
 Task 17: tony/bur-75-add-dry-run-mode-to-preview-actions-before-execution
+Task 20: tony/bur-77-refactor-monolithic-cli-structure-into-modular-command
