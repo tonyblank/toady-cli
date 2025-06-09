@@ -10,10 +10,12 @@ import click
 from toady.schema_validator import GitHubSchemaValidator, SchemaValidationError
 
 
-@click.group()
-def schema() -> None:
+@click.group(invoke_without_command=True)
+@click.pass_context
+def schema(ctx: click.Context) -> None:
     """Schema validation commands."""
-    pass
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 @schema.command()
