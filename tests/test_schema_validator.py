@@ -398,8 +398,11 @@ class TestGitHubSchemaValidator:
         unknown_type = validator.get_type("UnknownType")
         assert unknown_type is None
 
-    def test_validate_empty_query(self, validator):
+    def test_validate_empty_query(self, validator, mock_schema):
         """Test validating empty query."""
+        validator._schema = mock_schema
+        validator._build_type_map()
+
         errors = validator.validate_query("")
         assert len(errors) == 1
         assert errors[0]["type"] == "empty_query"
