@@ -101,6 +101,10 @@ class ReplyService:
                 review_id=review_id,
             )
 
+            # Check for GraphQL errors first to preserve specialized error handling
+            if "errors" in result:
+                self._handle_graphql_errors(result["errors"], request.comment_id)
+
             # Extract comment data from the response
             # Handle both thread reply and comment reply response structures
             comment_data = None

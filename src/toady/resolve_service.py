@@ -3,7 +3,14 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
+from .github_service import (
+    RESOLVE_THREAD_MUTATION,
+    UNRESOLVE_THREAD_MUTATION,
+    GitHubAPIError,
+    GitHubService,
+    GitHubServiceError,
+)
+from .node_id_validation import validate_thread_id
 
 
 class ResolveServiceError(GitHubServiceError):
@@ -51,10 +58,6 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            # Use the new mutation constants from github_service
-            from .github_service import RESOLVE_THREAD_MUTATION
-            from .node_id_validation import validate_thread_id
-
             # Validate thread ID
             validate_thread_id(thread_id)
 
@@ -65,33 +68,7 @@ class ResolveService:
 
             # Check for GraphQL errors first
             if "errors" in result:
-                error_messages = [
-                    error.get("message", str(error)) for error in result["errors"]
-                ]
-                # Handle specific error types
-                if any(
-                    "not found" in msg.lower() or "does not exist" in msg.lower()
-                    for msg in error_messages
-                ):
-                    raise ThreadNotFoundError(f"Thread {thread_id} not found")
-                elif any(
-                    keyword in msg.lower()
-                    for keyword in [
-                        "permission",
-                        "forbidden",
-                        "not accessible",
-                        "unauthorized",
-                    ]
-                    for msg in error_messages
-                ):
-                    raise ThreadPermissionError(
-                        f"Permission denied - cannot resolve thread {thread_id}: "
-                        f"{'; '.join(error_messages)}"
-                    )
-                else:
-                    raise ResolveServiceError(
-                        f"Failed to resolve thread: {'; '.join(error_messages)}"
-                    )
+                self._handle_graphql_errors(result["errors"], thread_id, "resolve")
 
             # Extract thread data from response
             thread_data = (
@@ -142,10 +119,6 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            # Use the new mutation constants from github_service
-            from .github_service import UNRESOLVE_THREAD_MUTATION
-            from .node_id_validation import validate_thread_id
-
             # Validate thread ID
             validate_thread_id(thread_id)
 
@@ -156,33 +129,7 @@ class ResolveService:
 
             # Check for GraphQL errors first
             if "errors" in result:
-                error_messages = [
-                    error.get("message", str(error)) for error in result["errors"]
-                ]
-                # Handle specific error types
-                if any(
-                    "not found" in msg.lower() or "does not exist" in msg.lower()
-                    for msg in error_messages
-                ):
-                    raise ThreadNotFoundError(f"Thread {thread_id} not found")
-                elif any(
-                    keyword in msg.lower()
-                    for keyword in [
-                        "permission",
-                        "forbidden",
-                        "not accessible",
-                        "unauthorized",
-                    ]
-                    for msg in error_messages
-                ):
-                    raise ThreadPermissionError(
-                        f"Permission denied - cannot unresolve thread {thread_id}: "
-                        f"{'; '.join(error_messages)}"
-                    )
-                else:
-                    raise ResolveServiceError(
-                        f"Failed to unresolve thread: {'; '.join(error_messages)}"
-                    )
+                self._handle_graphql_errors(result["errors"], thread_id, "unresolve")
 
             # Extract thread data from response
             thread_data = (

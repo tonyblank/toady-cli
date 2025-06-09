@@ -506,13 +506,20 @@ class GitHubService:
             variables = {"threadId": comment_id, "body": body}
             return self.execute_graphql_query(REPLY_THREAD_MUTATION, variables)
         else:
-            # Use comment reply mutation for numeric IDs
-            if not review_id:
-                raise ValueError("Review ID is required for comment replies")
-
+            # Use comment reply mutation for numeric/node IDs needing review context
             from .node_id_validation import validate_comment_id
 
             validate_comment_id(comment_id)
+
+            # If review_id is not provided, try to fetch it for node IDs
+            if not review_id and not comment_id.isdigit():
+                review_id = self._get_review_id_for_comment(comment_id)
+
+            if not review_id:
+                raise ValueError(
+                    "Review ID is required for comment replies. "
+                    "Could not determine review ID from comment."
+                )
 
             variables = {"reviewId": review_id, "commentId": comment_id, "body": body}
             return self.execute_graphql_query(REPLY_COMMENT_MUTATION, variables)
@@ -568,3 +575,57 @@ class GitHubService:
         else:
             # Default to comment reply for unknown formats
             return "comment_reply"
+
+    def _get_review_id_for_comment(self, comment_id: str) -> Optional[str]:
+        """Get the review ID associated with a comment node ID.
+
+        This method uses GraphQL to query the comment and get its associated review ID.
+
+        Args:
+            comment_id: Comment node ID.
+
+        Returns:
+            The review ID (node ID) or None if not found.
+
+        Raises:
+            GitHubAPIError: If the GraphQL query fails.
+        """
+        try:
+            query = """
+            query GetCommentReview($commentId: ID!) {
+                node(id: $commentId) {
+                    ... on PullRequestReviewComment {
+                        pullRequestReview {
+                            id
+                        }
+                    }
+                }
+            }
+            """
+
+            variables = {"commentId": comment_id}
+            result = self.execute_graphql_query(query, variables)
+
+            if "errors" in result:
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                raise GitHubAPIError(
+                    f"Failed to get review ID: {'; '.join(error_messages)}"
+                )
+
+            comment_node = result.get("data", {}).get("node")
+            if not comment_node:
+                return None
+
+            review_data = comment_node.get("pullRequestReview")
+            if not review_data or "id" not in review_data:
+                return None
+
+            return str(review_data["id"])
+
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            raise GitHubAPIError(f"Failed to get review ID: {e}") from e
