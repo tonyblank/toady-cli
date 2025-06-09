@@ -1,7 +1,4 @@
-"""Basic CLI interface tests.
-
-For more comprehensive CLI tests see tests/integration/cli/.
-"""
+"""Integration tests for the main CLI interface."""
 
 from click.testing import CliRunner
 
@@ -9,8 +6,8 @@ from toady import __version__
 from toady.cli import cli
 
 
-class TestCLI:
-    """Test the main CLI interface - basic functionality only."""
+class TestMainCLI:
+    """Test the main CLI interface."""
 
     def test_version(self, runner: CliRunner) -> None:
         """Test version display."""
