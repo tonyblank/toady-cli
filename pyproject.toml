@@ -148,7 +148,6 @@ addopts = [
     "--cov-report=html:htmlcov",
     "--cov-report=xml:coverage.xml",
     "--cov-fail-under=80",
-    "--cov-context=test",
     "-p", "no:warnings",
     "--disable-warnings",
 ]
@@ -190,7 +189,6 @@ junit_log_passing_tests = false
 source = ["src/toady"]
 branch = true
 parallel = true
-context = "${CONTEXT}"
 omit = [
     "*/tests/*",
     "*/test_*",
@@ -224,7 +222,6 @@ sort = "Cover"
 [tool.coverage.html]
 directory = "htmlcov"
 title = "Toady CLI Test Coverage Report"
-show_contexts = true
 
 [tool.coverage.xml]
 output = "coverage.xml"
