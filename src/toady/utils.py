@@ -1,6 +1,12 @@
 """Utility functions for the toady package."""
 
+import json
 from datetime import datetime
+
+import click
+
+# Constants
+MAX_PR_NUMBER = 999999
 
 
 def parse_datetime(date_str: str) -> datetime:
@@ -38,3 +44,28 @@ def parse_datetime(date_str: str) -> datetime:
             continue
 
     raise ValueError(f"Unable to parse datetime: {date_str}")
+
+
+def emit_error(
+    ctx: click.Context, pr_number: int, code: str, msg: str, pretty: bool
+) -> None:
+    """Helper function to emit consistent error messages in JSON or pretty format.
+
+    Args:
+        ctx: Click context for exit handling
+        pr_number: PR number for error context
+        code: Error code for JSON output
+        msg: Error message
+        pretty: Whether to use pretty output format
+    """
+    if pretty:
+        click.echo(msg, err=True)
+    else:
+        error_result = {
+            "pr_number": pr_number,
+            "success": False,
+            "error": code,
+            "error_message": msg,
+        }
+        click.echo(json.dumps(error_result), err=True)
+    ctx.exit(1)
