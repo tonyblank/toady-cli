@@ -4,6 +4,84 @@ import json
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple
 
+# GraphQL mutation constants
+REPLY_THREAD_MUTATION = """
+mutation AddPullRequestReviewThreadReply($threadId: ID!, $body: String!) {
+    addPullRequestReviewThreadReply(input: {
+        pullRequestReviewThreadId: $threadId,
+        body: $body
+    }) {
+        comment {
+            id
+            body
+            createdAt
+            updatedAt
+            author {
+                login
+            }
+            url
+            pullRequestReview {
+                id
+            }
+            replyTo {
+                id
+            }
+        }
+    }
+}
+""".strip()
+
+REPLY_COMMENT_MUTATION = """
+mutation AddPullRequestReviewComment(
+    $reviewId: ID!, $commentId: ID!, $body: String!
+) {
+    addPullRequestReviewComment(input: {
+        pullRequestReviewId: $reviewId,
+        inReplyTo: $commentId,
+        body: $body
+    }) {
+        comment {
+            id
+            body
+            createdAt
+            updatedAt
+            author {
+                login
+            }
+            url
+            pullRequestReview {
+                id
+            }
+            replyTo {
+                id
+            }
+        }
+    }
+}
+""".strip()
+
+RESOLVE_THREAD_MUTATION = """
+mutation ResolveReviewThread($threadId: ID!) {
+    resolveReviewThread(input: {threadId: $threadId}) {
+        thread {
+            id
+            isResolved
+        }
+    }
+}
+""".strip()
+
+UNRESOLVE_THREAD_MUTATION = """
+mutation UnresolveReviewThread($threadId: ID!) {
+    unresolveReviewThread(input: {threadId: $threadId}) {
+        thread {
+            id
+            isResolved
+        }
+    }
+}
+""".strip()
+
 
 class GitHubServiceError(Exception):
     """Base exception for GitHub service errors."""
@@ -389,3 +467,165 @@ class GitHubService:
             return True
         except GitHubAPIError:
             return False
+
+    def post_reply(
+        self, comment_id: str, body: str, review_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Post a reply to a review comment or thread.
+
+        Args:
+            comment_id: The comment or thread ID to reply to.
+            body: The reply message body.
+            review_id: The review ID (required for comment replies to numeric IDs).
+
+        Returns:
+            The GraphQL response containing the new comment data.
+
+        Raises:
+            ValueError: If parameters are invalid.
+            GitHubAPIError: If the GraphQL mutation fails.
+        """
+        if not comment_id or not comment_id.strip():
+            raise ValueError("Comment ID cannot be empty")
+        if not body or not body.strip():
+            raise ValueError("Reply body cannot be empty")
+
+        comment_id = comment_id.strip()
+        body = body.strip()
+
+        # Determine reply strategy based on comment ID format
+        strategy = self._determine_reply_strategy(comment_id)
+
+        if strategy == "thread_reply":
+            # Use thread reply mutation for node IDs
+            from .node_id_validation import create_thread_validator
+
+            validator = create_thread_validator()
+            validator.validate_id(comment_id, "Thread ID")
+
+            variables = {"threadId": comment_id, "body": body}
+            return self.execute_graphql_query(REPLY_THREAD_MUTATION, variables)
+        else:
+            # Use comment reply mutation for numeric/node IDs needing review context
+            from .node_id_validation import validate_comment_id
+
+            validate_comment_id(comment_id)
+
+            # If review_id is not provided, try to fetch it for node IDs
+            if not review_id and not comment_id.isdigit():
+                review_id = self._get_review_id_for_comment(comment_id)
+
+            if not review_id:
+                raise ValueError(
+                    "Review ID is required for comment replies. "
+                    "Could not determine review ID from comment."
+                )
+
+            variables = {"reviewId": review_id, "commentId": comment_id, "body": body}
+            return self.execute_graphql_query(REPLY_COMMENT_MUTATION, variables)
+
+    def resolve_thread(self, thread_id: str, undo: bool = False) -> Dict[str, Any]:
+        """Resolve or unresolve a review thread.
+
+        Args:
+            thread_id: The thread ID to resolve/unresolve.
+            undo: If True, unresolve the thread; if False, resolve it.
+
+        Returns:
+            The GraphQL response containing the thread data.
+
+        Raises:
+            ValueError: If thread_id is invalid.
+            GitHubAPIError: If the GraphQL mutation fails.
+        """
+        if not thread_id or not thread_id.strip():
+            raise ValueError("Thread ID cannot be empty")
+
+        thread_id = thread_id.strip()
+
+        # Validate thread ID
+        from .node_id_validation import validate_thread_id
+
+        validate_thread_id(thread_id)
+
+        variables = {"threadId": thread_id}
+        mutation = UNRESOLVE_THREAD_MUTATION if undo else RESOLVE_THREAD_MUTATION
+        return self.execute_graphql_query(mutation, variables)
+
+    def _determine_reply_strategy(self, comment_id: str) -> str:
+        """Determine the best reply strategy based on the comment ID format.
+
+        Args:
+            comment_id: The comment ID to analyze.
+
+        Returns:
+            Either "thread_reply" for node IDs or "comment_reply" for numeric IDs.
+        """
+        # If it's a numeric ID, we need to use the legacy comment reply approach
+        if comment_id.isdigit():
+            return "comment_reply"
+
+        # For node IDs, we need to determine if it's a thread ID or comment ID
+        # Thread IDs start with PRT_, PRRT_, RT_
+        # Comment IDs start with IC_, PRRC_, RP_
+        if comment_id.startswith(("PRT_", "PRRT_", "RT_")):
+            return "thread_reply"
+        elif comment_id.startswith(("IC_", "PRRC_", "RP_")):
+            return "comment_reply"
+        else:
+            # Default to comment reply for unknown formats
+            return "comment_reply"
+
+    def _get_review_id_for_comment(self, comment_id: str) -> Optional[str]:
+        """Get the review ID associated with a comment node ID.
+
+        This method uses GraphQL to query the comment and get its associated review ID.
+
+        Args:
+            comment_id: Comment node ID.
+
+        Returns:
+            The review ID (node ID) or None if not found.
+
+        Raises:
+            GitHubAPIError: If the GraphQL query fails.
+        """
+        try:
+            query = """
+            query GetCommentReview($commentId: ID!) {
+                node(id: $commentId) {
+                    ... on PullRequestReviewComment {
+                        pullRequestReview {
+                            id
+                        }
+                    }
+                }
+            }
+            """
+
+            variables = {"commentId": comment_id}
+            result = self.execute_graphql_query(query, variables)
+
+            if "errors" in result:
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                raise GitHubAPIError(
+                    f"Failed to get review ID: {'; '.join(error_messages)}"
+                )
+
+            comment_node = result.get("data", {}).get("node")
+            if not comment_node:
+                return None
+
+            review_data = comment_node.get("pullRequestReview")
+            if not review_data or "id" not in review_data:
+                return None
+
+            return str(review_data["id"])
+
+        except GitHubAPIError:
+            # Re-raise GitHub API errors
+            raise
+        except Exception as e:
+            raise GitHubAPIError(f"Failed to get review ID: {e}") from e

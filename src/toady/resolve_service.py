@@ -3,8 +3,14 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
-from .resolve_mutations import create_resolve_mutation, create_unresolve_mutation
+from .github_service import (
+    RESOLVE_THREAD_MUTATION,
+    UNRESOLVE_THREAD_MUTATION,
+    GitHubAPIError,
+    GitHubService,
+    GitHubServiceError,
+)
+from .node_id_validation import validate_thread_id
 
 
 class ResolveServiceError(GitHubServiceError):
@@ -52,10 +58,15 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            mutation, variables = create_resolve_mutation(thread_id)
-            result = self.github_service.execute_graphql_query(mutation, variables)
+            # Validate thread ID
+            validate_thread_id(thread_id)
 
-            # Check for GraphQL errors
+            variables = {"threadId": thread_id}
+            result = self.github_service.execute_graphql_query(
+                RESOLVE_THREAD_MUTATION, variables
+            )
+
+            # Check for GraphQL errors first
             if "errors" in result:
                 self._handle_graphql_errors(result["errors"], thread_id, "resolve")
 
@@ -82,6 +93,15 @@ class ResolveService:
 
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
+        except GitHubAPIError as e:
+            # Handle specific GraphQL errors
+            if "not found" in str(e).lower():
+                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
+            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
+                raise ThreadPermissionError(
+                    f"Permission denied to resolve thread {thread_id}"
+                ) from e
+            raise ResolveServiceError(f"Failed to resolve thread: {e}") from e
 
     def unresolve_thread(self, thread_id: str) -> Dict[str, Any]:
         """Unresolve a review thread.
@@ -99,10 +119,15 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            mutation, variables = create_unresolve_mutation(thread_id)
-            result = self.github_service.execute_graphql_query(mutation, variables)
+            # Validate thread ID
+            validate_thread_id(thread_id)
 
-            # Check for GraphQL errors
+            variables = {"threadId": thread_id}
+            result = self.github_service.execute_graphql_query(
+                UNRESOLVE_THREAD_MUTATION, variables
+            )
+
+            # Check for GraphQL errors first
             if "errors" in result:
                 self._handle_graphql_errors(result["errors"], thread_id, "unresolve")
 
@@ -131,6 +156,15 @@ class ResolveService:
 
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
+        except GitHubAPIError as e:
+            # Handle specific GraphQL errors
+            if "not found" in str(e).lower():
+                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
+            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
+                raise ThreadPermissionError(
+                    f"Permission denied to unresolve thread {thread_id}"
+                ) from e
+            raise ResolveServiceError(f"Failed to unresolve thread: {e}") from e
 
     def _handle_graphql_errors(
         self, errors: List[Dict[str, Any]], thread_id: str, action: str
