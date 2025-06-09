@@ -43,7 +43,7 @@ pre-commit:
 
 # Main target for checking all issues (stops if any issues found)
 # This checks without fixing - fails fast if issues are detected
-check: format-check lint type-check test
+check: format-check lint type-check test pre-commit
 	@echo "✅ All checks passed!"
 
 # Auto-fixing target (like old check behavior)
