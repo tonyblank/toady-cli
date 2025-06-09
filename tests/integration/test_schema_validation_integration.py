@@ -84,13 +84,13 @@ class TestSchemaValidationIntegration:
         if not self._check_gh_auth():
             pytest.skip("gh CLI not authenticated - skipping integration test")
 
-        from toady.resolve_mutations import ResolveThreadMutationBuilder
-
-        builder = ResolveThreadMutationBuilder()
+        from toady.github_service import (
+            RESOLVE_THREAD_MUTATION,
+            UNRESOLVE_THREAD_MUTATION,
+        )
 
         # Test resolve mutation
-        resolve_mutation = builder.build_resolve_mutation()
-        resolve_errors = validator.validate_query(resolve_mutation)
+        resolve_errors = validator.validate_query(RESOLVE_THREAD_MUTATION)
         critical_resolve_errors = [
             e for e in resolve_errors if e.get("severity") != "warning"
         ]
@@ -99,8 +99,7 @@ class TestSchemaValidationIntegration:
         ), f"Resolve mutation errors: {critical_resolve_errors}"
 
         # Test unresolve mutation
-        unresolve_mutation = builder.build_unresolve_mutation()
-        unresolve_errors = validator.validate_query(unresolve_mutation)
+        unresolve_errors = validator.validate_query(UNRESOLVE_THREAD_MUTATION)
         critical_unresolve_errors = [
             e for e in unresolve_errors if e.get("severity") != "warning"
         ]

@@ -5,11 +5,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
-from .reply_mutations import (
-    create_comment_reply_mutation,
-    create_thread_reply_mutation,
-    determine_reply_strategy,
-)
 
 
 class ReplyServiceError(GitHubServiceError):
@@ -89,118 +84,51 @@ class ReplyService:
             repo = request.repo
 
         try:
-            # Determine the best strategy based on comment ID format
-            strategy = determine_reply_strategy(request.comment_id)
-
-            if strategy == "thread_reply":
-                # Use addPullRequestReviewThreadReply for thread node IDs
-                return self._post_thread_reply(request, fetch_context, owner, repo)
-            elif strategy == "comment_reply" and not request.comment_id.isdigit():
-                # Use addPullRequestReviewComment with inReplyTo for comment node IDs
-                return self._post_comment_reply(request, fetch_context, owner, repo)
-            else:
-                # Use REST API for numeric IDs to maintain backward compatibility
+            # For numeric comment IDs, we need to get the review ID first
+            review_id = None
+            if request.comment_id.isdigit():
+                # For numeric IDs, we need to fetch the review ID
+                # This is handled by the existing _post_reply_fallback_rest method
                 return self._post_reply_fallback_rest(
                     request, fetch_context, owner, repo
                 )
 
+            # Use the new unified post_reply API from github_service
+            # This handles strategy determination and mutation logic for node IDs
+            result = self.github_service.post_reply(
+                comment_id=request.comment_id,
+                body=request.reply_body,
+                review_id=review_id,
+            )
+
+            # Extract comment data from the response
+            # Handle both thread reply and comment reply response structures
+            comment_data = None
+            if "data" in result:
+                data = result["data"]
+                if "addPullRequestReviewThreadReply" in data:
+                    comment_data = data["addPullRequestReviewThreadReply"].get(
+                        "comment", {}
+                    )
+                elif "addPullRequestReviewComment" in data:
+                    comment_data = data["addPullRequestReviewComment"].get(
+                        "comment", {}
+                    )
+
+            if not comment_data:
+                raise ReplyServiceError(
+                    "No comment data returned from GraphQL mutation"
+                )
+
+            return self._build_reply_info_from_graphql(
+                comment_data, request, fetch_context, owner, repo
+            )
+
         except ValueError as e:
             raise ReplyServiceError(f"Invalid comment ID: {e}") from e
-
-    def _post_thread_reply(
-        self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
-    ) -> Dict[str, Any]:
-        """Post a reply using the addPullRequestReviewThreadReply mutation.
-
-        Args:
-            request: ReplyRequest object.
-            fetch_context: Whether to fetch additional context.
-            owner: Repository owner.
-            repo: Repository name.
-
-        Returns:
-            Dictionary with reply information.
-        """
-        try:
-            mutation, variables = create_thread_reply_mutation(
-                request.comment_id, request.reply_body
-            )
-            result = self.github_service.execute_graphql_query(mutation, variables)
-
-            # Check for GraphQL errors
-            if "errors" in result:
-                self._handle_graphql_errors(result["errors"], request.comment_id)
-
-            # Extract comment data from response
-            comment_data = (
-                result.get("data", {})
-                .get("addPullRequestReviewThreadReply", {})
-                .get("comment", {})
-            )
-
-            if not comment_data:
-                raise ReplyServiceError(
-                    "No comment data returned from GraphQL mutation"
-                )
-
-            return self._build_reply_info_from_graphql(
-                comment_data, request, fetch_context, owner, repo
-            )
-
         except GitHubAPIError as e:
-            if "404" in str(e) or "not found" in str(e).lower():
-                raise CommentNotFoundError(
-                    f"Thread {request.comment_id} not found"
-                ) from e
-            raise ReplyServiceError(f"Failed to post reply: {e}") from e
-
-    def _post_comment_reply(
-        self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
-    ) -> Dict[str, Any]:
-        """Post a reply using the addPullRequestReviewComment mutation with inReplyTo.
-
-        This method first needs to get the review ID associated with the comment.
-
-        Args:
-            request: ReplyRequest object.
-            fetch_context: Whether to fetch additional context.
-            owner: Repository owner.
-            repo: Repository name.
-
-        Returns:
-            Dictionary with reply information.
-        """
-        try:
-            # First, get the review ID from the comment
-            review_id = self._get_review_id_for_comment(owner, repo, request.comment_id)
-
-            mutation, variables = create_comment_reply_mutation(
-                review_id, request.comment_id, request.reply_body
-            )
-            result = self.github_service.execute_graphql_query(mutation, variables)
-
-            # Check for GraphQL errors
-            if "errors" in result:
-                self._handle_graphql_errors(result["errors"], request.comment_id)
-
-            # Extract comment data from response
-            comment_data = (
-                result.get("data", {})
-                .get("addPullRequestReviewComment", {})
-                .get("comment", {})
-            )
-
-            if not comment_data:
-                raise ReplyServiceError(
-                    "No comment data returned from GraphQL mutation"
-                )
-
-            return self._build_reply_info_from_graphql(
-                comment_data, request, fetch_context, owner, repo
-            )
-
-        except GitHubAPIError as e:
-            if "404" in str(e) or "not found" in str(e).lower():
+            # Handle specific GraphQL errors
+            if "not found" in str(e).lower():
                 raise CommentNotFoundError(
                     f"Comment {request.comment_id} not found"
                 ) from e

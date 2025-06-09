@@ -4,7 +4,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
-from .resolve_mutations import create_resolve_mutation, create_unresolve_mutation
 
 
 class ResolveServiceError(GitHubServiceError):
@@ -52,12 +51,47 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            mutation, variables = create_resolve_mutation(thread_id)
-            result = self.github_service.execute_graphql_query(mutation, variables)
+            # Use the new mutation constants from github_service
+            from .github_service import RESOLVE_THREAD_MUTATION
+            from .node_id_validation import validate_thread_id
 
-            # Check for GraphQL errors
+            # Validate thread ID
+            validate_thread_id(thread_id)
+
+            variables = {"threadId": thread_id}
+            result = self.github_service.execute_graphql_query(
+                RESOLVE_THREAD_MUTATION, variables
+            )
+
+            # Check for GraphQL errors first
             if "errors" in result:
-                self._handle_graphql_errors(result["errors"], thread_id, "resolve")
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                # Handle specific error types
+                if any(
+                    "not found" in msg.lower() or "does not exist" in msg.lower()
+                    for msg in error_messages
+                ):
+                    raise ThreadNotFoundError(f"Thread {thread_id} not found")
+                elif any(
+                    keyword in msg.lower()
+                    for keyword in [
+                        "permission",
+                        "forbidden",
+                        "not accessible",
+                        "unauthorized",
+                    ]
+                    for msg in error_messages
+                ):
+                    raise ThreadPermissionError(
+                        f"Permission denied - cannot resolve thread {thread_id}: "
+                        f"{'; '.join(error_messages)}"
+                    )
+                else:
+                    raise ResolveServiceError(
+                        f"Failed to resolve thread: {'; '.join(error_messages)}"
+                    )
 
             # Extract thread data from response
             thread_data = (
@@ -82,6 +116,15 @@ class ResolveService:
 
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
+        except GitHubAPIError as e:
+            # Handle specific GraphQL errors
+            if "not found" in str(e).lower():
+                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
+            elif "permission" in str(e).lower() or "forbidden" in str(e).lower():
+                raise ThreadPermissionError(
+                    f"Permission denied to resolve thread {thread_id}"
+                ) from e
+            raise ResolveServiceError(f"Failed to resolve thread: {e}") from e
 
     def unresolve_thread(self, thread_id: str) -> Dict[str, Any]:
         """Unresolve a review thread.
@@ -99,12 +142,47 @@ class ResolveService:
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            mutation, variables = create_unresolve_mutation(thread_id)
-            result = self.github_service.execute_graphql_query(mutation, variables)
+            # Use the new mutation constants from github_service
+            from .github_service import UNRESOLVE_THREAD_MUTATION
+            from .node_id_validation import validate_thread_id
 
-            # Check for GraphQL errors
+            # Validate thread ID
+            validate_thread_id(thread_id)
+
+            variables = {"threadId": thread_id}
+            result = self.github_service.execute_graphql_query(
+                UNRESOLVE_THREAD_MUTATION, variables
+            )
+
+            # Check for GraphQL errors first
             if "errors" in result:
-                self._handle_graphql_errors(result["errors"], thread_id, "unresolve")
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                # Handle specific error types
+                if any(
+                    "not found" in msg.lower() or "does not exist" in msg.lower()
+                    for msg in error_messages
+                ):
+                    raise ThreadNotFoundError(f"Thread {thread_id} not found")
+                elif any(
+                    keyword in msg.lower()
+                    for keyword in [
+                        "permission",
+                        "forbidden",
+                        "not accessible",
+                        "unauthorized",
+                    ]
+                    for msg in error_messages
+                ):
+                    raise ThreadPermissionError(
+                        f"Permission denied - cannot unresolve thread {thread_id}: "
+                        f"{'; '.join(error_messages)}"
+                    )
+                else:
+                    raise ResolveServiceError(
+                        f"Failed to unresolve thread: {'; '.join(error_messages)}"
+                    )
 
             # Extract thread data from response
             thread_data = (
@@ -131,6 +209,15 @@ class ResolveService:
 
         except ValueError as e:
             raise ResolveServiceError(f"Invalid thread ID: {e}") from e
+        except GitHubAPIError as e:
+            # Handle specific GraphQL errors
+            if "not found" in str(e).lower():
+                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
+            elif "permission" in str(e).lower() or "forbidden" in str(e).lower():
+                raise ThreadPermissionError(
+                    f"Permission denied to unresolve thread {thread_id}"
+                ) from e
+            raise ResolveServiceError(f"Failed to unresolve thread: {e}") from e
 
     def _handle_graphql_errors(
         self, errors: List[Dict[str, Any]], thread_id: str, action: str

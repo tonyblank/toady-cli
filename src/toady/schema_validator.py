@@ -504,24 +504,33 @@ class GitHubSchemaValidator:
         Returns:
             Dictionary mapping mutation names to validation errors
         """
-        from .resolve_mutations import ResolveThreadMutationBuilder
+        from .github_service import (
+            REPLY_COMMENT_MUTATION,
+            REPLY_THREAD_MUTATION,
+            RESOLVE_THREAD_MUTATION,
+            UNRESOLVE_THREAD_MUTATION,
+        )
 
         errors = {}
 
-        # Create mutation builder
-        builder = ResolveThreadMutationBuilder()
-
         # Validate resolve mutation
-        resolve_mutation = builder.build_resolve_mutation()
-        resolve_errors = self.validate_query(resolve_mutation)
+        resolve_errors = self.validate_query(RESOLVE_THREAD_MUTATION)
         if resolve_errors:
             errors["resolveReviewThread"] = resolve_errors
 
         # Validate unresolve mutation
-        unresolve_mutation = builder.build_unresolve_mutation()
-        unresolve_errors = self.validate_query(unresolve_mutation)
+        unresolve_errors = self.validate_query(UNRESOLVE_THREAD_MUTATION)
         if unresolve_errors:
             errors["unresolveReviewThread"] = unresolve_errors
+
+        # Validate reply mutations
+        reply_thread_errors = self.validate_query(REPLY_THREAD_MUTATION)
+        if reply_thread_errors:
+            errors["addPullRequestReviewThreadReply"] = reply_thread_errors
+
+        reply_comment_errors = self.validate_query(REPLY_COMMENT_MUTATION)
+        if reply_comment_errors:
+            errors["addPullRequestReviewComment"] = reply_comment_errors
 
         return errors
 
