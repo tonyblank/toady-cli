@@ -304,7 +304,7 @@ def _handle_bulk_resolve_error(
 
     # Handle click.exceptions.Exit (user cancellation)
     if isinstance(error, click.exceptions.Exit):
-        raise
+        ctx.exit(error.exit_code)
 
     # Handle all other exceptions
     if pretty:
