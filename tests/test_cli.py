@@ -1,6 +1,7 @@
 """Tests for the CLI interface."""
 
 import json
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
@@ -1294,10 +1295,10 @@ class TestResolveCommand:
     """Test the resolve command."""
 
     def test_resolve_requires_thread_id(self, runner: CliRunner) -> None:
-        """Test that resolve requires --thread-id option."""
+        """Test that resolve requires either --thread-id or --all option."""
         result = runner.invoke(cli, ["resolve"])
         assert result.exit_code != 0
-        assert "Missing option '--thread-id'" in result.output
+        assert "Must specify either --thread-id or --all" in result.output
 
     @patch("toady.cli.ResolveService")
     def test_resolve_with_valid_numeric_id(
@@ -1726,3 +1727,453 @@ class TestResolveCommand:
         assert (
             result.exit_code != 0
         )  # Should fail format validation, not type validation
+
+    # Tests for --all flag functionality
+    def test_resolve_all_requires_pr_option(self, runner: CliRunner) -> None:
+        """Test that --all requires --pr option."""
+        result = runner.invoke(cli, ["resolve", "--all"])
+        assert result.exit_code != 0
+        assert "--pr is required when using --all" in result.output
+
+    def test_resolve_all_and_thread_id_mutually_exclusive(
+        self, runner: CliRunner
+    ) -> None:
+        """Test that --all and --thread-id cannot be used together."""
+        result = runner.invoke(
+            cli, ["resolve", "--all", "--thread-id", "123", "--pr", "456"]
+        )
+        assert result.exit_code != 0
+        assert "Cannot use --all and --thread-id together" in result.output
+
+    def test_resolve_requires_either_all_or_thread_id(self, runner: CliRunner) -> None:
+        """Test that either --all or --thread-id must be specified."""
+        result = runner.invoke(cli, ["resolve"])
+        assert result.exit_code != 0
+        assert "Must specify either --thread-id or --all" in result.output
+
+    def test_resolve_all_validates_pr_number(self, runner: CliRunner) -> None:
+        """Test that --all validates PR number ranges."""
+        # Test negative PR number
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "-1"])
+        assert result.exit_code != 0
+        assert "PR number must be positive" in result.output
+
+        # Test zero PR number
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "0"])
+        assert result.exit_code != 0
+        assert "PR number must be positive" in result.output
+
+        # Test excessively large PR number
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "1000000"])
+        assert result.exit_code != 0
+        assert "PR number appears unreasonably large" in result.output
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_no_threads_found(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test --all when no unresolved threads are found."""
+        mock_fetch_service = Mock()
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = []
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--pretty"])
+        assert result.exit_code == 0
+        assert "No unresolved threads found in PR #123" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123"])
+        assert result.exit_code == 0
+        output = json.loads(result.output)
+        assert output["success"] is True
+        assert output["threads_processed"] == 0
+        assert output["message"] == "No unresolved threads found"
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    @patch("click.confirm")
+    def test_resolve_all_with_confirmation_cancelled(
+        self,
+        mock_confirm: Mock,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test --all when user cancels confirmation prompt."""
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+            ReviewThread(
+                thread_id="thread2",
+                title="Test thread 2",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_confirm.return_value = False  # User cancels
+
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--pretty"])
+        assert result.exit_code == 0
+        assert "Operation cancelled" in result.output
+
+        # Confirm was called
+        mock_confirm.assert_called_once()
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_requires_confirmation_in_json_mode(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test --all requires --yes in JSON mode for confirmation."""
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            )
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123"])
+        assert result.exit_code == 1
+        assert "Use --yes to skip this prompt" in result.output
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_successful_bulk_operation(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test successful bulk resolution with --all flag."""
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+            ReviewThread(
+                thread_id="thread2",
+                title="Test thread 2",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_resolve_service = Mock()
+        mock_resolve_service.resolve_thread.return_value = {"success": True}
+        mock_resolve_service_class.return_value = mock_resolve_service
+
+        # Test JSON mode with --yes flag
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--yes"])
+        assert result.exit_code == 0
+
+        output = json.loads(result.output)
+        assert output["success"] is True
+        assert output["threads_processed"] == 2
+        assert output["threads_succeeded"] == 2
+        assert output["threads_failed"] == 0
+
+        # Verify both threads were resolved
+        assert mock_resolve_service.resolve_thread.call_count == 2
+        mock_resolve_service.resolve_thread.assert_any_call("thread1")
+        mock_resolve_service.resolve_thread.assert_any_call("thread2")
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_successful_bulk_operation_pretty(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test successful bulk resolution with --all flag in pretty mode."""
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+            ReviewThread(
+                thread_id="thread2",
+                title="Test thread 2",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_resolve_service = Mock()
+        mock_resolve_service.resolve_thread.return_value = {"success": True}
+        mock_resolve_service_class.return_value = mock_resolve_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--all", "--pr", "123", "--yes", "--pretty"]
+        )
+        assert result.exit_code == 0
+        assert "Fetching threads from PR #123" in result.output
+        assert "Resolving 2 thread(s)" in result.output
+        assert "Bulk resolve completed" in result.output
+        assert "Total threads processed: 2" in result.output
+        assert "Successfully resolved: 2" in result.output
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_partial_failure(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test bulk resolution with some failures."""
+        from toady.models import ReviewThread
+        from toady.resolve_service import ResolveServiceError
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+            ReviewThread(
+                thread_id="thread2",
+                title="Test thread 2",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_resolve_service = Mock()
+        # First thread succeeds, second fails
+        mock_resolve_service.resolve_thread.side_effect = [
+            {"success": True},
+            ResolveServiceError("Thread not found"),
+        ]
+        mock_resolve_service_class.return_value = mock_resolve_service
+
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--yes"])
+        assert result.exit_code == 1  # Exit with error due to failures
+
+        # Parse just the first line of JSON output (ignore subsequent error JSON)
+        first_line = result.output.split("\n")[0]
+        output = json.loads(first_line)
+        assert output["success"] is False
+        assert output["threads_processed"] == 2
+        assert output["threads_succeeded"] == 1
+        assert output["threads_failed"] == 1
+        assert len(output["failed_threads"]) == 1
+        assert output["failed_threads"][0]["thread_id"] == "thread2"
+
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_with_undo_flag(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test bulk unresolve operation with --all --undo flags."""
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        # For undo, we fetch resolved threads
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="RESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+            ReviewThread(
+                thread_id="thread2",
+                title="Test thread 2",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="RESOLVED",
+                author="testuser",
+                comments=[],
+            ),
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_resolve_service = Mock()
+        mock_resolve_service.unresolve_thread.return_value = {"success": True}
+        mock_resolve_service_class.return_value = mock_resolve_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--all", "--pr", "123", "--undo", "--yes"]
+        )
+        assert result.exit_code == 0
+
+        output = json.loads(result.output)
+        assert output["action"] == "unresolve"
+        assert output["success"] is True
+        assert output["threads_processed"] == 2
+        assert output["threads_succeeded"] == 2
+
+        # Verify unresolve was called, not resolve
+        assert mock_resolve_service.unresolve_thread.call_count == 2
+        assert mock_resolve_service.resolve_thread.call_count == 0
+
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_fetch_service_error(
+        self, mock_fetch_service_class: Mock, runner: CliRunner
+    ) -> None:
+        """Test --all when fetch service fails."""
+        from toady.fetch_service import FetchServiceError
+
+        mock_fetch_service = Mock()
+        mock_fetch_service.fetch_review_threads_from_current_repo.side_effect = (
+            FetchServiceError("Could not fetch threads")
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        # Test pretty mode
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--pretty"])
+        assert result.exit_code == 1
+        assert "Failed to fetch threads" in result.output
+
+        # Test JSON mode
+        result = runner.invoke(cli, ["resolve", "--all", "--pr", "123", "--yes"])
+        assert result.exit_code == 1
+        output = json.loads(result.output)
+        assert output["success"] is False
+        assert output["error"] == "fetch_failed"
+
+    @patch("time.sleep")  # Mock sleep to speed up tests
+    @patch("toady.cli.ResolveService")
+    @patch("toady.cli.FetchService")
+    def test_resolve_all_rate_limit_handling(
+        self,
+        mock_fetch_service_class: Mock,
+        mock_resolve_service_class: Mock,
+        mock_sleep: Mock,
+        runner: CliRunner,
+    ) -> None:
+        """Test --all handles rate limits with exponential backoff."""
+        from toady.github_service import GitHubRateLimitError
+        from toady.models import ReviewThread
+
+        mock_fetch_service = Mock()
+        mock_threads = [
+            ReviewThread(
+                thread_id="thread1",
+                title="Test thread 1",
+                created_at=datetime(2024, 1, 15, 10, 0, 0),
+                updated_at=datetime(2024, 1, 15, 10, 0, 0),
+                status="UNRESOLVED",
+                author="testuser",
+                comments=[],
+            )
+        ]
+        mock_fetch_service.fetch_review_threads_from_current_repo.return_value = (
+            mock_threads
+        )
+        mock_fetch_service_class.return_value = mock_fetch_service
+
+        mock_resolve_service = Mock()
+        mock_resolve_service.resolve_thread.side_effect = GitHubRateLimitError(
+            "Rate limit exceeded"
+        )
+        mock_resolve_service_class.return_value = mock_resolve_service
+
+        result = runner.invoke(
+            cli, ["resolve", "--all", "--pr", "123", "--yes", "--pretty"]
+        )
+        assert result.exit_code == 1
+        assert "Rate limit detected" in result.output
+
+        # Verify exponential backoff was called
+        mock_sleep.assert_called()
+
+    def test_resolve_all_help_content(self, runner: CliRunner) -> None:
+        """Test that help shows --all flag information."""
+        result = runner.invoke(cli, ["resolve", "--help"])
+        assert result.exit_code == 0
+        assert "--all" in result.output
+        assert "resolve all unresolved threads" in result.output
+        assert "--pr" in result.output
+        assert "--yes" in result.output
+        assert "Skip confirmation prompt" in result.output
