@@ -63,7 +63,11 @@ toady fetch --pr 123 --pretty
 ### Reply to a Review Comment
 
 ```bash
-toady reply --comment-id 12345678 --body "Thanks for the feedback! Fixed in latest commit."
+# Reply to a review thread (recommended for submitted reviews)
+toady reply --comment-id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the feedback! Fixed in latest commit."
+
+# Reply using numeric ID (legacy)
+toady reply --comment-id 12345678 --body "Fixed!"
 ```
 
 ### Resolve/Unresolve Review Threads
