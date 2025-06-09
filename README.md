@@ -18,6 +18,10 @@ A modern CLI tool for efficiently managing GitHub pull request code reviews. Toa
 - 🎨 **Pretty output formatting** for human readability
 - 🤖 **JSON output** for automation and scripting
 - 🔐 **Secure authentication** via GitHub CLI (`gh`)
+- 🏗️ **Modular architecture** with clean separation of concerns
+- 🧪 **Comprehensive testing** with 80% coverage requirement
+- ⚡ **Fast CI/CD pipeline** with elegant reporting
+- 🛡️ **GraphQL schema validation** for API compatibility
 
 ## 📋 Prerequisites
 
@@ -78,6 +82,19 @@ toady resolve --thread-id abc123def
 
 # Unresolve a thread
 toady resolve --thread-id abc123def --undo
+
+# Resolve all unresolved threads at once
+toady resolve --all --pr 123
+```
+
+### Schema Validation
+
+```bash
+# Validate GraphQL queries against GitHub's schema
+toady schema validate
+
+# Get detailed compatibility report
+toady schema report
 ```
 
 ## 🛠️ Development
@@ -93,44 +110,105 @@ cd toady-cli
 make install-dev
 ```
 
-### Running Tests
+### 🏗️ Architecture
 
-```bash
-# Run all tests with coverage
-make test
+Toady CLI follows a modular architecture with clear separation of concerns:
 
-# Run specific test file
-pytest tests/test_cli.py
+```
+src/toady/
+├── cli.py                    # Main CLI entry point and command registration
+├── commands/                 # Modular command implementations
+│   ├── fetch.py             # Fetch command logic
+│   ├── reply.py             # Reply command logic
+│   ├── resolve.py           # Resolve command logic
+│   └── schema.py            # Schema validation commands
+├── github_service.py         # Core GitHub API interactions
+├── fetch_service.py          # Fetch-specific business logic
+├── reply_service.py          # Reply-specific business logic
+├── resolve_service.py        # Resolution-specific business logic
+├── schema_validator.py       # GraphQL schema validation
+├── formatters.py             # Output formatting (JSON/pretty)
+├── format_interfaces.py      # Formatter interfaces and base classes
+├── json_formatter.py         # JSON-specific formatting
+├── models.py                 # Data models for GitHub entities
+├── graphql_parser.py         # GraphQL query parsing
+├── graphql_queries.py        # GraphQL query definitions
+├── node_id_validation.py     # GitHub node ID validation
+├── parsers.py                # Data parsing utilities
+├── utils.py                  # General utilities
+└── exceptions.py             # Custom exception hierarchy
 ```
 
-### Code Quality Checks
+### 🧪 Testing
+
+The project uses pytest with a comprehensive test suite organized by type:
 
 ```bash
-# Run ALL checks (recommended before committing)
+# 🎯 Run comprehensive CI/CD pipeline (recommended)
 make check
 
-# Individual checks
-make lint        # Run ruff linting
-make format      # Format with black
-make type-check  # Type check with mypy
+# 🚀 Testing options:
+make test                    # All tests with 80% coverage requirement
+make test-fast              # Fast unit tests only
+make test-integration       # Integration tests only
+make test-performance       # Performance benchmarks
+make test-analysis          # Generate detailed test suite analysis
+
+# 🔍 Code Quality:
+make check-fast             # Quick validation (no tests)
+make lint                   # Run ruff linting
+make format                 # Format with black
+make type-check            # Type check with mypy
+make pre-commit            # Run all pre-commit hooks
 ```
 
-### Pre-commit Hooks
+#### Test Organization
 
-Pre-commit hooks are automatically installed with `make install-dev`. They run on every commit to ensure code quality.
-
-## 🧪 Testing
-
-The project uses pytest for testing with comprehensive coverage tracking:
-
-```bash
-# Run tests with coverage report
-make test
-
-# Generate HTML coverage report
-pytest --cov=toady --cov-report=html
-open htmlcov/index.html
 ```
+tests/
+├── unit/                    # Fast, isolated unit tests
+│   ├── services/           # Service layer tests
+│   ├── formatters/         # Output formatting tests
+│   ├── models/             # Data model tests
+│   └── validators/         # Validation logic tests
+├── integration/            # Integration tests
+│   ├── cli/               # CLI command tests using CliRunner
+│   └── ...                # GitHub API integration tests
+└── conftest.py            # Shared fixtures and test configuration
+```
+
+#### Test Categories
+
+Tests are organized with pytest markers for targeted execution:
+
+- `unit`: Fast, isolated tests with no external dependencies
+- `integration`: Tests requiring GitHub CLI or external services
+- `slow`: Performance tests and benchmarks
+- `cli`: Command-line interface integration tests
+- `service`: Service layer business logic tests
+
+### 🎯 Quality Assurance
+
+The project maintains high code quality through:
+
+- **Coverage Requirement**: 80% test coverage minimum
+- **Code Formatting**: Black for consistent code style
+- **Linting**: Ruff for fast and comprehensive code analysis
+- **Type Checking**: MyPy with strict configuration
+- **Pre-commit Hooks**: Automatic code quality checks on every commit
+- **CI/CD Pipeline**: Comprehensive checks with fail-fast behavior
+
+#### CI/CD Pipeline
+
+The `make check` command runs a comprehensive pipeline:
+
+1. **Environment Validation**: Verify all tools are available
+2. **Code Formatting**: Check Black formatting compliance
+3. **Linting**: Run Ruff analysis for code quality
+4. **Type Checking**: Validate type hints with MyPy
+5. **Test Suite**: Execute all 610+ tests with coverage tracking
+
+The pipeline provides elegant, colorized output with detailed timing and failure reporting.
 
 ## 📦 Building and Publishing
 
