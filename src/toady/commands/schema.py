@@ -1,4 +1,4 @@
-"""CLI commands for schema validation."""
+"""Schema command implementation."""
 
 import json
 import sys
@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from .schema_validator import GitHubSchemaValidator, SchemaValidationError
+from toady.schema_validator import GitHubSchemaValidator, SchemaValidationError
 
 
 @click.group()
@@ -231,7 +231,3 @@ def _has_critical_errors(report: Dict[str, Any]) -> bool:
             return True
 
     return False
-
-
-if __name__ == "__main__":
-    schema()

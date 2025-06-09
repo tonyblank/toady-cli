@@ -36,7 +36,7 @@ class TestFetchCommand:
         assert result.exit_code != 0
         assert "Missing option '--pr'" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_with_pr_number(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -49,7 +49,7 @@ class TestFetchCommand:
         assert result.exit_code == 0
         assert "[]" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_with_pretty_flag(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -63,7 +63,7 @@ class TestFetchCommand:
         assert "🔍 Fetching unresolved threads for PR #123" in result.output
         assert "📝 Found 0 unresolved threads" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_with_resolved_flag(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -76,7 +76,7 @@ class TestFetchCommand:
         assert result.exit_code == 0
         assert "[]" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_with_custom_limit(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -119,7 +119,7 @@ class TestFetchCommand:
         assert result.exit_code != 0
         assert "Limit cannot exceed 1000" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_all_options_combined(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -153,7 +153,7 @@ class TestFetchCommand:
         assert result.exit_code != 0
         assert "Invalid value for '--limit'" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_default_limit(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -172,7 +172,7 @@ class TestFetchCommand:
         assert result.exit_code != 0
         assert "PR number appears unreasonably large" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_valid_large_pr_number(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -184,7 +184,7 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["fetch", "--pr", "999999"])
         assert result.exit_code == 0
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_authentication_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -202,7 +202,7 @@ class TestFetchCommand:
         assert "❌ Authentication failed: Authentication failed" in result.output
         assert "💡 Try running: gh auth login" in result.output
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_authentication_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -225,7 +225,7 @@ class TestFetchCommand:
         assert output["error"] == "authentication_failed"
         assert "Authentication failed" in output["error_message"]
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_timeout_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -253,7 +253,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "timeout"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_rate_limit_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -282,7 +282,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "rate_limit_exceeded"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_pr_not_found_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -310,7 +310,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "pr_not_found"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_permission_denied_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -338,7 +338,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "permission_denied"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_general_api_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -366,7 +366,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "api_error"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_service_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -394,7 +394,7 @@ class TestFetchCommand:
         output = json.loads(result.output)
         assert output["error"] == "service_error"
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_unexpected_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -427,7 +427,7 @@ class TestFetchCommand:
         assert result.exit_code == 2  # Click validation error exit code
         # Validation errors from Click don't produce JSON, they go to stderr
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.fetch.FetchService")
     def test_fetch_comprehensive_parameter_validation(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -469,7 +469,7 @@ class TestReplyCommand:
         assert result.exit_code != 0
         assert "Missing option '--comment-id'" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_valid_numeric_id(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -499,7 +499,7 @@ class TestReplyCommand:
             expected_request, fetch_context=False
         )
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_valid_node_id(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -536,7 +536,7 @@ class TestReplyCommand:
             expected_request, fetch_context=False
         )
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_pretty_output(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -620,7 +620,7 @@ class TestReplyCommand:
         assert result.exit_code != 0
         assert "Reply body cannot exceed 65,536 characters" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_body_at_maximum_length(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -641,7 +641,7 @@ class TestReplyCommand:
         )
         assert result.exit_code == 0
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_body_with_mention_warning(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -671,7 +671,7 @@ class TestReplyCommand:
             "⚠️  Note: Reply starts with '@' - this will mention users" in result.output
         )
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_body_with_mention_no_warning_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -691,7 +691,7 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert "⚠️" not in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_long_body_truncation_in_pretty_mode(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -721,7 +721,7 @@ class TestReplyCommand:
         assert result.exit_code == 0
         assert "📝 Reply: " + "x" * 100 + "..." in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_various_comment_id_formats(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -771,7 +771,7 @@ class TestReplyCommand:
                 result.exit_code != 0
             ), f"Should have failed for comment ID: {comment_id}"
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_json_output_structure(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -820,7 +820,7 @@ class TestReplyCommand:
         assert "ID" in result.output  # metavar for comment-id
         assert "TEXT" in result.output  # metavar for body
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_comment_not_found_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -839,7 +839,7 @@ class TestReplyCommand:
         assert result.exit_code == 1
         assert "❌ Comment not found: Comment 999 not found in PR #1" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_comment_not_found_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -864,7 +864,7 @@ class TestReplyCommand:
         assert output["error"] == "comment_not_found"
         assert "Comment 999 not found" in output["error_message"]
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_authentication_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -885,7 +885,7 @@ class TestReplyCommand:
         assert "❌ Authentication failed: Authentication failed" in result.output
         assert "💡 Try running: gh auth login" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_authentication_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -910,7 +910,7 @@ class TestReplyCommand:
         assert output["error"] == "authentication_failed"
         assert "Authentication failed" in output["error_message"]
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_api_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -928,7 +928,7 @@ class TestReplyCommand:
         assert result.exit_code == 1
         assert "❌ Failed to post reply: API request failed" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_api_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1000,7 +1000,7 @@ class TestReplyCommand:
             assert result.exit_code == 2, f"Should fail for body: {repr(body)}"
             assert expected_error in result.output, f"Expected error for {repr(body)}"
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_timeout_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1030,7 +1030,7 @@ class TestReplyCommand:
         output = json.loads(result.output)
         assert output["error"] == "timeout"
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_rate_limit_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1063,7 +1063,7 @@ class TestReplyCommand:
         output = json.loads(result.output)
         assert output["error"] == "rate_limit_exceeded"
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_permission_error_handling(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1128,7 +1128,7 @@ class TestReplyCommand:
         )
         assert "⚠️  Note: Reply contains very repetitive content" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_verbose_mode_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1170,7 +1170,7 @@ class TestReplyCommand:
         assert "Posted at: 2023-01-01T12:00:00Z" in result.output
         assert "Posted by: @testuser" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_verbose_mode_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1217,7 +1217,7 @@ class TestReplyCommand:
         assert output["review_id"] == "123456"
         assert output["verbose"] is True
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_with_partial_metadata(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1256,7 +1256,7 @@ class TestReplyCommand:
         assert "Your reply: Test reply" in result.output
         assert "Posted at: 2023-01-01T12:00:00Z" in result.output
 
-    @patch("toady.cli.ReplyService")
+    @patch("toady.commands.reply.ReplyService")
     def test_reply_verbose_short_flag(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1300,7 +1300,7 @@ class TestResolveCommand:
         assert result.exit_code != 0
         assert "Must specify either --thread-id or --all" in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_with_valid_numeric_id(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1323,7 +1323,7 @@ class TestResolveCommand:
 
         mock_service.resolve_thread.assert_called_once_with("123456789")
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_with_valid_node_id(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1348,7 +1348,7 @@ class TestResolveCommand:
             "PRT_kwDOABcD12MAAAABcDE3fg"
         )
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_with_undo_flag(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1368,7 +1368,7 @@ class TestResolveCommand:
         assert '"action": "unresolve"' in result.output
         assert '"success": true' in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_with_pretty_output(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1391,7 +1391,7 @@ class TestResolveCommand:
             "🔗 View thread at: https://github.com/owner/repo/pull/123" in result.output
         )
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_with_undo_pretty_output(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1439,7 +1439,7 @@ class TestResolveCommand:
 
     def test_resolve_various_thread_id_formats(self, runner: CliRunner) -> None:
         """Test resolve with various valid thread ID formats."""
-        with patch("toady.cli.ResolveService") as mock_service_class:
+        with patch("toady.commands.resolve.ResolveService") as mock_service_class:
             mock_service = Mock()
             mock_service.resolve_thread.return_value = {
                 "thread_id": "test_id",
@@ -1480,7 +1480,7 @@ class TestResolveCommand:
                 result.exit_code != 0
             ), f"Should have failed for thread ID: {thread_id}"
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_json_output_structure(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1508,7 +1508,7 @@ class TestResolveCommand:
         assert output["success"] is True
         assert "https://github.com/" in output["thread_url"]
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_json_output_with_undo(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1529,7 +1529,7 @@ class TestResolveCommand:
         output = json.loads(result.output)
         assert output["action"] == "unresolve"
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_thread_not_found_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1546,7 +1546,7 @@ class TestResolveCommand:
         assert result.exit_code == 1
         assert "❌ Thread not found: Thread 999 not found" in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_thread_not_found_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1567,7 +1567,7 @@ class TestResolveCommand:
         assert output["error"] == "thread_not_found"
         assert "Thread 999 not found" in output["error_message"]
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_permission_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1585,7 +1585,7 @@ class TestResolveCommand:
         assert "❌ Permission denied: Permission denied" in result.output
         assert "💡 Ensure you have write access to the repository" in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_permission_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1606,7 +1606,7 @@ class TestResolveCommand:
         assert output["error"] == "permission_denied"
         assert "Permission denied" in output["error_message"]
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_authentication_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1624,7 +1624,7 @@ class TestResolveCommand:
         assert "❌ Authentication failed: Authentication failed" in result.output
         assert "💡 Try running: gh auth login" in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_authentication_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1645,7 +1645,7 @@ class TestResolveCommand:
         assert output["error"] == "authentication_failed"
         assert "Authentication failed" in output["error_message"]
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_api_error_pretty(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1662,7 +1662,7 @@ class TestResolveCommand:
         assert result.exit_code == 1
         assert "❌ Failed to resolve thread: API request failed" in result.output
 
-    @patch("toady.cli.ResolveService")
+    @patch("toady.commands.resolve.ResolveService")
     def test_resolve_api_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -1700,7 +1700,7 @@ class TestResolveCommand:
 
     def test_resolve_all_options_combined(self, runner: CliRunner) -> None:
         """Test resolve with all options combined."""
-        with patch("toady.cli.ResolveService") as mock_service_class:
+        with patch("toady.commands.resolve.ResolveService") as mock_service_class:
             mock_service = Mock()
             mock_service.unresolve_thread.return_value = {
                 "thread_id": "123456789",
@@ -1768,8 +1768,8 @@ class TestResolveCommand:
         assert result.exit_code != 0
         assert "PR number appears unreasonably large" in result.output
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_no_threads_found(
         self,
         mock_fetch_service_class: Mock,
@@ -1794,8 +1794,8 @@ class TestResolveCommand:
         assert output["threads_processed"] == 0
         assert output["message"] == "No unresolved threads found"
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     @patch("click.confirm")
     def test_resolve_all_with_confirmation_cancelled(
         self,
@@ -1842,8 +1842,8 @@ class TestResolveCommand:
         # Confirm was called
         mock_confirm.assert_called_once()
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_requires_confirmation_in_json_mode(
         self,
         mock_fetch_service_class: Mock,
@@ -1874,8 +1874,8 @@ class TestResolveCommand:
         assert result.exit_code == 1
         assert "Use --yes to skip this prompt" in result.output
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_successful_bulk_operation(
         self,
         mock_fetch_service_class: Mock,
@@ -1930,8 +1930,8 @@ class TestResolveCommand:
         mock_resolve_service.resolve_thread.assert_any_call("thread1")
         mock_resolve_service.resolve_thread.assert_any_call("thread2")
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_successful_bulk_operation_pretty(
         self,
         mock_fetch_service_class: Mock,
@@ -1981,8 +1981,8 @@ class TestResolveCommand:
         assert "Total threads processed: 2" in result.output
         assert "Successfully resolved: 2" in result.output
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_partial_failure(
         self,
         mock_fetch_service_class: Mock,
@@ -2040,8 +2040,8 @@ class TestResolveCommand:
         assert len(output["failed_threads"]) == 1
         assert output["failed_threads"][0]["thread_id"] == "thread2"
 
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_with_undo_flag(
         self,
         mock_fetch_service_class: Mock,
@@ -2097,7 +2097,7 @@ class TestResolveCommand:
         assert mock_resolve_service.unresolve_thread.call_count == 2
         assert mock_resolve_service.resolve_thread.call_count == 0
 
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_fetch_service_error(
         self, mock_fetch_service_class: Mock, runner: CliRunner
     ) -> None:
@@ -2123,8 +2123,8 @@ class TestResolveCommand:
         assert output["error"] == "fetch_failed"
 
     @patch("time.sleep")  # Mock sleep to speed up tests
-    @patch("toady.cli.ResolveService")
-    @patch("toady.cli.FetchService")
+    @patch("toady.commands.resolve.ResolveService")
+    @patch("toady.commands.resolve.FetchService")
     def test_resolve_all_rate_limit_handling(
         self,
         mock_fetch_service_class: Mock,
