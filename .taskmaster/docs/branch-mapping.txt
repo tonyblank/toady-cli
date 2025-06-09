@@ -53,3 +53,7 @@ Task 15: tony/bur-73-implement-graphql-mutations-for-replying-to-review-comments
 Task 16: tony/bur-74-add-all-flag-to-resolve-all-unresolved-threads-at-once
 Task 17: tony/bur-75-add-dry-run-mode-to-preview-actions-before-execution
 Task 20: tony/bur-77-refactor-monolithic-cli-structure-into-modular-command
+Task 20.3: tony/bur-78-task-203-reorganize-test-structure-for-modular-architecture
+Task 20.4: tony/bur-79-task-204-optimize-test-infrastructure-with-shared-fixtures
+Task 20.5: tony/bur-80-task-205-configure-testing-framework-and-coverage
+Task 20.6: tony/bur-81-task-206-review-and-update-readmemd-for-new-architecture
