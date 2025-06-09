@@ -2,9 +2,14 @@
 
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
+from .reply_mutations import (
+    create_comment_reply_mutation,
+    create_thread_reply_mutation,
+    determine_reply_strategy,
+)
 
 
 class ReplyServiceError(GitHubServiceError):
@@ -43,7 +48,11 @@ class ReplyService:
     def post_reply(
         self, request: ReplyRequest, fetch_context: bool = False
     ) -> Dict[str, Any]:
-        """Post a reply to a pull request review comment.
+        """Post a reply to a pull request review comment using GraphQL mutations.
+
+        This method now uses GraphQL mutations instead of REST API calls for better
+        integration with GitHub's modern API. It supports both numeric comment IDs
+        (legacy) and GitHub node IDs for backward compatibility.
 
         Args:
             request: ReplyRequest object containing all necessary parameters.
@@ -79,13 +88,212 @@ class ReplyService:
             owner = request.owner
             repo = request.repo
 
+        try:
+            # Determine the best strategy based on comment ID format
+            strategy = determine_reply_strategy(request.comment_id)
+
+            if strategy == "thread_reply":
+                # Use addPullRequestReviewThreadReply for thread node IDs
+                return self._post_thread_reply(request, fetch_context, owner, repo)
+            else:
+                # Use REST API for all other cases (numeric IDs and comment node IDs)
+                # This maintains maximum backward compatibility
+                return self._post_reply_fallback_rest(
+                    request, fetch_context, owner, repo
+                )
+
+        except ValueError as e:
+            raise ReplyServiceError(f"Invalid comment ID: {e}") from e
+
+    def _post_thread_reply(
+        self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
+    ) -> Dict[str, Any]:
+        """Post a reply using the addPullRequestReviewThreadReply mutation.
+
+        Args:
+            request: ReplyRequest object.
+            fetch_context: Whether to fetch additional context.
+            owner: Repository owner.
+            repo: Repository name.
+
+        Returns:
+            Dictionary with reply information.
+        """
+        try:
+            mutation, variables = create_thread_reply_mutation(
+                request.comment_id, request.reply_body
+            )
+            result = self.github_service.execute_graphql_query(mutation, variables)
+
+            # Check for GraphQL errors
+            if "errors" in result:
+                self._handle_graphql_errors(result["errors"], request.comment_id)
+
+            # Extract comment data from response
+            comment_data = (
+                result.get("data", {})
+                .get("addPullRequestReviewThreadReply", {})
+                .get("comment", {})
+            )
+
+            if not comment_data:
+                raise ReplyServiceError(
+                    "No comment data returned from GraphQL mutation"
+                )
+
+            return self._build_reply_info_from_graphql(
+                comment_data, request, fetch_context, owner, repo
+            )
+
+        except GitHubAPIError as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise CommentNotFoundError(
+                    f"Thread {request.comment_id} not found"
+                ) from e
+            raise ReplyServiceError(f"Failed to post reply: {e}") from e
+
+    def _post_comment_reply(
+        self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
+    ) -> Dict[str, Any]:
+        """Post a reply using the addPullRequestReviewComment mutation with inReplyTo.
+
+        This method first needs to get the review ID associated with the comment.
+
+        Args:
+            request: ReplyRequest object.
+            fetch_context: Whether to fetch additional context.
+            owner: Repository owner.
+            repo: Repository name.
+
+        Returns:
+            Dictionary with reply information.
+        """
+        try:
+            # First, get the review ID from the comment
+            review_id = self._get_review_id_for_comment(owner, repo, request.comment_id)
+
+            mutation, variables = create_comment_reply_mutation(
+                review_id, request.comment_id, request.reply_body
+            )
+            result = self.github_service.execute_graphql_query(mutation, variables)
+
+            # Check for GraphQL errors
+            if "errors" in result:
+                self._handle_graphql_errors(result["errors"], request.comment_id)
+
+            # Extract comment data from response
+            comment_data = (
+                result.get("data", {})
+                .get("addPullRequestReviewComment", {})
+                .get("comment", {})
+            )
+
+            if not comment_data:
+                raise ReplyServiceError(
+                    "No comment data returned from GraphQL mutation"
+                )
+
+            return self._build_reply_info_from_graphql(
+                comment_data, request, fetch_context, owner, repo
+            )
+
+        except GitHubAPIError as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise CommentNotFoundError(
+                    f"Comment {request.comment_id} not found"
+                ) from e
+            raise ReplyServiceError(f"Failed to post reply: {e}") from e
+
+    def _handle_graphql_errors(
+        self, errors: List[Dict[str, Any]], comment_id: str
+    ) -> None:
+        """Handle GraphQL errors and raise appropriate exceptions.
+
+        Args:
+            errors: List of GraphQL errors.
+            comment_id: The comment ID that caused the error.
+
+        Raises:
+            CommentNotFoundError: If comment is not found.
+            ReplyServiceError: For other GraphQL errors.
+        """
+        error_messages = []
+        for error in errors:
+            message = error.get("message", str(error))
+
+            # Check for specific error types
+            if "not found" in message.lower() or "does not exist" in message.lower():
+                raise CommentNotFoundError(f"Comment {comment_id} not found")
+
+            error_messages.append(message)
+
+        # If we get here, it's a generic GraphQL error
+        combined_message = "; ".join(error_messages)
+        raise ReplyServiceError(f"Failed to post reply: {combined_message}")
+
+    def _build_reply_info_from_graphql(
+        self,
+        comment_data: Dict[str, Any],
+        request: ReplyRequest,
+        fetch_context: bool,
+        owner: str,
+        repo: str,
+    ) -> Dict[str, Any]:
+        """Build reply information dictionary from GraphQL response data.
+
+        Args:
+            comment_data: GraphQL comment data.
+            request: Original reply request.
+            fetch_context: Whether to fetch additional context.
+            owner: Repository owner.
+            repo: Repository name.
+
+        Returns:
+            Dictionary with comprehensive reply information.
+        """
+        reply_info = {
+            "reply_id": str(comment_data.get("id", "")),
+            "reply_url": comment_data.get("url", ""),
+            "comment_id": request.comment_id,
+            "created_at": comment_data.get("createdAt", ""),
+            "author": comment_data.get("author", {}).get("login", ""),
+            "body_preview": request.reply_body[:100]
+            + ("..." if len(request.reply_body) > 100 else ""),
+        }
+
+        # Extract review ID if available
+        if "pullRequestReview" in comment_data:
+            review_data = comment_data["pullRequestReview"]
+            if "id" in review_data:
+                reply_info["review_id"] = str(review_data["id"])
+
+        # Try to get parent comment info for context only if requested
+        if fetch_context:
+            parent_info = self._get_parent_comment_info(owner, repo, request.comment_id)
+            if parent_info:
+                reply_info.update(parent_info)
+
+        return reply_info
+
+    def _post_reply_fallback_rest(
+        self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
+    ) -> Dict[str, Any]:
+        """Fallback to REST API for posting replies.
+
+        This method uses the original REST API approach for backward compatibility.
+
+        Args:
+            request: ReplyRequest object.
+            fetch_context: Whether to fetch additional context.
+            owner: Repository owner.
+            repo: Repository name.
+
+        Returns:
+            Dictionary with reply information.
+        """
         # Construct the API endpoint
         endpoint = f"repos/{owner}/{repo}/pulls/comments/{request.comment_id}/replies"
 
-        # Prepare the request payload (for reference)
-        # payload = {"body": request.reply_body}
-
-        # Execute the API call using gh CLI
         try:
             args = [
                 "api",
@@ -135,6 +343,66 @@ class ReplyService:
                     f"Comment {request.comment_id} not found"
                 ) from e
             raise ReplyServiceError(f"Failed to post reply: {e}") from e
+
+    def _get_review_id_for_comment(
+        self, _owner: str, _repo: str, comment_id: str
+    ) -> str:
+        """Get the review ID associated with a node ID comment.
+
+        This method uses GraphQL to query the comment and get its associated review ID.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            comment_id: Comment node ID.
+
+        Returns:
+            The review ID (node ID).
+
+        Raises:
+            ReplyServiceError: If the review ID cannot be determined.
+            CommentNotFoundError: If the comment is not found.
+        """
+        try:
+            query = """
+            query GetCommentReview($commentId: ID!) {
+                node(id: $commentId) {
+                    ... on PullRequestReviewComment {
+                        pullRequestReview {
+                            id
+                        }
+                    }
+                }
+            }
+            """
+
+            variables = {"commentId": comment_id}
+            result = self.github_service.execute_graphql_query(query, variables)
+
+            if "errors" in result:
+                error_messages = [
+                    error.get("message", str(error)) for error in result["errors"]
+                ]
+                if any("not found" in msg.lower() for msg in error_messages):
+                    raise CommentNotFoundError(f"Comment {comment_id} not found")
+                raise ReplyServiceError(
+                    f"Failed to get review ID: {'; '.join(error_messages)}"
+                )
+
+            comment_node = result.get("data", {}).get("node")
+            if not comment_node:
+                raise CommentNotFoundError(f"Comment {comment_id} not found")
+
+            review_data = comment_node.get("pullRequestReview")
+            if not review_data or "id" not in review_data:
+                raise ReplyServiceError(f"Comment {comment_id} is not part of a review")
+
+            return str(review_data["id"])
+
+        except GitHubAPIError as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                raise CommentNotFoundError(f"Comment {comment_id} not found") from e
+            raise ReplyServiceError(f"Failed to get review ID: {e}") from e
 
     def _get_repository_info(self) -> Tuple[str, str]:
         """Get the current repository owner and name.

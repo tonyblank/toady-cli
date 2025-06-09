@@ -46,3 +46,9 @@ Task 12.1: tony/bur-67-task-121-configure-setuppypyprojecttoml-with-metadata-and
 Task 12.2: tony/bur-68-task-122-create-distribution-files-and-test-packaging
 Task 12.3: tony/bur-69-task-123-test-installation-in-clean-environments-and
 Task 12.4: tony/bur-70-task-124-publish-to-testpypi-and-then-pypi-with
+Task 18: tony/bur-76-enhance-fetch-command-open-pr-lookup-and-interactive
+Task 13: tony/bur-71-add-comprehensive-id-format-support-for-all-github-node-id
+Task 14: tony/bur-72-validate-graphql-schemas-against-current-github-api
+Task 15: tony/bur-73-implement-graphql-mutations-for-replying-to-review-comments
+Task 16: tony/bur-74-add-all-flag-to-resolve-all-unresolved-threads-at-once
+Task 17: tony/bur-75-add-dry-run-mode-to-preview-actions-before-execution
