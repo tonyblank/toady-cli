@@ -460,3 +460,293 @@ class TestFetchServiceIntegration:
         thread = threads[0]
         assert thread.thread_id == "PRT_minimal"
         assert len(thread.comments) == 1
+
+
+class TestFetchServicePullRequests:
+    """Test pull request fetching functionality."""
+
+    def test_fetch_open_pull_requests_success(self) -> None:
+        """Test successful open PRs fetching."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock GraphQL response with pull requests
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "id": "PR_123",
+                                "number": 123,
+                                "title": "Test PR",
+                                "author": {"login": "user1"},
+                                "headRefName": "feature-branch",
+                                "baseRefName": "main",
+                                "isDraft": False,
+                                "createdAt": "2023-01-01T10:00:00Z",
+                                "updatedAt": "2023-01-01T11:00:00Z",
+                                "url": "https://github.com/owner/repo/pull/123",
+                                "reviewThreads": {"totalCount": 2},
+                            }
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 1,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+
+        service = FetchService(mock_github_service)
+        prs = service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+        assert len(prs) == 1
+        pr = prs[0]
+        assert pr.number == 123
+        assert pr.title == "Test PR"
+        assert pr.author == "user1"
+        assert pr.head_ref == "feature-branch"
+        assert pr.base_ref == "main"
+        assert pr.is_draft is False
+        assert pr.review_thread_count == 2
+
+    def test_fetch_open_pull_requests_with_drafts(self) -> None:
+        """Test fetching PRs including drafts."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock response with both draft and non-draft PRs
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "id": "PR_123",
+                                "number": 123,
+                                "title": "Regular PR",
+                                "author": {"login": "user1"},
+                                "headRefName": "feature-1",
+                                "baseRefName": "main",
+                                "isDraft": False,
+                                "createdAt": "2023-01-01T10:00:00Z",
+                                "updatedAt": "2023-01-01T11:00:00Z",
+                                "url": "https://github.com/owner/repo/pull/123",
+                                "reviewThreads": {"totalCount": 0},
+                            },
+                            {
+                                "id": "PR_124",
+                                "number": 124,
+                                "title": "Draft PR",
+                                "author": {"login": "user2"},
+                                "headRefName": "feature-2",
+                                "baseRefName": "main",
+                                "isDraft": True,
+                                "createdAt": "2023-01-02T10:00:00Z",
+                                "updatedAt": "2023-01-02T11:00:00Z",
+                                "url": "https://github.com/owner/repo/pull/124",
+                                "reviewThreads": {"totalCount": 1},
+                            },
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 2,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+
+        service = FetchService(mock_github_service)
+
+        # Test including drafts
+        prs_with_drafts = service.fetch_open_pull_requests(
+            owner="testowner", repo="testrepo", include_drafts=True
+        )
+        assert len(prs_with_drafts) == 2
+
+        # Test excluding drafts (default behavior)
+        prs_without_drafts = service.fetch_open_pull_requests(
+            owner="testowner", repo="testrepo", include_drafts=False
+        )
+        assert len(prs_without_drafts) == 1
+        assert prs_without_drafts[0].number == 123
+        assert not prs_without_drafts[0].is_draft
+
+    def test_fetch_open_pull_requests_empty_result(self) -> None:
+        """Test fetching when no open PRs exist."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock response with no PRs
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 0,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+
+        service = FetchService(mock_github_service)
+        prs = service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+        assert len(prs) == 0
+
+    def test_fetch_open_pull_requests_auth_error(self) -> None:
+        """Test fetch with authentication error."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.side_effect = (
+            GitHubAuthenticationError("Authentication failed")
+        )
+
+        service = FetchService(mock_github_service)
+        with pytest.raises(GitHubAuthenticationError):
+            service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+    def test_fetch_open_pull_requests_api_error(self) -> None:
+        """Test fetch with GitHub API error."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.side_effect = GitHubAPIError(
+            "Repository not found"
+        )
+
+        service = FetchService(mock_github_service)
+        with pytest.raises(GitHubAPIError):
+            service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+    def test_fetch_open_pull_requests_service_error(self) -> None:
+        """Test fetch with unexpected error wrapped in FetchServiceError."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.side_effect = ValueError(
+            "Unexpected error"
+        )
+
+        service = FetchService(mock_github_service)
+        with pytest.raises(FetchServiceError) as exc_info:
+            service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+        assert "Failed to fetch open pull requests" in str(exc_info.value)
+        assert "Unexpected error" in str(exc_info.value)
+
+    @patch.object(FetchService, "_get_repository_info")
+    def test_fetch_open_pull_requests_from_current_repo_success(
+        self, mock_get_repo_info: Mock
+    ) -> None:
+        """Test fetching open PRs from current repository."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "id": "PR_456",
+                                "number": 456,
+                                "title": "Current Repo PR",
+                                "author": {"login": "dev"},
+                                "headRefName": "fix-bug",
+                                "baseRefName": "main",
+                                "isDraft": False,
+                                "createdAt": "2023-01-01T10:00:00Z",
+                                "updatedAt": "2023-01-01T11:00:00Z",
+                                "url": "https://github.com/current/repo/pull/456",
+                                "reviewThreads": {"totalCount": 3},
+                            }
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 1,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+        mock_get_repo_info.return_value = ("current", "repo")
+
+        service = FetchService(mock_github_service)
+        prs = service.fetch_open_pull_requests_from_current_repo()
+
+        assert len(prs) == 1
+        assert prs[0].number == 456
+        assert prs[0].title == "Current Repo PR"
+        mock_get_repo_info.assert_called_once()
+
+    def test_fetch_open_pull_requests_with_custom_limit(self) -> None:
+        """Test fetching with custom limit parameter."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 0,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+
+        service = FetchService(mock_github_service)
+        service.fetch_open_pull_requests(owner="testowner", repo="testrepo", limit=25)
+
+        # Verify the query was called (limit is embedded in the query)
+        mock_github_service.execute_graphql_query.assert_called_once()
+
+    def test_fetch_open_pull_requests_missing_author(self) -> None:
+        """Test fetching PR with missing author information."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Mock response with PR missing author
+        mock_response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "id": "PR_no_author",
+                                "number": 789,
+                                "title": "PR with missing author",
+                                "author": None,  # Missing author
+                                "headRefName": "feature",
+                                "baseRefName": "main",
+                                "isDraft": False,
+                                "createdAt": "2023-01-01T10:00:00Z",
+                                "updatedAt": "2023-01-01T11:00:00Z",
+                                "url": "https://github.com/owner/repo/pull/789",
+                                "reviewThreads": {"totalCount": 0},
+                            }
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                        "totalCount": 1,
+                    }
+                }
+            }
+        }
+        mock_github_service.execute_graphql_query.return_value = mock_response
+
+        service = FetchService(mock_github_service)
+        prs = service.fetch_open_pull_requests(owner="testowner", repo="testrepo")
+
+        assert len(prs) == 1
+        # Should handle missing author gracefully
+        assert prs[0].author == "unknown"
