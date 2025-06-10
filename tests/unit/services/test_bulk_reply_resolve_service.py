@@ -368,13 +368,10 @@ class TestBulkReplyResolveService:
             )
         ]
 
-        with (
-            patch.object(
-                bulk_service, "_execute_single_operation", side_effect=results
-            ),
-            patch.object(
-                bulk_service, "_rollback_operations", return_value=rollback_results
-            ),
+        with patch.object(
+            bulk_service, "_execute_single_operation", side_effect=results
+        ), patch.object(
+            bulk_service, "_rollback_operations", return_value=rollback_results
         ):
             summary = bulk_service._perform_atomic_operations(operations)
 
