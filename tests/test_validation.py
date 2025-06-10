@@ -6,6 +6,7 @@ import pytest
 
 from toady.exceptions import ValidationError
 from toady.validation import (
+    ResolveOptions,
     check_reply_content_warnings,
     validate_boolean_flag,
     validate_choice,
@@ -647,14 +648,17 @@ class TestCompositeValidationFunctions:
 
     def test_validate_resolve_command_args_single(self):
         """Test resolve command argument validation for single thread."""
-        result = validate_resolve_command_args(
-            thread_id="123456789",
+        options = ResolveOptions(
             bulk_resolve=False,
-            pr_number=None,
             undo=False,
             yes=False,
             pretty=True,
             limit=100,
+        )
+        result = validate_resolve_command_args(
+            thread_id="123456789",
+            pr_number=None,
+            options=options,
         )
         expected = {
             "thread_id": "123456789",
@@ -669,14 +673,17 @@ class TestCompositeValidationFunctions:
 
     def test_validate_resolve_command_args_bulk(self):
         """Test resolve command argument validation for bulk operation."""
-        result = validate_resolve_command_args(
-            thread_id=None,
+        options = ResolveOptions(
             bulk_resolve=True,
-            pr_number=123,
             undo=False,
             yes=True,
             pretty=False,
             limit=50,
+        )
+        result = validate_resolve_command_args(
+            thread_id=None,
+            pr_number=123,
+            options=options,
         )
         expected = {
             "thread_id": None,
@@ -693,22 +700,43 @@ class TestCompositeValidationFunctions:
         """Test resolve command argument validation with conflicts."""
         # Test bulk_resolve with thread_id
         with pytest.raises(ValidationError) as exc_info:
+            options = ResolveOptions(bulk_resolve=True)
             validate_resolve_command_args(
-                thread_id="123456789", bulk_resolve=True, pr_number=123
+                thread_id="123456789", pr_number=123, options=options
             )
         assert "Cannot use bulk resolve and thread ID together" in str(exc_info.value)
 
         # Test neither bulk_resolve nor thread_id
         with pytest.raises(ValidationError) as exc_info:
-            validate_resolve_command_args(thread_id=None, bulk_resolve=False)
+            options = ResolveOptions(bulk_resolve=False)
+            validate_resolve_command_args(thread_id=None, options=options)
         assert "Must specify either thread ID or bulk resolve" in str(exc_info.value)
 
         # Test bulk_resolve without pr_number
         with pytest.raises(ValidationError) as exc_info:
+            options = ResolveOptions(bulk_resolve=True)
             validate_resolve_command_args(
-                thread_id=None, bulk_resolve=True, pr_number=None
+                thread_id=None, pr_number=None, options=options
             )
         assert "PR number is required when using bulk resolve" in str(exc_info.value)
+
+    def test_validate_resolve_command_args_default_options(self):
+        """Test resolve command with default options (None)."""
+        result = validate_resolve_command_args(
+            thread_id="123456789",
+            pr_number=None,
+            options=None,  # Should use default ResolveOptions
+        )
+        expected = {
+            "thread_id": "123456789",
+            "bulk_resolve": False,
+            "pr_number": None,
+            "undo": False,
+            "yes": False,
+            "pretty": False,
+            "limit": 100,
+        }
+        assert result == expected
 
 
 class TestValidationErrorHandling:

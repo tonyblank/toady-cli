@@ -5,6 +5,7 @@ configuration parameters, and data types used throughout the application.
 """
 
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
@@ -76,7 +77,7 @@ def validate_pr_number(
             message=f"{field_name} cannot be None",
         )
 
-    # Convert to int if it's a string  # type: ignore[unreachable]
+    # Convert to int if it's a string
     if isinstance(pr_number, str):
         pr_number = pr_number.strip()
         if not pr_number:
@@ -721,7 +722,7 @@ def validate_boolean_flag(
         value_lower = value.lower().strip()
         if value_lower in ("true", "1", "yes", "on"):
             return True
-        elif value_lower in ("false", "0", "no", "off"):
+        if value_lower in ("false", "0", "no", "off"):
             return False
 
     raise create_validation_error(
@@ -939,25 +940,32 @@ def validate_reply_command_args(
     }
 
 
+@dataclass
+class ResolveOptions:
+    """Options for the resolve command.
+
+    Groups the optional flags to reduce the number of function parameters
+    and make the API cleaner and more maintainable.
+    """
+
+    bulk_resolve: bool = False
+    undo: bool = False
+    yes: bool = False
+    pretty: bool = False
+    limit: Union[int, str] = 100
+
+
 def validate_resolve_command_args(
     thread_id: Optional[Union[str, int]] = None,
-    bulk_resolve: bool = False,
     pr_number: Optional[Union[int, str]] = None,
-    undo: bool = False,
-    yes: bool = False,
-    pretty: bool = False,
-    limit: Union[int, str] = 100,
+    options: Optional[ResolveOptions] = None,
 ) -> Dict[str, Any]:
     """Validate all arguments for the resolve command.
 
     Args:
         thread_id: Thread ID for single resolution
-        bulk_resolve: Whether to resolve all threads
         pr_number: Pull request number (required for bulk operations)
-        undo: Whether to unresolve instead of resolve
-        yes: Skip confirmation prompt
-        pretty: Pretty output flag
-        limit: Maximum number of threads to process
+        options: ResolveOptions containing bulk_resolve, undo, yes, pretty, and limit
 
     Returns:
         Dictionary of validated arguments
@@ -965,21 +973,24 @@ def validate_resolve_command_args(
     Raises:
         ValidationError: If any validation fails
     """
-    # Validate mutually exclusive options
-    if bulk_resolve and thread_id is not None:
+    # Create default options if none provided
+    if options is None:
+        options = ResolveOptions()
+    # Validate mutually exclusive options  # type: ignore[unreachable]
+    if options.bulk_resolve and thread_id is not None:
         raise ValidationError(
             "Cannot use bulk resolve and thread ID together. Choose one.",
             field_name="command options",
         )
 
-    if not bulk_resolve and thread_id is None:
+    if not options.bulk_resolve and thread_id is None:
         raise ValidationError(
             "Must specify either thread ID or bulk resolve option",
             field_name="command options",
         )
 
     # Validate PR number requirement for bulk operations
-    if bulk_resolve and pr_number is None:
+    if options.bulk_resolve and pr_number is None:
         raise ValidationError(
             "PR number is required when using bulk resolve",
             field_name="pr_number",
@@ -987,10 +998,12 @@ def validate_resolve_command_args(
 
     return {
         "thread_id": validate_thread_id(thread_id) if thread_id is not None else None,
-        "bulk_resolve": validate_boolean_flag(bulk_resolve, "Bulk resolve flag"),
-        "pr_number": validate_pr_number(pr_number, allow_none=not bulk_resolve),
-        "undo": validate_boolean_flag(undo, "Undo flag", allow_none=True),
-        "yes": validate_boolean_flag(yes, "Yes flag", allow_none=True),
-        "pretty": validate_boolean_flag(pretty, "Pretty flag", allow_none=True),
-        "limit": validate_limit(limit),
+        "bulk_resolve": validate_boolean_flag(
+            options.bulk_resolve, "Bulk resolve flag"
+        ),
+        "pr_number": validate_pr_number(pr_number, allow_none=not options.bulk_resolve),
+        "undo": validate_boolean_flag(options.undo, "Undo flag", allow_none=True),
+        "yes": validate_boolean_flag(options.yes, "Yes flag", allow_none=True),
+        "pretty": validate_boolean_flag(options.pretty, "Pretty flag", allow_none=True),
+        "limit": validate_limit(options.limit),
     }
