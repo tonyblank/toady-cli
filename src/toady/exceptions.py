@@ -66,6 +66,7 @@ class ErrorCode(Enum):
     RESOLVE_SERVICE_ERROR = 1602
     COMMENT_NOT_FOUND = 1603
     THREAD_NOT_FOUND = 1604
+    BULK_OPERATION_ERROR = 1605
 
 
 class ToadyError(Exception):
@@ -672,6 +673,33 @@ class ThreadPermissionError(ResolveServiceError):
         self.thread_id = thread_id
         if thread_id:
             self.context["thread_id"] = thread_id
+
+
+class BulkOperationError(ToadyError):
+    """Raised when bulk operations fail."""
+
+    def __init__(self, message: str, **kwargs: Any) -> None:
+        """Initialize a BulkOperationError.
+
+        Args:
+            message: Human-readable error message.
+            **kwargs: Additional arguments passed to ToadyError.
+        """
+        super().__init__(
+            message,
+            error_code=kwargs.pop("error_code", ErrorCode.BULK_OPERATION_ERROR),
+            severity=kwargs.pop("severity", ErrorSeverity.HIGH),
+            suggestions=kwargs.pop(
+                "suggestions",
+                [
+                    "Check individual operation errors for specific issues",
+                    "Verify all thread IDs are valid and accessible",
+                    "Ensure you have proper permissions for all operations",
+                    "Consider running with dry-run mode first to validate",
+                ],
+            ),
+            **kwargs,
+        )
 
 
 # Backward compatibility aliases for existing code
