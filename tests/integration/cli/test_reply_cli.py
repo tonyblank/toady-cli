@@ -347,7 +347,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with authentication error in pretty mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = GitHubAuthenticationError(
@@ -360,7 +360,9 @@ class TestReplyCLI:
             ["reply", "--comment-id", "123456789", "--body", "Test reply", "--pretty"],
         )
         assert result.exit_code == 1
-        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert (
+            "❌ Authentication failed: [GITHUB_AUTHENTICATION_ERROR]" in result.output
+        )
         assert "💡 Try running: gh auth login" in result.output
 
     @patch("toady.commands.reply.ReplyService")
@@ -368,7 +370,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with authentication error in JSON mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = GitHubAuthenticationError(

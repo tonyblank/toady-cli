@@ -5,7 +5,7 @@ from typing import Any, Dict, Tuple
 
 import click
 
-from toady.github_service import (
+from toady.exceptions import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubRateLimitError,

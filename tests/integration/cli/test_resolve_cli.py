@@ -288,7 +288,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with authentication error in pretty mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = GitHubAuthenticationError(
@@ -298,7 +298,9 @@ class TestResolveCLI:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert (
+            "❌ Authentication failed: [GITHUB_AUTHENTICATION_ERROR]" in result.output
+        )
         assert "💡 Try running: gh auth login" in result.output
 
     @patch("toady.commands.resolve.ResolveService")
@@ -306,7 +308,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with authentication error in JSON mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = GitHubAuthenticationError(
