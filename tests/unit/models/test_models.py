@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 import pytest
 
+from toady.exceptions import ValidationError
 from toady.models import Comment, ReviewThread
 
 
@@ -33,7 +34,7 @@ class TestReviewThread:
 
     def test_thread_id_validation(self) -> None:
         """Test that thread_id cannot be empty."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             ReviewThread(
                 thread_id="",
                 title="Test",
@@ -46,7 +47,7 @@ class TestReviewThread:
 
     def test_title_validation(self) -> None:
         """Test that title cannot be empty."""
-        with pytest.raises(ValueError, match="title cannot be empty"):
+        with pytest.raises(ValidationError, match="title cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="",
@@ -59,7 +60,7 @@ class TestReviewThread:
 
     def test_status_validation(self) -> None:
         """Test that status must be valid."""
-        with pytest.raises(ValueError, match="status must be one of"):
+        with pytest.raises(ValidationError, match="status must be one of"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -72,7 +73,7 @@ class TestReviewThread:
 
     def test_author_validation(self) -> None:
         """Test that author cannot be empty."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -85,7 +86,9 @@ class TestReviewThread:
 
     def test_date_validation(self) -> None:
         """Test that updated_at cannot be before created_at."""
-        with pytest.raises(ValueError, match="updated_at cannot be before created_at"):
+        with pytest.raises(
+            ValidationError, match="updated_at cannot be before created_at"
+        ):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -153,7 +156,7 @@ class TestReviewThread:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Missing required field: thread_id"):
+        with pytest.raises(ValidationError, match="Missing required field: thread_id"):
             ReviewThread.from_dict(data)
 
     def test_from_dict_invalid_date_format(self) -> None:
@@ -168,7 +171,7 @@ class TestReviewThread:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for created_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for created_at"):
             ReviewThread.from_dict(data)
 
     def test_from_dict_with_microseconds(self) -> None:
@@ -361,7 +364,7 @@ class TestReviewThread:
 
     def test_parse_datetime_unparseable(self) -> None:
         """Test handling of completely unparseable datetime."""
-        with pytest.raises(ValueError, match="Unable to parse datetime"):
+        with pytest.raises(ValidationError, match="Unable to parse datetime"):
             ReviewThread._parse_datetime("not a date")
 
 
@@ -390,7 +393,7 @@ class TestComment:
 
     def test_comment_id_validation(self) -> None:
         """Test that comment_id cannot be empty."""
-        with pytest.raises(ValueError, match="comment_id cannot be empty"):
+        with pytest.raises(ValidationError, match="comment_id cannot be empty"):
             Comment(
                 comment_id="",
                 content="Test content",
@@ -403,7 +406,7 @@ class TestComment:
 
     def test_content_validation_empty(self) -> None:
         """Test that content cannot be empty."""
-        with pytest.raises(ValueError, match="content cannot be empty"):
+        with pytest.raises(ValidationError, match="content cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="",
@@ -417,7 +420,9 @@ class TestComment:
     def test_content_validation_too_long(self) -> None:
         """Test that content cannot exceed maximum length."""
         long_content = "x" * 65537  # Exceed the 65536 character limit
-        with pytest.raises(ValueError, match="content cannot exceed 65536 characters"):
+        with pytest.raises(
+            ValidationError, match="content cannot exceed 65536 characters"
+        ):
             Comment(
                 comment_id="C_456",
                 content=long_content,
@@ -430,7 +435,7 @@ class TestComment:
 
     def test_author_validation(self) -> None:
         """Test that author cannot be empty."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -443,7 +448,7 @@ class TestComment:
 
     def test_thread_id_validation(self) -> None:
         """Test that thread_id cannot be empty."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -459,7 +464,9 @@ class TestComment:
         created = datetime(2024, 1, 2, 12, 0, 0)
         updated = datetime(2024, 1, 1, 12, 0, 0)  # Before created
 
-        with pytest.raises(ValueError, match="updated_at cannot be before created_at"):
+        with pytest.raises(
+            ValidationError, match="updated_at cannot be before created_at"
+        ):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -573,7 +580,7 @@ class TestComment:
             # Missing author, created_at, updated_at, thread_id
         }
 
-        with pytest.raises(ValueError, match="Missing required field"):
+        with pytest.raises(ValidationError, match="Missing required field"):
             Comment.from_dict(data)
 
     def test_from_dict_invalid_date_format(self) -> None:
@@ -588,7 +595,7 @@ class TestComment:
             "thread_id": "RT_123",
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for created_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for created_at"):
             Comment.from_dict(data)
 
     def test_str_representation(self) -> None:
@@ -633,7 +640,7 @@ class TestComment:
             "thread_id": "RT_123",
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for updated_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for updated_at"):
             Comment.from_dict(data)
 
 
@@ -652,13 +659,13 @@ class TestReviewThreadEdgeCases:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for updated_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for updated_at"):
             ReviewThread.from_dict(data)
 
     @pytest.mark.parametrize("invalid_id", ["", "   ", "\t", "\n"])
     def test_thread_id_validation_whitespace(self, invalid_id: str) -> None:
         """Test thread_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             ReviewThread(
                 thread_id=invalid_id,
                 title="Test",
@@ -672,7 +679,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_title", ["", "   ", "\t", "\n"])
     def test_title_validation_whitespace(self, invalid_title: str) -> None:
         """Test title validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="title cannot be empty"):
+        with pytest.raises(ValidationError, match="title cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title=invalid_title,
@@ -686,7 +693,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_author", ["", "   ", "\t", "\n"])
     def test_author_validation_whitespace(self, invalid_author: str) -> None:
         """Test author validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -700,7 +707,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_status", ["INVALID", "resolved", "pending", ""])
     def test_status_validation_invalid_values(self, invalid_status: str) -> None:
         """Test status validation with invalid values."""
-        with pytest.raises(ValueError, match="status must be one of"):
+        with pytest.raises(ValidationError, match="status must be one of"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -779,7 +786,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_id", ["", "   ", "\t", "\n"])
     def test_comment_id_validation_whitespace(self, invalid_id: str) -> None:
         """Test comment_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="comment_id cannot be empty"):
+        with pytest.raises(ValidationError, match="comment_id cannot be empty"):
             Comment(
                 comment_id=invalid_id,
                 content="Test content",
@@ -793,7 +800,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_content", ["", "   ", "\t", "\n"])
     def test_content_validation_whitespace(self, invalid_content: str) -> None:
         """Test content validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="content cannot be empty"):
+        with pytest.raises(ValidationError, match="content cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content=invalid_content,
@@ -807,7 +814,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_author", ["", "   ", "\t", "\n"])
     def test_author_validation_whitespace(self, invalid_author: str) -> None:
         """Test author validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -821,7 +828,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_thread_id", ["", "   ", "\t", "\n"])
     def test_thread_id_validation_whitespace(self, invalid_thread_id: str) -> None:
         """Test thread_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -851,7 +858,7 @@ class TestCommentEdgeCases:
             assert len(comment.content) == content_length
         else:
             # Should fail
-            with pytest.raises(ValueError, match="content cannot exceed"):
+            with pytest.raises(ValidationError, match="content cannot exceed"):
                 Comment(
                     comment_id="C_456",
                     content=content,

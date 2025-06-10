@@ -2,14 +2,15 @@
 
 import click
 
-from toady.fetch_service import FetchService, FetchServiceError
-from toady.formatters import format_fetch_output
-from toady.github_service import (
+from toady.exceptions import (
+    FetchServiceError,
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubRateLimitError,
     GitHubTimeoutError,
 )
+from toady.fetch_service import FetchService
+from toady.formatters import format_fetch_output
 from toady.utils import MAX_PR_NUMBER, emit_error
 
 

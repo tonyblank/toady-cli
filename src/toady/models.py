@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
+from .exceptions import ValidationError, create_validation_error
 from .utils import parse_datetime
 
 
@@ -33,31 +34,125 @@ class ReviewThread:
     VALID_STATUSES = {"RESOLVED", "UNRESOLVED", "PENDING", "OUTDATED", "DISMISSED"}
 
     def __post_init__(self) -> None:
-        """Validate fields after initialization."""
-        # Validate thread_id
-        if not self.thread_id or not self.thread_id.strip():
-            raise ValueError("thread_id cannot be empty")
+        """Validate fields after initialization.
 
-        # Validate title
-        if not self.title or not self.title.strip():
-            raise ValueError("title cannot be empty")
+        Raises:
+            ValidationError: If any field validation fails
+        """
+        try:
+            # Validate thread_id
+            if not isinstance(self.thread_id, str):
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value=type(self.thread_id).__name__,
+                    expected_format="non-empty string",
+                    message="thread_id must be a string",
+                )
+            if not self.thread_id.strip():
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="thread_id cannot be empty",
+                )
 
-        # Validate status
-        if self.status not in self.VALID_STATUSES:
-            raise ValueError(
-                f"status must be one of {', '.join(sorted(self.VALID_STATUSES))}"
-            )
+            # Validate title
+            if not isinstance(self.title, str):
+                raise create_validation_error(
+                    field_name="title",
+                    invalid_value=type(self.title).__name__,
+                    expected_format="non-empty string",
+                    message="title must be a string",
+                )
+            if not self.title.strip():
+                raise create_validation_error(
+                    field_name="title",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="title cannot be empty",
+                )
 
-        # Validate author
-        if not self.author or not self.author.strip():
-            raise ValueError("author cannot be empty")
+            # Validate status
+            if not isinstance(self.status, str):
+                raise create_validation_error(
+                    field_name="status",
+                    invalid_value=type(self.status).__name__,
+                    expected_format=f"one of {', '.join(sorted(self.VALID_STATUSES))}",
+                    message="status must be a string",
+                )
+            if self.status not in self.VALID_STATUSES:
+                raise create_validation_error(
+                    field_name="status",
+                    invalid_value=self.status,
+                    expected_format=f"one of {', '.join(sorted(self.VALID_STATUSES))}",
+                    message=(
+                        "status must be one of "
+                        f"{', '.join(sorted(self.VALID_STATUSES))}"
+                    ),
+                )
 
-        # Validate dates
-        if self.updated_at < self.created_at:
-            raise ValueError("updated_at cannot be before created_at")
+            # Validate author
+            if not isinstance(self.author, str):
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value=type(self.author).__name__,
+                    expected_format="non-empty string",
+                    message="author must be a string",
+                )
+            if not self.author.strip():
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="author cannot be empty",
+                )
 
-        # Ensure comments is a copy to prevent external modifications
-        self.comments = list(self.comments)
+            # Validate dates
+            if not isinstance(self.created_at, datetime):
+                raise create_validation_error(
+                    field_name="created_at",
+                    invalid_value=type(self.created_at).__name__,
+                    expected_format="datetime object",
+                    message="created_at must be a datetime object",
+                )
+            if not isinstance(self.updated_at, datetime):
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=type(self.updated_at).__name__,
+                    expected_format="datetime object",
+                    message="updated_at must be a datetime object",
+                )
+            if self.updated_at < self.created_at:
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=self.updated_at.isoformat(),
+                    expected_format=f"datetime >= {self.created_at.isoformat()}",
+                    message="updated_at cannot be before created_at",
+                )
+
+            # Validate comments list
+            if not isinstance(self.comments, list):
+                raise create_validation_error(
+                    field_name="comments",
+                    invalid_value=type(self.comments).__name__,
+                    expected_format="list of comments",
+                    message="comments must be a list",
+                )
+
+            # Ensure comments is a copy to prevent external modifications
+            self.comments = list(self.comments)
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors
+            raise create_validation_error(
+                field_name="ReviewThread",
+                invalid_value="validation failure",
+                expected_format="valid ReviewThread object",
+                message=f"Unexpected error during ReviewThread validation: {str(e)}",
+            ) from e
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the ReviewThread to a dictionary for serialization.
@@ -109,21 +204,32 @@ class ReviewThread:
         }
         missing_fields = required_fields - set(data.keys())
         if missing_fields:
-            raise ValueError(f"Missing required field: {', '.join(missing_fields)}")
+            raise create_validation_error(
+                field_name="from_dict",
+                invalid_value=f"missing: {', '.join(missing_fields)}",
+                expected_format="dictionary with all required fields",
+                message=f"Missing required field: {', '.join(missing_fields)}",
+            )
 
         # Parse dates
         try:
             created_at = cls._parse_datetime(data["created_at"])
-        except ValueError as err:
-            raise ValueError(
-                f"Invalid date format for created_at: {data['created_at']}"
+        except (ValueError, ValidationError) as err:
+            raise create_validation_error(
+                field_name="created_at",
+                invalid_value=data["created_at"],
+                expected_format="ISO datetime string",
+                message=f"Invalid date format for created_at: {data['created_at']}",
             ) from err
 
         try:
             updated_at = cls._parse_datetime(data["updated_at"])
-        except ValueError as err:
-            raise ValueError(
-                f"Invalid date format for updated_at: {data['updated_at']}"
+        except (ValueError, ValidationError) as err:
+            raise create_validation_error(
+                field_name="updated_at",
+                invalid_value=data["updated_at"],
+                expected_format="ISO datetime string",
+                message=f"Invalid date format for updated_at: {data['updated_at']}",
             ) from err
 
         # Create instance
@@ -148,9 +254,21 @@ class ReviewThread:
             datetime object
 
         Raises:
-            ValueError: If date string cannot be parsed
+            ValidationError: If date string cannot be parsed
         """
-        return parse_datetime(date_str)
+        try:
+            return parse_datetime(date_str)
+        except Exception as e:
+            # parse_datetime now raises ValidationError, but handle any edge cases
+            if hasattr(e, "error_code"):
+                # Already a ValidationError
+                raise
+            raise create_validation_error(
+                field_name="date_str",
+                invalid_value=date_str,
+                expected_format="ISO datetime string",
+                message=f"Failed to parse datetime: {str(e)}",
+            ) from e
 
     @property
     def is_resolved(self) -> bool:
@@ -199,49 +317,150 @@ class Comment:
     MAX_CONTENT_LENGTH = 65536
 
     def __post_init__(self) -> None:
-        """Validate fields after initialization."""
-        # Validate comment_id
-        if not self.comment_id or not self.comment_id.strip():
-            raise ValueError("comment_id cannot be empty")
+        """Validate fields after initialization.
 
-        # Validate content
-        if not self.content or not self.content.strip():
-            raise ValueError("content cannot be empty")
+        Raises:
+            ValidationError: If any field validation fails
+        """
+        try:
+            # Validate comment_id
+            if not isinstance(self.comment_id, str):
+                raise create_validation_error(
+                    field_name="comment_id",
+                    invalid_value=type(self.comment_id).__name__,
+                    expected_format="non-empty string",
+                    message="comment_id must be a string",
+                )
+            if not self.comment_id.strip():
+                raise create_validation_error(
+                    field_name="comment_id",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="comment_id cannot be empty",
+                )
 
-        if len(self.content) > self.MAX_CONTENT_LENGTH:
-            raise ValueError(
-                f"content cannot exceed {self.MAX_CONTENT_LENGTH} characters"
-            )
+            # Validate content
+            if not isinstance(self.content, str):
+                raise create_validation_error(
+                    field_name="content",
+                    invalid_value=type(self.content).__name__,
+                    expected_format="non-empty string",
+                    message="content must be a string",
+                )
+            if not self.content.strip():
+                raise create_validation_error(
+                    field_name="content",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="content cannot be empty",
+                )
+            if len(self.content) > self.MAX_CONTENT_LENGTH:
+                raise create_validation_error(
+                    field_name="content",
+                    invalid_value=f"{len(self.content)} characters",
+                    expected_format=(
+                        f"string with <= {self.MAX_CONTENT_LENGTH} characters"
+                    ),
+                    message=(
+                        f"content cannot exceed {self.MAX_CONTENT_LENGTH} characters"
+                    ),
+                )
 
-        # Validate author
-        if not self.author or not self.author.strip():
-            raise ValueError("author cannot be empty")
+            # Validate author
+            if not isinstance(self.author, str):
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value=type(self.author).__name__,
+                    expected_format="non-empty string",
+                    message="author must be a string",
+                )
+            if not self.author.strip():
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="author cannot be empty",
+                )
 
-        # Validate thread_id
-        if not self.thread_id or not self.thread_id.strip():
-            raise ValueError("thread_id cannot be empty")
+            # Validate thread_id
+            if not isinstance(self.thread_id, str):
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value=type(self.thread_id).__name__,
+                    expected_format="non-empty string",
+                    message="thread_id must be a string",
+                )
+            if not self.thread_id.strip():
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="thread_id cannot be empty",
+                )
 
-        # Validate dates
-        if self.updated_at < self.created_at:
-            raise ValueError("updated_at cannot be before created_at")
+            # Validate dates
+            if not isinstance(self.created_at, datetime):
+                raise create_validation_error(
+                    field_name="created_at",
+                    invalid_value=type(self.created_at).__name__,
+                    expected_format="datetime object",
+                    message="created_at must be a datetime object",
+                )
+            if not isinstance(self.updated_at, datetime):
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=type(self.updated_at).__name__,
+                    expected_format="datetime object",
+                    message="updated_at must be a datetime object",
+                )
+            if self.updated_at < self.created_at:
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=self.updated_at.isoformat(),
+                    expected_format=f"datetime >= {self.created_at.isoformat()}",
+                    message="updated_at cannot be before created_at",
+                )
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors
+            raise create_validation_error(
+                field_name="Comment",
+                invalid_value="validation failure",
+                expected_format="valid Comment object",
+                message=f"Unexpected error during Comment validation: {str(e)}",
+            ) from e
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the Comment to a dictionary for serialization.
 
         Returns:
             Dictionary representation of the Comment
+
+        Raises:
+            ValidationError: If serialization fails
         """
-        return {
-            "comment_id": self.comment_id,
-            "content": self.content,
-            "author": self.author,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "parent_id": self.parent_id,
-            "thread_id": self.thread_id,
-            "review_id": self.review_id,
-            "review_state": self.review_state,
-        }
+        try:
+            return {
+                "comment_id": self.comment_id,
+                "content": self.content,
+                "author": self.author,
+                "created_at": self.created_at.isoformat(),
+                "updated_at": self.updated_at.isoformat(),
+                "parent_id": self.parent_id,
+                "thread_id": self.thread_id,
+                "review_id": self.review_id,
+                "review_state": self.review_state,
+            }
+        except Exception as e:
+            raise create_validation_error(
+                field_name="Comment",
+                invalid_value="serialization failure",
+                expected_format="serializable Comment object",
+                message=f"Failed to serialize Comment to dictionary: {str(e)}",
+            ) from e
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Comment":
@@ -254,48 +473,95 @@ class Comment:
             Comment instance
 
         Raises:
-            ValueError: If required fields are missing or invalid
+            ValidationError: If required fields are missing or invalid
         """
-        # Check required fields
-        required_fields = {
-            "comment_id",
-            "content",
-            "author",
-            "created_at",
-            "updated_at",
-            "thread_id",
-        }
-        missing_fields = required_fields - set(data.keys())
-        if missing_fields:
-            raise ValueError(f"Missing required field: {', '.join(missing_fields)}")
-
-        # Parse dates
         try:
-            created_at = cls._parse_datetime(data["created_at"])
-        except ValueError as err:
-            raise ValueError(
-                f"Invalid date format for created_at: {data['created_at']}"
-            ) from err
+            # Validate input data
+            if not isinstance(data, dict):
+                raise create_validation_error(
+                    field_name="data",
+                    invalid_value=type(data).__name__,
+                    expected_format="dictionary",
+                    message="Input data must be a dictionary",
+                )
 
-        try:
-            updated_at = cls._parse_datetime(data["updated_at"])
-        except ValueError as err:
-            raise ValueError(
-                f"Invalid date format for updated_at: {data['updated_at']}"
-            ) from err
+            # Check required fields
+            required_fields = {
+                "comment_id",
+                "content",
+                "author",
+                "created_at",
+                "updated_at",
+                "thread_id",
+            }
+            missing_fields = required_fields - set(data.keys())
+            if missing_fields:
+                raise create_validation_error(
+                    field_name="required_fields",
+                    invalid_value=f"missing: {', '.join(sorted(missing_fields))}",
+                    expected_format=(
+                        f"dictionary with fields: {', '.join(sorted(required_fields))}"
+                    ),
+                    message=(
+                        f"Missing required field: {', '.join(sorted(missing_fields))}"
+                    ),
+                )
 
-        # Create instance
-        return cls(
-            comment_id=data["comment_id"],
-            content=data["content"],
-            author=data["author"],
-            created_at=created_at,
-            updated_at=updated_at,
-            parent_id=data.get("parent_id"),
-            thread_id=data["thread_id"],
-            review_id=data.get("review_id"),
-            review_state=data.get("review_state"),
-        )
+            # Parse dates with enhanced error handling
+            try:
+                created_at = cls._parse_datetime(data["created_at"])
+            except (ValueError, ValidationError) as err:
+                raise create_validation_error(
+                    field_name="created_at",
+                    invalid_value=data.get("created_at", "missing"),
+                    expected_format="ISO datetime string",
+                    message=f"Invalid date format for created_at: {str(err)}",
+                ) from err
+
+            try:
+                updated_at = cls._parse_datetime(data["updated_at"])
+            except (ValueError, ValidationError) as err:
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=data.get("updated_at", "missing"),
+                    expected_format="ISO datetime string",
+                    message=f"Invalid date format for updated_at: {str(err)}",
+                ) from err
+
+            # Create instance with proper error handling
+            try:
+                return cls(
+                    comment_id=data["comment_id"],
+                    content=data["content"],
+                    author=data["author"],
+                    created_at=created_at,
+                    updated_at=updated_at,
+                    parent_id=data.get("parent_id"),
+                    thread_id=data["thread_id"],
+                    review_id=data.get("review_id"),
+                    review_state=data.get("review_state"),
+                )
+            except ValidationError:
+                # Re-raise ValidationErrors from __post_init__
+                raise
+            except Exception as e:
+                raise create_validation_error(
+                    field_name="Comment",
+                    invalid_value="construction failure",
+                    expected_format="valid Comment object",
+                    message=f"Failed to create Comment from dictionary: {str(e)}",
+                ) from e
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except Exception as e:
+            raise create_validation_error(
+                field_name="data",
+                invalid_value=str(type(data)),
+                expected_format="valid dictionary for Comment creation",
+                message=f"Unexpected error creating Comment from dictionary: {str(e)}",
+            ) from e
 
     @staticmethod
     def _parse_datetime(date_str: str) -> datetime:
@@ -308,9 +574,21 @@ class Comment:
             datetime object
 
         Raises:
-            ValueError: If date string cannot be parsed
+            ValidationError: If date string cannot be parsed
         """
-        return parse_datetime(date_str)
+        try:
+            return parse_datetime(date_str)
+        except Exception as e:
+            # parse_datetime now raises ValidationError, but handle any edge cases
+            if hasattr(e, "error_code"):
+                # Already a ValidationError
+                raise
+            raise create_validation_error(
+                field_name="date_str",
+                invalid_value=date_str,
+                expected_format="ISO datetime string",
+                message=f"Failed to parse datetime: {str(e)}",
+            ) from e
 
     def __str__(self) -> str:
         """Return a human-readable string representation."""

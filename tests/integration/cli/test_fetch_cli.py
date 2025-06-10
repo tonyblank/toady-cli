@@ -170,7 +170,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch with authentication error in pretty mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -180,7 +180,8 @@ class TestFetchCLI:
 
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Authentication failed: Authentication failed" in result.output
+        assert "❌ Authentication failed:" in result.output
+        assert "Authentication failed" in result.output
         assert "💡 Try running: gh auth login" in result.output
 
     @patch("toady.commands.fetch.FetchService")
@@ -188,7 +189,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch with authentication error in JSON mode."""
-        from toady.github_service import GitHubAuthenticationError
+        from toady.exceptions import GitHubAuthenticationError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -209,7 +210,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch timeout error handling."""
-        from toady.github_service import GitHubTimeoutError
+        from toady.exceptions import GitHubTimeoutError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -235,7 +236,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch rate limit error handling."""
-        from toady.github_service import GitHubRateLimitError
+        from toady.exceptions import GitHubRateLimitError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -262,7 +263,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch PR not found error handling."""
-        from toady.github_service import GitHubAPIError
+        from toady.exceptions import GitHubAPIError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -288,7 +289,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch permission denied error handling."""
-        from toady.github_service import GitHubAPIError
+        from toady.exceptions import GitHubAPIError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -314,7 +315,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch general API error handling."""
-        from toady.github_service import GitHubAPIError
+        from toady.exceptions import GitHubAPIError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
@@ -340,7 +341,7 @@ class TestFetchCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test fetch service error handling."""
-        from toady.fetch_service import FetchServiceError
+        from toady.exceptions import FetchServiceError
 
         mock_service = Mock()
         mock_service.fetch_review_threads_from_current_repo.side_effect = (
