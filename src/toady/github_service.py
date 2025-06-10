@@ -66,6 +66,12 @@ mutation ResolveReviewThread($threadId: ID!) {
         thread {
             id
             isResolved
+            pullRequest {
+                number
+                repository {
+                    nameWithOwner
+                }
+            }
         }
     }
 }
@@ -77,6 +83,12 @@ mutation UnresolveReviewThread($threadId: ID!) {
         thread {
             id
             isResolved
+            pullRequest {
+                number
+                repository {
+                    nameWithOwner
+                }
+            }
         }
     }
 }

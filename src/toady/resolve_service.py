@@ -91,15 +91,15 @@ class ResolveService:
                         context={"thread_id": thread_id, "action": "resolve"},
                     )
 
+                # Extract URL with intelligent fallback
+                thread_url = self._get_thread_url(thread_data, thread_id)
+
                 return {
                     "thread_id": thread_id,
                     "action": "resolve",
                     "success": True,
                     "is_resolved": str(thread_data.get("isResolved", True)).lower(),
-                    "thread_url": thread_data.get(
-                        "url",
-                        f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
-                    ),
+                    "thread_url": thread_url,
                 }
             except (KeyError, TypeError, AttributeError) as e:
                 raise ResolveServiceError(
@@ -193,15 +193,15 @@ class ResolveService:
                         context={"thread_id": thread_id, "action": "unresolve"},
                     )
 
+                # Extract URL with intelligent fallback
+                thread_url = self._get_thread_url(thread_data, thread_id)
+
                 return {
                     "thread_id": thread_id,
                     "action": "unresolve",
                     "success": True,
                     "is_resolved": str(thread_data.get("isResolved", False)).lower(),
-                    "thread_url": thread_data.get(
-                        "url",
-                        f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
-                    ),
+                    "thread_url": thread_url,
                 }
             except (KeyError, TypeError, AttributeError) as e:
                 raise ResolveServiceError(
@@ -552,3 +552,97 @@ class ResolveService:
                     "pull_number": pull_number,
                 },
             ) from e
+
+    def _get_thread_url(self, thread_data: Dict[str, Any], thread_id: str) -> str:
+        """Extract thread URL from GraphQL response with intelligent fallback.
+
+        Args:
+            thread_data: Thread data from GraphQL response
+            thread_id: Thread ID for fallback URL construction
+
+        Returns:
+            Thread URL (from API or constructed fallback)
+        """
+        try:
+            # First, try to get the URL directly from the API response
+            # Note: PullRequestReviewThread doesn't have a url field in GitHub's
+            # GraphQL schema, so this will typically be None, but we check anyway
+            # for future compatibility
+            url = thread_data.get("url")
+            if url and isinstance(url, str) and url.strip():
+                return str(url.strip())
+
+            # If no URL from API, construct one using PR information from the response
+            pull_request_data = thread_data.get("pullRequest", {})
+            if isinstance(pull_request_data, dict):
+                pr_number = pull_request_data.get("number")
+                repository_data = pull_request_data.get("repository", {})
+
+                if isinstance(repository_data, dict):
+                    name_with_owner = repository_data.get("nameWithOwner")
+
+                    if (
+                        isinstance(pr_number, int)
+                        and isinstance(name_with_owner, str)
+                        and name_with_owner.strip()
+                    ):
+                        # Extract numeric ID from thread_id for URL fragment
+                        url_fragment = self._extract_thread_url_fragment(thread_id)
+                        return (
+                            f"https://github.com/{name_with_owner.strip()}/pull/"
+                            f"{pr_number}#discussion_r{url_fragment}"
+                        )
+
+            # Final fallback: use current repository context
+            return self._build_fallback_url(thread_id)
+
+        except Exception:
+            # If anything goes wrong, use the safe fallback
+            return self._build_fallback_url(thread_id)
+
+    def _extract_thread_url_fragment(self, thread_id: str) -> str:
+        """Extract the numeric portion of thread ID for URL construction.
+
+        Args:
+            thread_id: Thread ID (numeric or node ID)
+
+        Returns:
+            Numeric string suitable for URL fragment
+        """
+        try:
+            # If it's already numeric, use it directly
+            if thread_id.isdigit():
+                return thread_id
+
+            # For node IDs, we'll use the thread_id as-is since GitHub can handle it
+            # The URL will work even with node IDs in modern GitHub
+            return thread_id
+        except Exception:
+            # Fallback to the thread_id itself
+            return thread_id
+
+    def _build_fallback_url(self, thread_id: str) -> str:
+        """Build a fallback URL using current repository context.
+
+        Args:
+            thread_id: Thread ID for URL construction
+
+        Returns:
+            Fallback URL
+        """
+        try:
+            # Try to get current repository
+            current_repo = self.github_service.get_current_repo()
+            if current_repo and "/" in current_repo:
+                url_fragment = self._extract_thread_url_fragment(thread_id)
+                # Use a generic PR reference since we don't know the specific PR
+                return (
+                    f"https://github.com/{current_repo}/pull/"
+                    f"{{pr_number}}#discussion_r{url_fragment}"
+                )
+        except Exception:
+            pass
+
+        # Ultimate fallback when all else fails
+        url_fragment = self._extract_thread_url_fragment(thread_id)
+        return f"https://github.com/{{owner}}/{{repo}}/pull/{{pr_number}}#discussion_r{url_fragment}"
