@@ -976,7 +976,7 @@ def validate_resolve_command_args(
     # Create default options if none provided
     if options is None:
         options = ResolveOptions()
-    # Validate mutually exclusive options  # type: ignore[unreachable]
+    # Validate mutually exclusive options
     if options.bulk_resolve and thread_id is not None:
         raise ValidationError(
             "Cannot use bulk resolve and thread ID together. Choose one.",
