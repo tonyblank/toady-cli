@@ -326,7 +326,8 @@ class FetchService:
                     return [], None
 
                 # At this point, should_continue is True, so pr_number must be set
-                assert selection_result.pr_number is not None
+                if selection_result.pr_number is None:
+                    raise FetchServiceError("Unexpected empty selection result")
                 selected_pr_number = selection_result.pr_number
 
             # Fetch review threads from the selected PR
