@@ -560,3 +560,241 @@ class TestResolveServiceIntegration:
         ]["thread"]["id"] = "PRT_kwDOABcD"
         result = service.resolve_thread("PRT_kwDOABcD")
         assert result["thread_id"] == "PRT_kwDOABcD"
+
+
+class TestResolveServiceURLConsistency:
+    """Test URL consistency fixes for different PR numbers."""
+
+    def test_resolve_thread_url_construction_from_pr_info(self) -> None:
+        """Test that thread URL is correctly constructed from PR info."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        # Note: No URL field since PullRequestReviewThread lacks one
+                        "pullRequest": {
+                            "number": 27,
+                            "repository": {"nameWithOwner": "owner/repo"},
+                        },
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Should construct URL from PR info in response
+        expected_url = "https://github.com/owner/repo/pull/27#discussion_rPRT_kwDOABcD12MAAAABcDE3fg"
+        assert result["thread_url"] == expected_url
+
+    def test_resolve_thread_url_fallback_with_pr_info(self) -> None:
+        """Test URL fallback construction using PR info from API response."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        # No URL in response
+                        "pullRequest": {
+                            "number": 42,
+                            "repository": {"nameWithOwner": "testowner/testrepo"},
+                        },
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Should construct URL using PR info from response
+        expected_url = "https://github.com/testowner/testrepo/pull/42#discussion_rPRT_kwDOABcD12MAAAABcDE3fg"
+        assert result["thread_url"] == expected_url
+
+    def test_resolve_thread_url_fallback_with_numeric_id(self) -> None:
+        """Test URL fallback construction with numeric thread ID."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "123456789",
+                        "isResolved": True,
+                        # No URL in response
+                        "pullRequest": {
+                            "number": 99,
+                            "repository": {"nameWithOwner": "user/project"},
+                        },
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.resolve_thread("123456789")
+
+        # Should construct URL using numeric ID directly
+        expected_url = "https://github.com/user/project/pull/99#discussion_r123456789"
+        assert result["thread_url"] == expected_url
+
+    def test_resolve_thread_url_ultimate_fallback(self) -> None:
+        """Test ultimate fallback when no PR info is available."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.get_current_repo.return_value = None
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        # No URL, no PR info
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Should use placeholder template
+        expected_url = "https://github.com/{owner}/{repo}/pull/{pr_number}#discussion_rPRT_kwDOABcD12MAAAABcDE3fg"
+        assert result["thread_url"] == expected_url
+
+    def test_resolve_thread_url_current_repo_fallback(self) -> None:
+        """Test fallback using current repository context."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.get_current_repo.return_value = "myorg/myproject"
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "987654321",
+                        "isResolved": True,
+                        # No URL, no PR info
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.resolve_thread("987654321")
+
+        # Should use current repo with placeholder PR number
+        expected_url = (
+            "https://github.com/myorg/myproject/pull/{pr_number}#discussion_r987654321"
+        )
+        assert result["thread_url"] == expected_url
+
+    def test_unresolve_thread_url_consistency(self) -> None:
+        """Test that unresolve thread maintains URL consistency."""
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "unresolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": False,
+                        # Note: No URL field since PullRequestReviewThread lacks one
+                        "pullRequest": {
+                            "number": 150,
+                            "repository": {"nameWithOwner": "company/product"},
+                        },
+                    }
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+        result = service.unresolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Should construct URL from PR info for unresolve too
+        expected_url = "https://github.com/company/product/pull/150#discussion_rPRT_kwDOABcD12MAAAABcDE3fg"
+        assert result["thread_url"] == expected_url
+
+    def test_multiple_pr_numbers_consistency(self) -> None:
+        """Test that different PRs generate different URLs correctly."""
+        mock_github_service = Mock(spec=GitHubService)
+        service = ResolveService(mock_github_service)
+
+        # Test PR #27
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        "pullRequest": {
+                            "number": 27,
+                            "repository": {"nameWithOwner": "test/repo"},
+                        },
+                    }
+                }
+            }
+        }
+        result_27 = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Test PR #123 (should not be hardcoded anymore)
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        "pullRequest": {
+                            "number": 123,
+                            "repository": {"nameWithOwner": "test/repo"},
+                        },
+                    }
+                }
+            }
+        }
+        result_123 = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Test PR #500
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    "thread": {
+                        "id": "PRT_kwDOABcD12MAAAABcDE3fg",
+                        "isResolved": True,
+                        "pullRequest": {
+                            "number": 500,
+                            "repository": {"nameWithOwner": "test/repo"},
+                        },
+                    }
+                }
+            }
+        }
+        result_500 = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+        # Verify each URL contains the correct PR number
+        assert "pull/27#" in result_27["thread_url"]
+        assert "pull/123#" in result_123["thread_url"]
+        assert "pull/500#" in result_500["thread_url"]
+
+        # Verify no hardcoded PR #123 appears in PR #27 or PR #500 URLs
+        assert "pull/123#" not in result_27["thread_url"]
+        assert "pull/123#" not in result_500["thread_url"]
+
+    def test_graphql_mutation_includes_pr_info_fields(self) -> None:
+        """Test that GraphQL mutations include PR info fields for URL construction."""
+        from toady.github_service import (
+            RESOLVE_THREAD_MUTATION,
+            UNRESOLVE_THREAD_MUTATION,
+        )
+
+        # Verify resolve mutation includes required PR info fields
+        assert "pullRequest" in RESOLVE_THREAD_MUTATION
+        assert "number" in RESOLVE_THREAD_MUTATION
+        assert "nameWithOwner" in RESOLVE_THREAD_MUTATION
+
+        # Verify unresolve mutation includes required PR info fields
+        assert "pullRequest" in UNRESOLVE_THREAD_MUTATION
+        assert "number" in UNRESOLVE_THREAD_MUTATION
+        assert "nameWithOwner" in UNRESOLVE_THREAD_MUTATION
