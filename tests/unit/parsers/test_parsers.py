@@ -1,6 +1,7 @@
 """Tests for the parsers module."""
 
 from datetime import datetime
+from typing import Any, Dict
 
 import pytest
 
@@ -362,7 +363,7 @@ class TestResponseValidator:
 
     def test_validate_graphql_response_valid(self) -> None:
         """Test validation of valid GraphQL response."""
-        response = {
+        response: Dict[str, Any] = {
             "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
         }
 
@@ -371,12 +372,12 @@ class TestResponseValidator:
     def test_validate_graphql_response_not_dict(self) -> None:
         """Test validation fails for non-dictionary response."""
         with pytest.raises(ValidationError) as exc_info:
-            ResponseValidator.validate_graphql_response("not a dict")
+            ResponseValidator.validate_graphql_response("not a dict")  # type: ignore
         assert "must be a dictionary" in str(exc_info.value)
 
     def test_validate_graphql_response_missing_data(self) -> None:
         """Test validation fails when data field is missing."""
-        response = {"errors": []}
+        response: Dict[str, Any] = {"errors": []}
 
         with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
@@ -565,3 +566,261 @@ class TestParserIntegration:
         threads, next_cursor = parser.parse_paginated_response(response)
         assert len(threads) == 0
         assert next_cursor is None
+
+    def test_parse_pull_requests_response_success(self) -> None:
+        """Test successful parsing of pull requests response."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "totalCount": 2,
+                        "nodes": [
+                            {
+                                "id": "PR_kwDOAbc123",
+                                "number": 42,
+                                "title": "Add new feature",
+                                "author": {"login": "testuser", "name": "Test User"},
+                                "headRefName": "feature-branch",
+                                "baseRefName": "main",
+                                "isDraft": False,
+                                "createdAt": "2024-01-15T10:30:00Z",
+                                "updatedAt": "2024-01-15T11:00:00Z",
+                                "url": "https://github.com/testowner/testrepo/pull/42",
+                                "reviewThreads": {"totalCount": 3},
+                            },
+                            {
+                                "id": "PR_kwDOAbc456",
+                                "number": 43,
+                                "title": "Fix bug in authentication",
+                                "author": {"login": "contributor"},
+                                "headRefName": "bugfix-auth",
+                                "baseRefName": "main",
+                                "isDraft": True,
+                                "createdAt": "2024-01-16T09:15:00Z",
+                                "updatedAt": "2024-01-16T10:45:00Z",
+                                "url": "https://github.com/testowner/testrepo/pull/43",
+                                "reviewThreads": {"totalCount": 0},
+                            },
+                        ],
+                    }
+                }
+            }
+        }
+
+        pull_requests = parser.parse_pull_requests_response(response)
+
+        assert len(pull_requests) == 2
+
+        # Check first PR
+        pr1 = pull_requests[0]
+        assert pr1.number == 42
+        assert pr1.title == "Add new feature"
+        assert pr1.author == "testuser"
+        assert pr1.head_ref == "feature-branch"
+        assert pr1.base_ref == "main"
+        assert pr1.is_draft is False
+        assert pr1.url == "https://github.com/testowner/testrepo/pull/42"
+        assert pr1.review_thread_count == 3
+        assert pr1.node_id == "PR_kwDOAbc123"
+        assert isinstance(pr1.created_at, datetime)
+        assert isinstance(pr1.updated_at, datetime)
+
+        # Check second PR
+        pr2 = pull_requests[1]
+        assert pr2.number == 43
+        assert pr2.title == "Fix bug in authentication"
+        assert pr2.author == "contributor"
+        assert pr2.head_ref == "bugfix-auth"
+        assert pr2.base_ref == "main"
+        assert pr2.is_draft is True
+        assert pr2.url == "https://github.com/testowner/testrepo/pull/43"
+        assert pr2.review_thread_count == 0
+        assert pr2.node_id == "PR_kwDOAbc456"
+
+    def test_parse_pull_requests_response_missing_optional_fields(self) -> None:
+        """Test parsing PR response with missing optional fields."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "number": 44,
+                                "title": "Minimal PR",
+                                "author": None,  # Author might be null
+                                "headRefName": "feature",
+                                "baseRefName": "main",
+                                "createdAt": "2024-01-17T10:00:00Z",
+                                "updatedAt": "2024-01-17T10:00:00Z",
+                                "url": "https://github.com/testowner/testrepo/pull/44",
+                                # Missing isDraft, reviewThreads, id
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        pull_requests = parser.parse_pull_requests_response(response)
+
+        assert len(pull_requests) == 1
+        pr = pull_requests[0]
+        assert pr.number == 44
+        assert pr.title == "Minimal PR"
+        assert pr.author == "unknown"  # Fallback for null author
+        assert pr.is_draft is False  # Default value
+        assert pr.review_thread_count == 0  # Default value
+        assert pr.node_id is None  # Missing field
+
+    def test_parse_pull_requests_response_empty(self) -> None:
+        """Test parsing empty pull requests response."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "totalCount": 0,
+                        "nodes": [],
+                    }
+                }
+            }
+        }
+
+        pull_requests = parser.parse_pull_requests_response(response)
+        assert len(pull_requests) == 0
+
+    def test_parse_pull_requests_response_invalid_structure(self) -> None:
+        """Test parsing PR response with invalid structure."""
+        parser = GraphQLResponseParser()
+
+        # Missing required fields
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "number": 45,
+                                # Missing title, headRefName, baseRefName, etc.
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError, match="Missing required field"):
+            parser.parse_pull_requests_response(response)
+
+    def test_parse_pull_requests_response_invalid_dates(self) -> None:
+        """Test parsing PR response with invalid date formats."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequests": {
+                        "nodes": [
+                            {
+                                "number": 46,
+                                "title": "Invalid dates PR",
+                                "author": {"login": "testuser"},
+                                "headRefName": "feature",
+                                "baseRefName": "main",
+                                "createdAt": "invalid-date",
+                                "updatedAt": "2024-01-17T10:00:00Z",
+                                "url": "https://github.com/testowner/testrepo/pull/46",
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError, match="Invalid createdAt format"):
+            parser.parse_pull_requests_response(response)
+
+    def test_parse_pull_requests_response_graphql_errors(self) -> None:
+        """Test parsing PR response with GraphQL errors."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "errors": [
+                {"message": "Repository not found"},
+                {"message": "Rate limit exceeded"},
+            ]
+        }
+
+        with pytest.raises(GitHubAPIError, match="GraphQL API errors"):
+            parser.parse_pull_requests_response(response)
+
+
+class TestResponseValidatorPRs:
+    """Test ResponseValidator methods for pull requests."""
+
+    def test_validate_graphql_prs_response_success(self) -> None:
+        """Test successful validation of PR GraphQL response."""
+        response: Dict[str, Any] = {
+            "data": {"repository": {"pullRequests": {"nodes": []}}}
+        }
+
+        assert ResponseValidator.validate_graphql_prs_response(response) is True
+
+    def test_validate_graphql_prs_response_missing_data(self) -> None:
+        """Test validation fails for missing data field."""
+        response: Dict[str, Any] = {"errors": []}
+
+        with pytest.raises(ValidationError, match="Response missing 'data' field"):
+            ResponseValidator.validate_graphql_prs_response(response)
+
+    def test_validate_graphql_prs_response_null_repository(self) -> None:
+        """Test validation fails for null repository."""
+        response = {"data": {"repository": None}}
+
+        with pytest.raises(ValidationError, match="Repository not found"):
+            ResponseValidator.validate_graphql_prs_response(response)
+
+    def test_validate_graphql_prs_response_missing_pull_requests(self) -> None:
+        """Test validation fails for missing pullRequests field."""
+        response = {"data": {"repository": {"someOtherField": "value"}}}
+
+        with pytest.raises(ValidationError, match="Missing 'pullRequests'"):
+            ResponseValidator.validate_graphql_prs_response(response)
+
+    def test_validate_pull_request_data_success(self) -> None:
+        """Test successful validation of individual PR data."""
+        pr_data = {
+            "number": 42,
+            "title": "Test PR",
+            "headRefName": "feature",
+            "baseRefName": "main",
+            "createdAt": "2024-01-15T10:30:00Z",
+            "updatedAt": "2024-01-15T11:00:00Z",
+            "url": "https://github.com/test/repo/pull/42",
+        }
+
+        assert ResponseValidator.validate_pull_request_data(pr_data) is True
+
+    def test_validate_pull_request_data_missing_fields(self) -> None:
+        """Test validation fails for missing required fields."""
+        pr_data = {
+            "number": 42,
+            # Missing title, headRefName, etc.
+        }
+
+        with pytest.raises(ValidationError, match="Missing required field 'title'"):
+            ResponseValidator.validate_pull_request_data(pr_data)
+
+    def test_validate_pull_request_data_not_dict(self) -> None:
+        """Test validation fails for non-dictionary data."""
+        with pytest.raises(
+            ValidationError, match="Pull request data must be a dictionary"
+        ):
+            ResponseValidator.validate_pull_request_data("not a dict")  # type: ignore

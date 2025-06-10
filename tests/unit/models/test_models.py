@@ -6,7 +6,7 @@ from typing import Any, Dict
 import pytest
 
 from toady.exceptions import ValidationError
-from toady.models import Comment, ReviewThread
+from toady.models import Comment, PullRequest, ReviewThread, _parse_datetime
 
 
 class TestReviewThread:
@@ -390,7 +390,26 @@ class TestReviewThread:
 
     def test_comments_list_immutability(self) -> None:
         """Test that comments list changes don't affect the original."""
-        comments = ["c1", "c2"]
+        comments = [
+            Comment(
+                comment_id="C_1",
+                content="Comment 1",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            ),
+            Comment(
+                comment_id="C_2",
+                content="Comment 2",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            ),
+        ]
         thread = ReviewThread(
             thread_id="RT_123",
             title="Test",
@@ -402,11 +421,22 @@ class TestReviewThread:
         )
 
         # Modify original list
-        comments.append("c3")
+        comments.append(
+            Comment(
+                comment_id="C_3",
+                content="Comment 3",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                parent_id=None,
+                thread_id="RT_123",
+            )
+        )
 
         # Thread should still have original comments
         assert len(thread.comments) == 2
-        assert "c3" not in thread.comments
+        assert thread.comments[0].comment_id == "C_1"
+        assert thread.comments[1].comment_id == "C_2"
 
     def test_from_dict_with_complex_timezone(self) -> None:
         """Test deserialization handles complex timezone formats."""
@@ -445,7 +475,7 @@ class TestReviewThread:
     def test_parse_datetime_unparseable(self) -> None:
         """Test handling of completely unparseable datetime."""
         with pytest.raises(ValidationError, match="Unable to parse datetime"):
-            ReviewThread._parse_datetime("not a date")
+            _parse_datetime("not a date")
 
 
 class TestComment:
@@ -1299,3 +1329,380 @@ class TestPerformanceAndLargeData:
         assert len(reconstructed.comments) == 10000
         assert reconstructed.comments[0].comment_id == "C_0"
         assert reconstructed.comments[9999].comment_id == "C_9999"
+
+
+class TestPullRequest:
+    """Test the PullRequest dataclass."""
+
+    def test_create_valid_pull_request(self) -> None:
+        """Test creating a valid PullRequest instance."""
+        pr = PullRequest(
+            number=42,
+            title="Add new feature",
+            author="testuser",
+            head_ref="feature-branch",
+            base_ref="main",
+            is_draft=False,
+            created_at=datetime(2024, 1, 15, 10, 30, 0),
+            updated_at=datetime(2024, 1, 15, 11, 0, 0),
+            url="https://github.com/testowner/testrepo/pull/42",
+            review_thread_count=3,
+            node_id="PR_kwDOAbc123",
+        )
+
+        assert pr.number == 42
+        assert pr.title == "Add new feature"
+        assert pr.author == "testuser"
+        assert pr.head_ref == "feature-branch"
+        assert pr.base_ref == "main"
+        assert pr.is_draft is False
+        assert pr.created_at == datetime(2024, 1, 15, 10, 30, 0)
+        assert pr.updated_at == datetime(2024, 1, 15, 11, 0, 0)
+        assert pr.url == "https://github.com/testowner/testrepo/pull/42"
+        assert pr.review_thread_count == 3
+        assert pr.node_id == "PR_kwDOAbc123"
+
+    def test_create_pull_request_without_node_id(self) -> None:
+        """Test creating a PullRequest without node_id (optional field)."""
+        pr = PullRequest(
+            number=43,
+            title="Fix bug",
+            author="contributor",
+            head_ref="bugfix",
+            base_ref="main",
+            is_draft=True,
+            created_at=datetime(2024, 1, 16, 9, 15, 0),
+            updated_at=datetime(2024, 1, 16, 10, 45, 0),
+            url="https://github.com/testowner/testrepo/pull/43",
+            review_thread_count=0,
+        )
+
+        assert pr.node_id is None
+
+    def test_pull_request_validation_invalid_number(self) -> None:
+        """Test PullRequest validation with invalid number."""
+        with pytest.raises(ValidationError, match="number must be positive"):
+            PullRequest(
+                number=0,  # Invalid: must be positive
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/0",
+                review_thread_count=0,
+            )
+
+        with pytest.raises(ValidationError, match="number must be positive"):
+            PullRequest(
+                number=-1,  # Invalid: negative
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/-1",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_validation_empty_title(self) -> None:
+        """Test PullRequest validation with empty title."""
+        with pytest.raises(ValidationError, match="title cannot be empty"):
+            PullRequest(
+                number=42,
+                title="",  # Invalid: empty
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+        with pytest.raises(ValidationError, match="title cannot be empty"):
+            PullRequest(
+                number=42,
+                title="   ",  # Invalid: whitespace only
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_validation_empty_author(self) -> None:
+        """Test PullRequest validation with empty author."""
+        with pytest.raises(ValidationError, match="author cannot be empty"):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="",  # Invalid: empty
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_validation_empty_refs(self) -> None:
+        """Test PullRequest validation with empty branch refs."""
+        with pytest.raises(ValidationError, match="head_ref cannot be empty"):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="testuser",
+                head_ref="",  # Invalid: empty
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+        with pytest.raises(ValidationError, match="base_ref cannot be empty"):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="",  # Invalid: empty
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_validation_invalid_is_draft(self) -> None:
+        """Test PullRequest validation with invalid is_draft type."""
+        with pytest.raises(ValidationError, match="is_draft must be a boolean"):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft="false",  # type: ignore  # Invalid: string instead of boolean
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_validation_negative_review_thread_count(self) -> None:
+        """Test PullRequest validation with negative review thread count."""
+        with pytest.raises(
+            ValidationError, match="review_thread_count cannot be negative"
+        ):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=-1,  # Invalid: negative
+            )
+
+    def test_pull_request_validation_invalid_dates(self) -> None:
+        """Test PullRequest validation with invalid date ordering."""
+        created = datetime(2024, 1, 15, 12, 0, 0)
+        updated = datetime(2024, 1, 15, 10, 0, 0)  # Before created
+
+        with pytest.raises(
+            ValidationError, match="updated_at cannot be before created_at"
+        ):
+            PullRequest(
+                number=42,
+                title="Test PR",
+                author="testuser",
+                head_ref="feature",
+                base_ref="main",
+                is_draft=False,
+                created_at=created,
+                updated_at=updated,  # Invalid: before created_at
+                url="https://github.com/test/repo/pull/42",
+                review_thread_count=0,
+            )
+
+    def test_pull_request_to_dict(self) -> None:
+        """Test PullRequest serialization to dictionary."""
+        pr = PullRequest(
+            number=42,
+            title="Add new feature",
+            author="testuser",
+            head_ref="feature-branch",
+            base_ref="main",
+            is_draft=False,
+            created_at=datetime(2024, 1, 15, 10, 30, 0),
+            updated_at=datetime(2024, 1, 15, 11, 0, 0),
+            url="https://github.com/testowner/testrepo/pull/42",
+            review_thread_count=3,
+            node_id="PR_kwDOAbc123",
+        )
+
+        data = pr.to_dict()
+
+        expected = {
+            "number": 42,
+            "title": "Add new feature",
+            "author": "testuser",
+            "head_ref": "feature-branch",
+            "base_ref": "main",
+            "is_draft": False,
+            "created_at": "2024-01-15T10:30:00",
+            "updated_at": "2024-01-15T11:00:00",
+            "url": "https://github.com/testowner/testrepo/pull/42",
+            "review_thread_count": 3,
+            "node_id": "PR_kwDOAbc123",
+        }
+
+        assert data == expected
+
+    def test_pull_request_from_dict(self) -> None:
+        """Test PullRequest deserialization from dictionary."""
+        data = {
+            "number": 42,
+            "title": "Add new feature",
+            "author": "testuser",
+            "head_ref": "feature-branch",
+            "base_ref": "main",
+            "is_draft": False,
+            "created_at": "2024-01-15T10:30:00",
+            "updated_at": "2024-01-15T11:00:00",
+            "url": "https://github.com/testowner/testrepo/pull/42",
+            "review_thread_count": 3,
+            "node_id": "PR_kwDOAbc123",
+        }
+
+        pr = PullRequest.from_dict(data)
+
+        assert pr.number == 42
+        assert pr.title == "Add new feature"
+        assert pr.author == "testuser"
+        assert pr.head_ref == "feature-branch"
+        assert pr.base_ref == "main"
+        assert pr.is_draft is False
+        assert pr.created_at == datetime(2024, 1, 15, 10, 30, 0)
+        assert pr.updated_at == datetime(2024, 1, 15, 11, 0, 0)
+        assert pr.url == "https://github.com/testowner/testrepo/pull/42"
+        assert pr.review_thread_count == 3
+        assert pr.node_id == "PR_kwDOAbc123"
+
+    def test_pull_request_from_dict_missing_fields(self) -> None:
+        """Test PullRequest deserialization with missing required fields."""
+        data = {
+            "number": 42,
+            "title": "Test PR",
+            # Missing head_ref, base_ref, etc.
+        }
+
+        with pytest.raises(ValidationError, match="Missing required field"):
+            PullRequest.from_dict(data)
+
+    def test_pull_request_from_dict_invalid_dates(self) -> None:
+        """Test PullRequest deserialization with invalid date formats."""
+        data = {
+            "number": 42,
+            "title": "Test PR",
+            "author": "testuser",
+            "head_ref": "feature",
+            "base_ref": "main",
+            "is_draft": False,
+            "created_at": "invalid-date",
+            "updated_at": "2024-01-15T11:00:00",
+            "url": "https://github.com/test/repo/pull/42",
+            "review_thread_count": 0,
+        }
+
+        with pytest.raises(ValidationError, match="Invalid date format for created_at"):
+            PullRequest.from_dict(data)
+
+    def test_pull_request_str_representation(self) -> None:
+        """Test PullRequest string representation."""
+        pr = PullRequest(
+            number=42,
+            title="Add new feature",
+            author="testuser",
+            head_ref="feature-branch",
+            base_ref="main",
+            is_draft=False,
+            created_at=datetime(2024, 1, 15, 10, 30, 0),
+            updated_at=datetime(2024, 1, 15, 11, 0, 0),
+            url="https://github.com/testowner/testrepo/pull/42",
+            review_thread_count=3,
+        )
+
+        expected = "PR #42: Add new feature by testuser (feature-branch -> main)"
+        assert str(pr) == expected
+
+    def test_pull_request_str_representation_draft(self) -> None:
+        """Test PullRequest string representation for draft PR."""
+        pr = PullRequest(
+            number=43,
+            title="Draft: Work in progress",
+            author="contributor",
+            head_ref="wip-feature",
+            base_ref="main",
+            is_draft=True,
+            created_at=datetime(2024, 1, 16, 9, 15, 0),
+            updated_at=datetime(2024, 1, 16, 10, 45, 0),
+            url="https://github.com/testowner/testrepo/pull/43",
+            review_thread_count=0,
+        )
+
+        expected = (
+            "PR #43: Draft: Work in progress by contributor "
+            "(wip-feature -> main) (draft)"
+        )
+        assert str(pr) == expected
+
+    def test_pull_request_roundtrip_serialization(self) -> None:
+        """Test PullRequest serialization and deserialization roundtrip."""
+        original = PullRequest(
+            number=42,
+            title="Add new feature",
+            author="testuser",
+            head_ref="feature-branch",
+            base_ref="main",
+            is_draft=False,
+            created_at=datetime(2024, 1, 15, 10, 30, 0),
+            updated_at=datetime(2024, 1, 15, 11, 0, 0),
+            url="https://github.com/testowner/testrepo/pull/42",
+            review_thread_count=3,
+            node_id="PR_kwDOAbc123",
+        )
+
+        # Serialize to dict
+        data = original.to_dict()
+
+        # Deserialize back to object
+        reconstructed = PullRequest.from_dict(data)
+
+        # Verify all fields match
+        assert reconstructed.number == original.number
+        assert reconstructed.title == original.title
+        assert reconstructed.author == original.author
+        assert reconstructed.head_ref == original.head_ref
+        assert reconstructed.base_ref == original.base_ref
+        assert reconstructed.is_draft == original.is_draft
+        assert reconstructed.created_at == original.created_at
+        assert reconstructed.updated_at == original.updated_at
+        assert reconstructed.url == original.url
+        assert reconstructed.review_thread_count == original.review_thread_count
+        assert reconstructed.node_id == original.node_id
