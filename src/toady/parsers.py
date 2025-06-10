@@ -96,15 +96,8 @@ class GraphQLResponseParser:
             # Validate thread data before accessing fields
             ResponseValidator.validate_review_thread_data(thread_data)
 
-            # Extract basic thread information with proper error handling
-            thread_id = thread_data.get("id")
-            if not thread_id:
-                raise create_validation_error(
-                    field_name="thread.id",
-                    invalid_value="missing",
-                    expected_format="non-empty string",
-                    message="Thread ID is required but missing",
-                )
+            # Thread ID is guaranteed to exist after validation
+            thread_id = thread_data["id"]
 
             is_resolved = thread_data.get("isResolved", False)
 
