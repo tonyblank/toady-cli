@@ -3,8 +3,12 @@
 from typing import List, Optional, Tuple
 
 from .github_service import GitHubService, GitHubServiceError
-from .graphql_queries import build_review_threads_query
-from .models import ReviewThread
+from .graphql_queries import (
+    build_open_prs_query,
+    build_review_threads_query,
+    create_open_prs_query_variables,
+)
+from .models import PullRequest, ReviewThread
 from .parsers import GraphQLResponseParser
 
 
@@ -133,5 +137,81 @@ class FetchService:
             repo=repo,
             pr_number=pr_number,
             include_resolved=include_resolved,
+            limit=limit,
+        )
+
+    def fetch_open_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        include_drafts: bool = False,
+        limit: int = 100,
+    ) -> List[PullRequest]:
+        """Fetch open pull requests from a GitHub repository.
+
+        Args:
+            owner: Repository owner.
+            repo: Repository name.
+            include_drafts: Whether to include draft PRs (default: False).
+            limit: Maximum number of PRs to fetch (default: 100).
+
+        Returns:
+            List of PullRequest objects.
+
+        Raises:
+            FetchServiceError: If the fetch operation fails.
+            GitHubAPIError: If the GitHub API call fails.
+            GitHubAuthenticationError: If authentication fails.
+        """
+        try:
+            # Build the GraphQL query
+            query = build_open_prs_query(include_drafts=include_drafts, limit=limit)
+            variables = create_open_prs_query_variables(owner, repo)
+
+            # Execute the GraphQL query
+            response = self.github_service.execute_graphql_query(query, variables)
+
+            # Parse the response and apply filtering
+            prs = self.parser.parse_pull_requests_response(
+                response, include_drafts=include_drafts
+            )
+
+            # Return the PRs
+            return prs
+
+        except Exception as e:
+            # Re-raise GitHub service exceptions as-is
+            if isinstance(e, GitHubServiceError):
+                raise
+            # Wrap other exceptions in FetchServiceError
+            raise FetchServiceError(f"Failed to fetch open pull requests: {e}") from e
+
+    def fetch_open_pull_requests_from_current_repo(
+        self,
+        include_drafts: bool = False,
+        limit: int = 100,
+    ) -> List[PullRequest]:
+        """Fetch open pull requests from the current repository.
+
+        Args:
+            include_drafts: Whether to include draft PRs (default: False).
+            limit: Maximum number of PRs to fetch (default: 100).
+
+        Returns:
+            List of PullRequest objects.
+
+        Raises:
+            FetchServiceError: If the fetch operation fails.
+            GitHubAPIError: If the GitHub API call fails.
+            GitHubAuthenticationError: If authentication fails.
+        """
+        # Get repository info from current directory
+        owner, repo = self._get_repository_info()
+
+        # Fetch PRs
+        return self.fetch_open_pull_requests(
+            owner=owner,
+            repo=repo,
+            include_drafts=include_drafts,
             limit=limit,
         )

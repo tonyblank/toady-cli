@@ -824,3 +824,123 @@ class ResponseValidator:
                 )
 
         return True
+
+    @staticmethod
+    def validate_pull_requests_response(response: Dict[str, Any]) -> bool:
+        """Validate a GraphQL response has expected structure for pull requests.
+
+        Args:
+            response: The response dictionary to validate
+
+        Returns:
+            True if the response is valid
+
+        Raises:
+            ValidationError: If the response is invalid
+            GitHubAPIError: If there are GraphQL errors from the API
+        """
+        if not isinstance(response, dict):
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="dictionary",
+                message="GraphQL response must be a dictionary",
+            )
+
+        if "data" not in response:
+            if "errors" in response:
+                errors = response["errors"]
+                if errors:  # Only raise GraphQL errors if there are actual errors
+                    error_messages = [
+                        error.get("message", str(error)) for error in errors
+                    ]
+                    # Use GitHubAPIError for GraphQL API errors
+                    raise create_github_error(
+                        message=f"GraphQL API errors: {'; '.join(error_messages)}",
+                        api_endpoint="GraphQL",
+                    )
+            raise create_validation_error(
+                field_name="data",
+                invalid_value="missing",
+                expected_format="data field in GraphQL response",
+                message="Response missing 'data' field",
+            )
+
+        data = response["data"]
+        if not isinstance(data, dict):
+            raise create_validation_error(
+                field_name="data",
+                invalid_value=type(data).__name__,
+                expected_format="dictionary",
+                message="Response 'data' field must be a dictionary",
+            )
+
+        # Check for required nested structure
+        if "repository" not in data:
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="missing",
+                expected_format="repository object in response data",
+                message="Missing 'repository' in response data",
+            )
+
+        repository = data["repository"]
+        if repository is None:
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="null",
+                expected_format="valid repository object",
+                message="Repository not found (null value)",
+            )
+
+        if "pullRequests" not in repository:
+            raise create_validation_error(
+                field_name="pullRequests",
+                invalid_value="missing",
+                expected_format="pull requests object in repository data",
+                message="Missing 'pullRequests' in repository data",
+            )
+
+        return True
+
+    @staticmethod
+    def validate_pull_request_data(pr_data: Dict[str, Any]) -> bool:
+        """Validate that pull request data has required fields.
+
+        Args:
+            pr_data: Pull request data dictionary to validate
+
+        Returns:
+            True if valid
+
+        Raises:
+            ValidationError: If required fields are missing
+        """
+        if not isinstance(pr_data, dict):
+            raise create_validation_error(
+                field_name="pr_data",
+                invalid_value=type(pr_data).__name__,
+                expected_format="dictionary",
+                message="Pull request data must be a dictionary",
+            )
+
+        required_fields = [
+            "id",
+            "number",
+            "title",
+            "headRefName",
+            "baseRefName",
+            "createdAt",
+            "updatedAt",
+            "url",
+        ]
+        for field in required_fields:
+            if field not in pr_data:
+                raise create_validation_error(
+                    field_name=f"pullRequest.{field}",
+                    invalid_value="missing",
+                    expected_format=f"required field '{field}' in pull request data",
+                    message=f"Missing required field '{field}' in pull request data",
+                )
+
+        return True
