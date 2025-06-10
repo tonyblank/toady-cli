@@ -86,3 +86,4 @@ Task 26.1: tony/bur-107-task-261-implement-cli-self-update-mechanism
 Task 26.2: tony/bur-108-task-262-add-update-notification-and-changelog-display
 Task 26.3: tony/bur-109-task-263-document-self-update-and-release-process
 Task 27: tony/bur-110-task-27-enhance-reply-command-error-handling-for-comment-vs
+Task 28: tony/bur-111-task-28-investigate-and-implement-comment-length-limits-for

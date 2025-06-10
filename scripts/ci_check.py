@@ -303,6 +303,7 @@ class CIRunner:
             ("Code Formatting", self.check_code_formatting),
             ("Code Linting", self.check_linting),
             ("Type Checking", self.check_type_hints),
+            ("Pre-commit Hooks", self.run_pre_commit_hooks),
             ("Test Suite", self.run_tests),
         ]
 

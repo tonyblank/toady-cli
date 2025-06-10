@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from .exceptions import ValidationError, create_validation_error
 from .utils import parse_datetime
@@ -19,7 +19,7 @@ class ReviewThread:
         updated_at: When the thread was last updated
         status: Current status (RESOLVED, UNRESOLVED, PENDING, OUTDATED, DISMISSED)
         author: Username of the thread author
-        comments: List of comment IDs or comment objects in this thread
+        comments: List of Comment objects in this thread
     """
 
     thread_id: str
@@ -28,7 +28,7 @@ class ReviewThread:
     updated_at: datetime
     status: str
     author: str
-    comments: List[Union[str, Any]] = field(default_factory=list)
+    comments: List["Comment"] = field(default_factory=list)
 
     # Valid status values
     VALID_STATUSES = {"RESOLVED", "UNRESOLVED", "PENDING", "OUTDATED", "DISMISSED"}
@@ -160,15 +160,8 @@ class ReviewThread:
         Returns:
             Dictionary representation of the ReviewThread
         """
-        # Convert Comment objects to dictionaries, leave strings as-is
-        serialized_comments = []
-        for comment in self.comments:
-            if hasattr(comment, "to_dict"):
-                # Comment object - convert to dict
-                serialized_comments.append(comment.to_dict())
-            else:
-                # String ID - keep as-is
-                serialized_comments.append(comment)
+        # Convert Comment objects to dictionaries
+        serialized_comments = [comment.to_dict() for comment in self.comments]
 
         return {
             "thread_id": self.thread_id,
@@ -232,6 +225,15 @@ class ReviewThread:
                 message=f"Invalid date format for updated_at: {data['updated_at']}",
             ) from err
 
+        # Parse comments from dictionaries to Comment objects
+        comments = []
+        for comment_data in data.get("comments", []):
+            if isinstance(comment_data, dict):
+                comments.append(Comment.from_dict(comment_data))
+            else:
+                # If it's already a Comment object, use it as is
+                comments.append(comment_data)
+
         # Create instance
         return cls(
             thread_id=data["thread_id"],
@@ -240,7 +242,7 @@ class ReviewThread:
             updated_at=updated_at,
             status=data["status"],
             author=data["author"],
-            comments=data.get("comments", []),
+            comments=comments,
         )
 
     @staticmethod

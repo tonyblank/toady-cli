@@ -9,47 +9,6 @@ import click
 MAX_PR_NUMBER = 999999
 
 
-def validate_pr_number(pr_number: int) -> bool:
-    """Validate that a PR number is within acceptable range.
-
-    Args:
-        pr_number: The PR number to validate
-
-    Returns:
-        True if valid
-
-    Raises:
-        ValidationError: If PR number is invalid
-    """
-    from .exceptions import create_validation_error
-
-    if not isinstance(pr_number, int):
-        raise create_validation_error(
-            field_name="pr_number",
-            invalid_value=type(pr_number).__name__,
-            expected_format="integer",
-            message="PR number must be an integer",
-        )
-
-    if pr_number <= 0:
-        raise create_validation_error(
-            field_name="pr_number",
-            invalid_value=pr_number,
-            expected_format="positive integer",
-            message="PR number must be greater than 0",
-        )
-
-    if pr_number > MAX_PR_NUMBER:
-        raise create_validation_error(
-            field_name="pr_number",
-            invalid_value=pr_number,
-            expected_format=f"integer between 1 and {MAX_PR_NUMBER}",
-            message=f"PR number cannot exceed {MAX_PR_NUMBER}",
-        )
-
-    return True
-
-
 def parse_datetime(date_str: str) -> datetime:
     """Parse datetime string in various ISO formats.
 
@@ -68,7 +27,7 @@ def parse_datetime(date_str: str) -> datetime:
         if not isinstance(date_str, str):
             raise create_validation_error(
                 field_name="date_str",
-                invalid_value=type(date_str).__name__,
+                invalid_value=date_str,
                 expected_format="string in ISO datetime format",
                 message="Date string must be a string",
             )
@@ -130,7 +89,9 @@ def parse_datetime(date_str: str) -> datetime:
 
     except Exception as e:
         # If it's already a ValidationError, re-raise it
-        if hasattr(e, "error_code"):
+        from .exceptions import ValidationError
+
+        if isinstance(e, ValidationError):
             raise
         # Otherwise, wrap it in a ValidationError
         raise create_validation_error(

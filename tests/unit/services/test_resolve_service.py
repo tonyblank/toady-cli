@@ -422,7 +422,7 @@ class TestValidateThreadExists:
                 "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
             )
 
-        assert "Failed to execute thread validation query" in str(exc_info.value)
+        # The original GitHubAPIError should be preserved (not wrapped)
         assert "API failure" in str(exc_info.value)
 
     def test_validate_thread_exists_malformed_response(self) -> None:

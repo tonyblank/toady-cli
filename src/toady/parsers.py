@@ -1,6 +1,6 @@
 """Parsers for transforming GitHub API responses to model objects."""
 
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple
 
 from .exceptions import (
     ValidationError,
@@ -54,7 +54,7 @@ class GraphQLResponseParser:
                 try:
                     thread = self._parse_single_review_thread(thread_data)
                     threads.append(thread)
-                except (ValidationError, ValueError) as e:
+                except ValidationError as e:
                     # Re-raise with context about which thread failed
                     raise create_validation_error(
                         field_name=f"reviewThreads.nodes[{i}]",
@@ -126,7 +126,7 @@ class GraphQLResponseParser:
                     ResponseValidator.validate_comment_data(comment_data)
                     comment = self._parse_single_comment(comment_data, thread_id)
                     comments.append(comment)
-                except (ValidationError, ValueError) as e:
+                except ValidationError as e:
                     # Re-raise with context about which comment failed
                     raise create_validation_error(
                         field_name=f"thread.comments.nodes[{i}]",
@@ -164,7 +164,7 @@ class GraphQLResponseParser:
                 updated_at=updated_at,
                 status=status,
                 author=author,
-                comments=cast(List[Union[str, Any]], comments),
+                comments=comments,
             )
 
         except ValidationError:

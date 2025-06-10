@@ -101,6 +101,28 @@ class TestReviewThread:
 
     def test_to_dict(self) -> None:
         """Test serialization to dictionary."""
+        comment1 = Comment(
+            comment_id="comment1",
+            content="First comment",
+            author="johndoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 0, 0),
+            thread_id="RT_123",
+            parent_id=None,
+            review_id=None,
+            review_state=None,
+        )
+        comment2 = Comment(
+            comment_id="comment2",
+            content="Second comment",
+            author="janedoe",
+            created_at=datetime(2024, 1, 2, 12, 0, 0),
+            updated_at=datetime(2024, 1, 2, 12, 0, 0),
+            thread_id="RT_123",
+            parent_id=None,
+            review_id=None,
+            review_state=None,
+        )
         thread = ReviewThread(
             thread_id="RT_123",
             title="Test Review",
@@ -108,7 +130,7 @@ class TestReviewThread:
             updated_at=datetime(2024, 1, 2, 13, 0, 0),
             status="RESOLVED",
             author="johndoe",
-            comments=["comment1", "comment2"],
+            comments=[comment1, comment2],
         )
 
         result = thread.to_dict()
@@ -120,7 +142,30 @@ class TestReviewThread:
             "updated_at": "2024-01-02T13:00:00",
             "status": "RESOLVED",
             "author": "johndoe",
-            "comments": ["comment1", "comment2"],
+            "comments": [
+                {
+                    "comment_id": "comment1",
+                    "content": "First comment",
+                    "author": "johndoe",
+                    "created_at": "2024-01-01T12:00:00",
+                    "updated_at": "2024-01-01T12:00:00",
+                    "thread_id": "RT_123",
+                    "parent_id": None,
+                    "review_id": None,
+                    "review_state": None,
+                },
+                {
+                    "comment_id": "comment2",
+                    "content": "Second comment",
+                    "author": "janedoe",
+                    "created_at": "2024-01-02T12:00:00",
+                    "updated_at": "2024-01-02T12:00:00",
+                    "thread_id": "RT_123",
+                    "parent_id": None,
+                    "review_id": None,
+                    "review_state": None,
+                },
+            ],
         }
 
     def test_from_dict_valid(self) -> None:
@@ -211,6 +256,41 @@ class TestReviewThread:
 
     def test_roundtrip_serialization(self) -> None:
         """Test that to_dict and from_dict are inverse operations."""
+        comments = [
+            Comment(
+                comment_id="c1",
+                content="Comment 1",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 12, 0, 0),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="c2",
+                content="Comment 2",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 13, 0, 0),
+                updated_at=datetime(2024, 1, 1, 13, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="c3",
+                content="Comment 3",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 14, 0, 0),
+                updated_at=datetime(2024, 1, 1, 14, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
         original = ReviewThread(
             thread_id="RT_123",
             title="Test Review",
@@ -218,7 +298,7 @@ class TestReviewThread:
             updated_at=datetime(2024, 1, 2, 13, 0, 0),
             status="RESOLVED",
             author="johndoe",
-            comments=["c1", "c2", "c3"],
+            comments=comments,
         )
 
         # Serialize and deserialize
@@ -720,7 +800,30 @@ class TestReviewThreadEdgeCases:
 
     def test_comments_list_deep_copy(self) -> None:
         """Test that comments list is properly copied and isolated."""
-        original_comments = ["C_1", "C_2"]
+        original_comments = [
+            Comment(
+                comment_id="C_1",
+                content="Comment 1",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_2",
+                content="Comment 2",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
         thread = ReviewThread(
             thread_id="RT_123",
             title="Test",
@@ -732,16 +835,43 @@ class TestReviewThreadEdgeCases:
         )
 
         # Modify original list
-        original_comments.append("C_3")
+        original_comments.append(
+            Comment(
+                comment_id="C_3",
+                content="Comment 3",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+        )
 
         # Thread's comments should be unchanged
-        assert thread.comments == ["C_1", "C_2"]
+        assert len(thread.comments) == 2
+        assert thread.comments[0].comment_id == "C_1"
+        assert thread.comments[1].comment_id == "C_2"
 
         # Modify thread's comments list
-        thread.comments.append("C_4")
+        thread.comments.append(
+            Comment(
+                comment_id="C_4",
+                content="Comment 4",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+        )
 
         # Original list should be unchanged
-        assert original_comments == ["C_1", "C_2", "C_3"]
+        assert len(original_comments) == 3
+        assert original_comments[2].comment_id == "C_3"
 
     def test_extreme_date_differences(self) -> None:
         """Test with extreme date differences."""
@@ -763,7 +893,20 @@ class TestReviewThreadEdgeCases:
 
     def test_large_comments_list(self) -> None:
         """Test with large comments list."""
-        large_comments = [f"C_{i}" for i in range(1000)]
+        large_comments = [
+            Comment(
+                comment_id=f"C_{i}",
+                content=f"Comment {i}",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+            for i in range(1000)
+        ]
 
         thread = ReviewThread(
             thread_id="RT_123",
@@ -776,8 +919,8 @@ class TestReviewThreadEdgeCases:
         )
 
         assert len(thread.comments) == 1000
-        assert thread.comments[0] == "C_0"
-        assert thread.comments[999] == "C_999"
+        assert thread.comments[0].comment_id == "C_0"
+        assert thread.comments[999].comment_id == "C_999"
 
 
 class TestCommentEdgeCases:
@@ -942,6 +1085,42 @@ class TestSerializationRoundTrips:
 
     def test_review_thread_roundtrip_with_complex_data(self) -> None:
         """Test ReviewThread serialization roundtrip with complex data."""
+        comments = [
+            Comment(
+                comment_id="C_1",
+                content="Comment 1 with special chars: ñáéíóú",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 14, 30, 45, 123456),
+                updated_at=datetime(2024, 3, 15, 14, 30, 45, 123456),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_2",
+                content="Comment 2",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 15, 0, 0),
+                updated_at=datetime(2024, 3, 15, 15, 0, 0),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_3",
+                content="Comment 3",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 15, 30, 0),
+                updated_at=datetime(2024, 3, 15, 15, 30, 0),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
+
         original = ReviewThread(
             thread_id="RT_123-456.789",
             title="Complex Review Thread with Special Chars: ñáéíóú",
@@ -949,7 +1128,7 @@ class TestSerializationRoundTrips:
             updated_at=datetime(2024, 3, 16, 16, 45, 30, 987654),
             status="RESOLVED",
             author="user.name_123",
-            comments=["C_1", "C_2", "C_3"],
+            comments=comments,
         )
 
         # Serialize and deserialize
@@ -963,7 +1142,10 @@ class TestSerializationRoundTrips:
         assert reconstructed.updated_at == original.updated_at
         assert reconstructed.status == original.status
         assert reconstructed.author == original.author
-        assert reconstructed.comments == original.comments
+        assert len(reconstructed.comments) == len(original.comments)
+        for i, comment in enumerate(reconstructed.comments):
+            assert comment.comment_id == original.comments[i].comment_id
+            assert comment.content == original.comments[i].content
 
     def test_comment_roundtrip_with_complex_data(self) -> None:
         """Test Comment serialization roundtrip with complex data."""
@@ -995,6 +1177,30 @@ class TestSerializationRoundTrips:
         objects = []
 
         for i in range(10):
+            comments = [
+                Comment(
+                    comment_id=f"C_{i}_1",
+                    content=f"Comment {i}_1",
+                    author=f"user_{i}",
+                    created_at=datetime(2024, 1, i + 1, 12, 0, 0),
+                    updated_at=datetime(2024, 1, i + 1, 12, 0, 0),
+                    thread_id=f"RT_{i}",
+                    parent_id=None,
+                    review_id=None,
+                    review_state=None,
+                ),
+                Comment(
+                    comment_id=f"C_{i}_2",
+                    content=f"Comment {i}_2",
+                    author=f"user_{i}",
+                    created_at=datetime(2024, 1, i + 1, 12, 30, 0),
+                    updated_at=datetime(2024, 1, i + 1, 12, 30, 0),
+                    thread_id=f"RT_{i}",
+                    parent_id=None,
+                    review_id=None,
+                    review_state=None,
+                ),
+            ]
             thread = ReviewThread(
                 thread_id=f"RT_{i}",
                 title=f"Thread {i}",
@@ -1002,7 +1208,7 @@ class TestSerializationRoundTrips:
                 updated_at=datetime(2024, 1, i + 1, 13, 0, 0),
                 status="UNRESOLVED",
                 author=f"user_{i}",
-                comments=[f"C_{i}_1", f"C_{i}_2"],
+                comments=comments,
             )
             objects.append(thread)
 
@@ -1017,7 +1223,9 @@ class TestSerializationRoundTrips:
             assert obj.thread_id == f"RT_{i}"
             assert obj.title == f"Thread {i}"
             assert obj.author == f"user_{i}"
-            assert obj.comments == [f"C_{i}_1", f"C_{i}_2"]
+            assert len(obj.comments) == 2
+            assert obj.comments[0].comment_id == f"C_{i}_1"
+            assert obj.comments[1].comment_id == f"C_{i}_2"
 
 
 class TestPerformanceAndLargeData:
@@ -1057,7 +1265,20 @@ class TestPerformanceAndLargeData:
 
     def test_large_comments_list_serialization(self) -> None:
         """Test serialization performance with large comments list."""
-        large_comments = [f"C_{i}" for i in range(10000)]
+        large_comments = [
+            Comment(
+                comment_id=f"C_{i}",
+                content=f"Comment {i}",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+            for i in range(10000)
+        ]
 
         thread = ReviewThread(
             thread_id="RT_123",
@@ -1076,5 +1297,5 @@ class TestPerformanceAndLargeData:
         # Test deserialization
         reconstructed = ReviewThread.from_dict(data)
         assert len(reconstructed.comments) == 10000
-        assert reconstructed.comments[0] == "C_0"
-        assert reconstructed.comments[9999] == "C_9999"
+        assert reconstructed.comments[0].comment_id == "C_0"
+        assert reconstructed.comments[9999].comment_id == "C_9999"

@@ -65,6 +65,8 @@ class ResolveService:
                 result = self.github_service.execute_graphql_query(
                     RESOLVE_THREAD_MUTATION, variables
                 )
+            except GitHubAPIError:
+                raise
             except Exception as e:
                 raise create_github_error(
                     message=f"Failed to execute resolve mutation: {str(e)}",
@@ -165,6 +167,8 @@ class ResolveService:
                 result = self.github_service.execute_graphql_query(
                     UNRESOLVE_THREAD_MUTATION, variables
                 )
+            except GitHubAPIError:
+                raise
             except Exception as e:
                 raise create_github_error(
                     message=f"Failed to execute unresolve mutation: {str(e)}",
@@ -417,6 +421,8 @@ class ResolveService:
 
             try:
                 result = self.github_service.execute_graphql_query(query, variables)
+            except GitHubAPIError:
+                raise
             except Exception as e:
                 raise create_github_error(
                     message=f"Failed to execute thread validation query: {str(e)}",
