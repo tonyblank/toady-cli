@@ -7,7 +7,7 @@ from .exceptions import (
     create_github_error,
     create_validation_error,
 )
-from .models import Comment, ReviewThread
+from .models import Comment, PullRequest, ReviewThread
 from .utils import parse_datetime
 
 
@@ -361,6 +361,166 @@ class GraphQLResponseParser:
                 message=f"Pagination parsing failed due to type error: {str(e)}",
             ) from e
 
+    def parse_pull_requests_response(
+        self, response: Dict[str, Any], include_drafts: bool = False
+    ) -> List[PullRequest]:
+        """Parse a GraphQL response containing pull requests.
+
+        Args:
+            response: The GraphQL response dictionary from GitHub API
+            include_drafts: Whether draft PRs should be included in results
+
+        Returns:
+            List of PullRequest objects parsed from the response
+
+        Raises:
+            GitHubAPIError: If the response structure indicates API errors
+            ValidationError: If the response structure is invalid or malformed
+        """
+        try:
+            # Validate the top-level response structure first
+            ResponseValidator.validate_pull_requests_response(response)
+
+            # Navigate to the pull requests data (guaranteed to exist after validation)
+            repository = response["data"]["repository"]
+            pull_requests_data = repository["pullRequests"]["nodes"]
+
+            if not isinstance(pull_requests_data, list):
+                raise create_validation_error(
+                    field_name="pullRequests.nodes",
+                    invalid_value=type(pull_requests_data).__name__,
+                    expected_format="list of pull request objects",
+                    message="pullRequests.nodes must be a list",
+                )
+
+            pull_requests = []
+            for i, pr_data in enumerate(pull_requests_data):
+                try:
+                    # Filter drafts if not including them
+                    is_draft = pr_data.get("isDraft", False)
+                    if not include_drafts and is_draft:
+                        continue
+
+                    pr = self._parse_single_pull_request(pr_data)
+                    pull_requests.append(pr)
+                except ValidationError as e:
+                    # Re-raise with context about which PR failed
+                    raise create_validation_error(
+                        field_name=f"pullRequests.nodes[{i}]",
+                        invalid_value=pr_data.get("number", "unknown"),
+                        expected_format="valid pull request object",
+                        message=f"Failed to parse pull request at index {i}: {str(e)}",
+                    ) from e
+
+            return pull_requests
+
+        except KeyError as e:
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in GraphQL response",
+                message=f"Invalid response structure: missing key {e}",
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="valid GraphQL response dictionary",
+                message=f"Response parsing failed due to type error: {str(e)}",
+            ) from e
+
+    def _parse_single_pull_request(self, pr_data: Dict[str, Any]) -> PullRequest:
+        """Parse a single pull request from GraphQL response data.
+
+        Args:
+            pr_data: Dictionary containing PR data from GraphQL response
+
+        Returns:
+            PullRequest object
+
+        Raises:
+            ValidationError: If PR data is invalid or incomplete
+        """
+        try:
+            # Validate PR data before accessing fields
+            ResponseValidator.validate_pull_request_data(pr_data)
+
+            # Extract required fields (guaranteed to exist after validation)
+            pr_id = pr_data["id"]
+            number = pr_data["number"]
+            title = pr_data["title"]
+            head_ref = pr_data["headRefName"]
+            base_ref = pr_data["baseRefName"]
+            is_draft = pr_data.get("isDraft", False)
+            url = pr_data["url"]
+
+            # Extract author information with fallback
+            author_data = pr_data.get("author", {})
+            author = author_data.get("login", "unknown") if author_data else "unknown"
+
+            # Parse datetime fields with proper error handling
+            try:
+                created_at = parse_datetime(pr_data["createdAt"])
+            except (KeyError, ValueError) as e:
+                raise create_validation_error(
+                    field_name="pullRequest.createdAt",
+                    invalid_value=pr_data.get("createdAt", "missing"),
+                    expected_format="valid ISO datetime string",
+                    message=f"Failed to parse PR creation date: {str(e)}",
+                ) from e
+
+            try:
+                updated_at = parse_datetime(pr_data["updatedAt"])
+            except (KeyError, ValueError) as e:
+                raise create_validation_error(
+                    field_name="pullRequest.updatedAt",
+                    invalid_value=pr_data.get("updatedAt", "missing"),
+                    expected_format="valid ISO datetime string",
+                    message=f"Failed to parse PR update date: {str(e)}",
+                ) from e
+
+            # Extract review thread count with error handling
+            review_thread_count = 0
+            review_threads_data = pr_data.get("reviewThreads")
+            if review_threads_data:
+                try:
+                    review_thread_count = review_threads_data.get("totalCount", 0)
+                except (TypeError, AttributeError):
+                    # Log the issue but don't fail - just use 0
+                    review_thread_count = 0
+
+            return PullRequest(
+                pr_id=pr_id,
+                number=number,
+                title=title,
+                author=author,
+                head_ref=head_ref,
+                base_ref=base_ref,
+                is_draft=is_draft,
+                created_at=created_at,
+                updated_at=updated_at,
+                url=url,
+                review_thread_count=review_thread_count,
+            )
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except KeyError as e:
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in pull request data",
+                message=f"Missing required field {e} in pull request data",
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="pr_data",
+                invalid_value=type(pr_data).__name__,
+                expected_format="valid pull request data dictionary",
+                message=f"Pull request parsing failed due to type error: {str(e)}",
+            ) from e
+
 
 class ResponseValidator:
     """Validator for GitHub API response structures."""
@@ -547,6 +707,133 @@ class ResponseValidator:
                     invalid_value="missing",
                     expected_format=f"required field '{field}' in comment data",
                     message=f"Missing required field '{field}' in comment data",
+                )
+
+        return True
+
+    @staticmethod
+    def validate_pull_requests_response(response: Dict[str, Any]) -> bool:
+        """Validate a GraphQL response has expected structure for pull requests.
+
+        Args:
+            response: The response dictionary to validate
+
+        Returns:
+            True if the response is valid
+
+        Raises:
+            ValidationError: If the response is invalid
+            GitHubAPIError: If there are GraphQL errors from the API
+        """
+        if not isinstance(response, dict):
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="dictionary",
+                message="GraphQL response must be a dictionary",
+            )
+
+        if "data" not in response:
+            if "errors" in response:
+                errors = response["errors"]
+                if errors:  # Only raise GraphQL errors if there are actual errors
+                    error_messages = [
+                        error.get("message", str(error)) for error in errors
+                    ]
+                    # Use GitHubAPIError for GraphQL API errors
+                    raise create_github_error(
+                        message=f"GraphQL API errors: {'; '.join(error_messages)}",
+                        api_endpoint="GraphQL",
+                    )
+                else:
+                    raise create_validation_error(
+                        field_name="data",
+                        invalid_value="missing",
+                        expected_format="data field in GraphQL response",
+                        message="Response missing 'data' field",
+                    )
+            raise create_validation_error(
+                field_name="data",
+                invalid_value="missing",
+                expected_format="data field in GraphQL response",
+                message="Response missing 'data' field",
+            )
+
+        data = response["data"]
+        if not isinstance(data, dict):
+            raise create_validation_error(
+                field_name="data",
+                invalid_value=type(data).__name__,
+                expected_format="dictionary",
+                message="Response 'data' field must be a dictionary",
+            )
+
+        # Check for required nested structure
+        if "repository" not in data:
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="missing",
+                expected_format="repository object in response data",
+                message="Missing 'repository' in response data",
+            )
+
+        repository = data["repository"]
+        if repository is None:
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="null",
+                expected_format="valid repository object",
+                message="Repository not found (null value)",
+            )
+
+        if "pullRequests" not in repository:
+            raise create_validation_error(
+                field_name="pullRequests",
+                invalid_value="missing",
+                expected_format="pull requests object in repository data",
+                message="Missing 'pullRequests' in repository data",
+            )
+
+        return True
+
+    @staticmethod
+    def validate_pull_request_data(pr_data: Dict[str, Any]) -> bool:
+        """Validate that pull request data has required fields.
+
+        Args:
+            pr_data: Pull request data dictionary to validate
+
+        Returns:
+            True if valid
+
+        Raises:
+            ValidationError: If required fields are missing
+        """
+        if not isinstance(pr_data, dict):
+            raise create_validation_error(
+                field_name="pr_data",
+                invalid_value=type(pr_data).__name__,
+                expected_format="dictionary",
+                message="Pull request data must be a dictionary",
+            )
+
+        required_fields = [
+            "id",
+            "number",
+            "title",
+            "headRefName",
+            "baseRefName",
+            "createdAt",
+            "updatedAt",
+            "url",
+        ]
+        for field in required_fields:
+            if field not in pr_data:
+                raise create_validation_error(
+                    field_name=f"pullRequest.{field}",
+                    invalid_value="missing",
+                    expected_format=f"required field '{field}' in pull request data",
+                    message=f"Missing required field '{field}' in pull request data",
                 )
 
         return True

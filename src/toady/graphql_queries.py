@@ -303,3 +303,73 @@ def create_paginated_query_variables(
         variables["after"] = after_cursor
 
     return variables
+
+
+def build_open_prs_query(include_drafts: bool = False, limit: int = 100) -> str:
+    """Build a GraphQL query to fetch open pull requests.
+
+    Args:
+        include_drafts: Whether to include draft PRs
+        limit: Maximum number of PRs to fetch (1-100)
+
+    Returns:
+        GraphQL query string
+
+    Raises:
+        ValueError: If limit is not between 1 and 100
+    """
+    if not 1 <= limit <= 100:
+        raise ValueError("Limit must be between 1 and 100")
+
+    # Draft filter: if include_drafts is False, filter out drafts
+    draft_filter = "" if include_drafts else ", isDraft: false"
+
+    query = f"""
+    query($owner: String!, $repo: String!) {{
+      repository(owner: $owner, name: $repo) {{
+        pullRequests(
+          first: {limit},
+          states: [OPEN]{draft_filter},
+          orderBy: {{field: UPDATED_AT, direction: DESC}}
+        ) {{
+          pageInfo {{
+            hasNextPage
+            endCursor
+          }}
+          totalCount
+          nodes {{
+            id
+            number
+            title
+            author {{
+              login
+            }}
+            headRefName
+            baseRefName
+            isDraft
+            createdAt
+            updatedAt
+            url
+            reviewThreads {{
+              totalCount
+            }}
+          }}
+        }}
+      }}
+    }}
+    """
+
+    return query.strip()
+
+
+def create_open_prs_query_variables(owner: str, repo: str) -> Dict[str, Any]:
+    """Create variables for the open PRs GraphQL query.
+
+    Args:
+        owner: Repository owner
+        repo: Repository name
+
+    Returns:
+        Dictionary of GraphQL variables
+    """
+    return {"owner": owner, "repo": repo}
