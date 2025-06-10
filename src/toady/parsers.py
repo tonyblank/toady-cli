@@ -1,7 +1,12 @@
 """Parsers for transforming GitHub API responses to model objects."""
 
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple
 
+from .exceptions import (
+    ValidationError,
+    create_github_error,
+    create_validation_error,
+)
 from .models import Comment, ReviewThread
 from .utils import parse_datetime
 
@@ -25,26 +30,55 @@ class GraphQLResponseParser:
             List of ReviewThread objects parsed from the response
 
         Raises:
-            ValueError: If the response structure is invalid
-            KeyError: If required fields are missing from the response
+            GitHubAPIError: If the response structure indicates API errors
+            ValidationError: If the response structure is invalid or malformed
         """
-        # Validate the top-level response structure first
-        ResponseValidator.validate_graphql_response(response)
-
         try:
+            # Validate the top-level response structure first
+            ResponseValidator.validate_graphql_response(response)
+
             # Navigate to the review threads data (guaranteed to exist after validation)
             pull_request = response["data"]["repository"]["pullRequest"]
             review_threads_data = pull_request["reviewThreads"]["nodes"]
 
+            if not isinstance(review_threads_data, list):
+                raise create_validation_error(
+                    field_name="reviewThreads.nodes",
+                    invalid_value=type(review_threads_data).__name__,
+                    expected_format="list of thread objects",
+                    message="reviewThreads.nodes must be a list",
+                )
+
             threads = []
-            for thread_data in review_threads_data:
-                thread = self._parse_single_review_thread(thread_data)
-                threads.append(thread)
+            for i, thread_data in enumerate(review_threads_data):
+                try:
+                    thread = self._parse_single_review_thread(thread_data)
+                    threads.append(thread)
+                except ValidationError as e:
+                    # Re-raise with context about which thread failed
+                    raise create_validation_error(
+                        field_name=f"reviewThreads.nodes[{i}]",
+                        invalid_value=thread_data.get("id", "unknown"),
+                        expected_format="valid thread object",
+                        message=f"Failed to parse thread at index {i}: {str(e)}",
+                    ) from e
 
             return threads
 
         except KeyError as e:
-            raise ValueError(f"Invalid response structure: missing key {e}") from e
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in GraphQL response",
+                message=f"Invalid response structure: missing key {e}",
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="valid GraphQL response dictionary",
+                message=f"Response parsing failed due to type error: {str(e)}",
+            ) from e
 
     def _parse_single_review_thread(self, thread_data: Dict[str, Any]) -> ReviewThread:
         """Parse a single review thread from GraphQL response data.
@@ -56,45 +90,93 @@ class GraphQLResponseParser:
             ReviewThread object
 
         Raises:
-            ValueError: If thread data is invalid or incomplete
+            ValidationError: If thread data is invalid or incomplete
         """
-        # Validate thread data before accessing fields
-        ResponseValidator.validate_review_thread_data(thread_data)
+        try:
+            # Validate thread data before accessing fields
+            ResponseValidator.validate_review_thread_data(thread_data)
 
-        # Extract basic thread information
-        thread_id = thread_data["id"]
-        is_resolved = thread_data.get("isResolved", False)
+            # Thread ID is guaranteed to exist after validation
+            thread_id = thread_data["id"]
 
-        # Parse comments to get thread metadata
-        comments_data = thread_data.get("comments", {}).get("nodes", [])
-        if not comments_data:
-            raise ValueError(f"Review thread {thread_id} has no comments")
+            is_resolved = thread_data.get("isResolved", False)
 
-        # Parse comments
-        comments = []
-        for comment_data in comments_data:
-            # Validate comment data before parsing
-            ResponseValidator.validate_comment_data(comment_data)
-            comment = self._parse_single_comment(comment_data, thread_id)
-            comments.append(comment)
+            # Parse comments to get thread metadata
+            comments_data = thread_data.get("comments", {}).get("nodes", [])
+            if not comments_data:
+                raise create_validation_error(
+                    field_name="thread.comments.nodes",
+                    invalid_value="empty list",
+                    expected_format="list with at least one comment",
+                    message=f"Review thread {thread_id} has no comments",
+                )
 
-        # Use first comment to determine thread metadata
-        first_comment = comments[0]
-        title = self._extract_title_from_comment(first_comment.content)
-        created_at = first_comment.created_at
-        updated_at = max(comment.updated_at for comment in comments)
-        author = first_comment.author
-        status = "RESOLVED" if is_resolved else "UNRESOLVED"
+            # Parse comments with enhanced error handling
+            comments = []
+            for i, comment_data in enumerate(comments_data):
+                try:
+                    # Validate comment data before parsing
+                    ResponseValidator.validate_comment_data(comment_data)
+                    comment = self._parse_single_comment(comment_data, thread_id)
+                    comments.append(comment)
+                except ValidationError as e:
+                    # Re-raise with context about which comment failed
+                    raise create_validation_error(
+                        field_name=f"thread.comments.nodes[{i}]",
+                        invalid_value=comment_data.get("id", "unknown"),
+                        expected_format="valid comment object",
+                        message=(
+                            f"Failed to parse comment at index {i} in thread "
+                            f"{thread_id}: {str(e)}"
+                        ),
+                    ) from e
 
-        return ReviewThread(
-            thread_id=thread_id,
-            title=title,
-            created_at=created_at,
-            updated_at=updated_at,
-            status=status,
-            author=author,
-            comments=cast(List[Union[str, Any]], comments),
-        )
+            # Use first comment to determine thread metadata
+            try:
+                first_comment = comments[0]
+                title = self._extract_title_from_comment(first_comment.content)
+                created_at = first_comment.created_at
+                updated_at = max(comment.updated_at for comment in comments)
+                author = first_comment.author
+                status = "RESOLVED" if is_resolved else "UNRESOLVED"
+            except (IndexError, AttributeError) as e:
+                raise create_validation_error(
+                    field_name="thread.comments",
+                    invalid_value=f"{len(comments)} comments",
+                    expected_format="list with valid comment objects",
+                    message=(
+                        f"Cannot extract thread metadata from comments in thread "
+                        f"{thread_id}: {str(e)}"
+                    ),
+                ) from e
+
+            return ReviewThread(
+                thread_id=thread_id,
+                title=title,
+                created_at=created_at,
+                updated_at=updated_at,
+                status=status,
+                author=author,
+                comments=comments,
+            )
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except KeyError as e:
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in thread data",
+                message=f"Missing required field {e} in thread data",
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="thread_data",
+                invalid_value=type(thread_data).__name__,
+                expected_format="valid thread data dictionary",
+                message=f"Thread parsing failed due to type error: {str(e)}",
+            ) from e
 
     def _parse_single_comment(
         self, comment_data: Dict[str, Any], thread_id: str
@@ -109,42 +191,101 @@ class GraphQLResponseParser:
             Comment object
 
         Raises:
-            ValueError: If comment data is invalid
+            ValidationError: If comment data is invalid
         """
-        comment_id = comment_data["id"]
-        content = comment_data["body"]
-        created_at = parse_datetime(comment_data["createdAt"])
-        updated_at = parse_datetime(comment_data["updatedAt"])
+        try:
+            # Extract and validate required fields
+            comment_id = comment_data.get("id")
+            if not comment_id:
+                raise create_validation_error(
+                    field_name="comment.id",
+                    invalid_value="missing",
+                    expected_format="non-empty string",
+                    message="Comment ID is required but missing",
+                )
 
-        # Extract author information
-        author_data = comment_data.get("author", {})
-        author = author_data.get("login", "unknown")
+            content = comment_data.get("body", "")
 
-        # Handle parent comment (replies)
-        parent_id = None
-        reply_to = comment_data.get("replyTo")
-        if reply_to:
-            parent_id = reply_to["id"]
+            # Parse datetime fields with proper error handling
+            try:
+                created_at = parse_datetime(comment_data["createdAt"])
+            except (KeyError, ValueError) as e:
+                raise create_validation_error(
+                    field_name="comment.createdAt",
+                    invalid_value=comment_data.get("createdAt", "missing"),
+                    expected_format="valid ISO datetime string",
+                    message=f"Failed to parse comment creation date: {str(e)}",
+                ) from e
 
-        # Extract review information
-        review_id = None
-        review_state = None
-        review_data = comment_data.get("pullRequestReview")
-        if review_data:
-            review_id = review_data.get("id")
-            review_state = review_data.get("state")
+            try:
+                updated_at = parse_datetime(comment_data["updatedAt"])
+            except (KeyError, ValueError) as e:
+                raise create_validation_error(
+                    field_name="comment.updatedAt",
+                    invalid_value=comment_data.get("updatedAt", "missing"),
+                    expected_format="valid ISO datetime string",
+                    message=f"Failed to parse comment update date: {str(e)}",
+                ) from e
 
-        return Comment(
-            comment_id=comment_id,
-            content=content,
-            author=author,
-            created_at=created_at,
-            updated_at=updated_at,
-            parent_id=parent_id,
-            thread_id=thread_id,
-            review_id=review_id,
-            review_state=review_state,
-        )
+            # Extract author information with fallback
+            author_data = comment_data.get("author", {})
+            author = author_data.get("login", "unknown") if author_data else "unknown"
+
+            # Handle parent comment (replies) with error handling
+            parent_id = None
+            reply_to = comment_data.get("replyTo")
+            if reply_to:
+                try:
+                    parent_id = reply_to.get("id")
+                except (TypeError, AttributeError):
+                    # Log the issue but don't fail - just skip parent ID
+                    parent_id = None
+
+            # Extract review information with error handling
+            review_id = None
+            review_state = None
+            review_data = comment_data.get("pullRequestReview")
+            if review_data:
+                try:
+                    review_id = review_data.get("id")
+                    review_state = review_data.get("state")
+                except (TypeError, AttributeError):
+                    # Log the issue but don't fail - just skip review info
+                    review_id = None
+                    review_state = None
+
+            return Comment(
+                comment_id=comment_id,
+                content=content,
+                author=author,
+                created_at=created_at,
+                updated_at=updated_at,
+                parent_id=parent_id,
+                thread_id=thread_id,
+                review_id=review_id,
+                review_state=review_state,
+            )
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except KeyError as e:
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in comment data",
+                message=(
+                    f"Missing required field {e} in comment data for thread "
+                    f"{thread_id}"
+                ),
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="comment_data",
+                invalid_value=type(comment_data).__name__,
+                expected_format="valid comment data dictionary",
+                message=f"Comment parsing failed due to type error: {str(e)}",
+            ) from e
 
     def _extract_title_from_comment(self, content: str) -> str:
         """Extract a title from comment content.
@@ -177,23 +318,48 @@ class GraphQLResponseParser:
             next_cursor is None if there are no more pages
 
         Raises:
-            ValueError: If the response structure is invalid
+            ValidationError: If the response structure is invalid
         """
-        threads = self.parse_review_threads_response(response)
-
-        # Extract pagination info
         try:
+            # Parse threads first (this will handle most validation)
+            threads = self.parse_review_threads_response(response)
+
+            # Extract pagination info with proper error handling
             review_threads_data = response["data"]["repository"]["pullRequest"][
                 "reviewThreads"
             ]
             page_info = review_threads_data.get("pageInfo", {})
+
+            if not isinstance(page_info, dict):
+                raise create_validation_error(
+                    field_name="reviewThreads.pageInfo",
+                    invalid_value=type(page_info).__name__,
+                    expected_format="dictionary with pagination information",
+                    message="pageInfo must be a dictionary",
+                )
+
             has_next_page = page_info.get("hasNextPage", False)
             next_cursor = page_info.get("endCursor") if has_next_page else None
 
             return threads, next_cursor
 
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
         except KeyError as e:
-            raise ValueError(f"Invalid pagination structure: missing key {e}") from e
+            raise create_validation_error(
+                field_name=str(e).strip("'\""),
+                invalid_value="missing",
+                expected_format="required field in pagination response",
+                message=f"Invalid pagination structure: missing key {e}",
+            ) from e
+        except (TypeError, AttributeError) as e:
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="valid paginated GraphQL response",
+                message=f"Pagination parsing failed due to type error: {str(e)}",
+            ) from e
 
 
 class ResponseValidator:
@@ -210,10 +376,16 @@ class ResponseValidator:
             True if the response is valid
 
         Raises:
-            ValueError: If the response is invalid
+            ValidationError: If the response is invalid
+            GitHubAPIError: If there are GraphQL errors from the API
         """
         if not isinstance(response, dict):
-            raise ValueError("Response must be a dictionary")
+            raise create_validation_error(
+                field_name="response",
+                invalid_value=type(response).__name__,
+                expected_format="dictionary",
+                message="GraphQL response must be a dictionary",
+            )
 
         if "data" not in response:
             if "errors" in response:
@@ -222,32 +394,76 @@ class ResponseValidator:
                     error_messages = [
                         error.get("message", str(error)) for error in errors
                     ]
-                    raise ValueError(f"GraphQL errors: {'; '.join(error_messages)}")
+                    # Use GitHubAPIError for GraphQL API errors
+                    raise create_github_error(
+                        message=f"GraphQL API errors: {'; '.join(error_messages)}",
+                        api_endpoint="GraphQL",
+                    )
                 else:
-                    raise ValueError("Response missing 'data' field")
-            raise ValueError("Response missing 'data' field")
+                    raise create_validation_error(
+                        field_name="data",
+                        invalid_value="missing",
+                        expected_format="data field in GraphQL response",
+                        message="Response missing 'data' field",
+                    )
+            raise create_validation_error(
+                field_name="data",
+                invalid_value="missing",
+                expected_format="data field in GraphQL response",
+                message="Response missing 'data' field",
+            )
 
         data = response["data"]
         if not isinstance(data, dict):
-            raise ValueError("Response 'data' field must be a dictionary")
+            raise create_validation_error(
+                field_name="data",
+                invalid_value=type(data).__name__,
+                expected_format="dictionary",
+                message="Response 'data' field must be a dictionary",
+            )
 
         # Check for required nested structure
         if "repository" not in data:
-            raise ValueError("Missing 'repository' in response data")
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="missing",
+                expected_format="repository object in response data",
+                message="Missing 'repository' in response data",
+            )
 
         repository = data["repository"]
         if repository is None:
-            raise ValueError("Repository not found (null value)")
+            raise create_validation_error(
+                field_name="repository",
+                invalid_value="null",
+                expected_format="valid repository object",
+                message="Repository not found (null value)",
+            )
 
         if "pullRequest" not in repository:
-            raise ValueError("Missing 'pullRequest' in repository data")
+            raise create_validation_error(
+                field_name="pullRequest",
+                invalid_value="missing",
+                expected_format="pull request object in repository data",
+                message="Missing 'pullRequest' in repository data",
+            )
 
         pull_request = repository["pullRequest"]
         if pull_request is None:
-            raise ValueError("Pull request not found (null value)")
+            raise create_validation_error(
+                field_name="pullRequest",
+                invalid_value="null",
+                expected_format="valid pull request object",
+                message="Pull request not found (null value)",
+            )
 
         if "reviewThreads" not in pull_request:
-            raise ValueError("Missing 'reviewThreads' in pull request data")
+            raise create_validation_error(
+                field_name="reviewThreads",
+                invalid_value="missing",
+                expected_format="review threads object in pull request data",
+                message="Missing 'reviewThreads' in pull request data",
+            )
 
         return True
 
@@ -262,18 +478,43 @@ class ResponseValidator:
             True if valid
 
         Raises:
-            ValueError: If required fields are missing
+            ValidationError: If required fields are missing
         """
+        if not isinstance(thread_data, dict):
+            raise create_validation_error(
+                field_name="thread_data",
+                invalid_value=type(thread_data).__name__,
+                expected_format="dictionary",
+                message="Thread data must be a dictionary",
+            )
+
         required_fields = ["id"]
         for field in required_fields:
             if field not in thread_data:
-                raise ValueError(f"Missing required field '{field}' in thread data")
+                raise create_validation_error(
+                    field_name=f"thread.{field}",
+                    invalid_value="missing",
+                    expected_format=f"required field '{field}' in thread data",
+                    message=f"Missing required field '{field}' in thread data",
+                )
 
         # Validate comments structure if present
         if "comments" in thread_data:
             comments_data = thread_data["comments"]
+            if not isinstance(comments_data, dict):
+                raise create_validation_error(
+                    field_name="thread.comments",
+                    invalid_value=type(comments_data).__name__,
+                    expected_format="dictionary with comments data",
+                    message="Comments data must be a dictionary",
+                )
             if "nodes" not in comments_data:
-                raise ValueError("Missing 'nodes' in comments data")
+                raise create_validation_error(
+                    field_name="thread.comments.nodes",
+                    invalid_value="missing",
+                    expected_format="list of comment nodes",
+                    message="Missing 'nodes' in comments data",
+                )
 
         return True
 
@@ -288,11 +529,24 @@ class ResponseValidator:
             True if valid
 
         Raises:
-            ValueError: If required fields are missing
+            ValidationError: If required fields are missing
         """
+        if not isinstance(comment_data, dict):
+            raise create_validation_error(
+                field_name="comment_data",
+                invalid_value=type(comment_data).__name__,
+                expected_format="dictionary",
+                message="Comment data must be a dictionary",
+            )
+
         required_fields = ["id", "body", "createdAt", "updatedAt"]
         for field in required_fields:
             if field not in comment_data:
-                raise ValueError(f"Missing required field '{field}' in comment data")
+                raise create_validation_error(
+                    field_name=f"comment.{field}",
+                    invalid_value="missing",
+                    expected_format=f"required field '{field}' in comment data",
+                    message=f"Missing required field '{field}' in comment data",
+                )
 
         return True

@@ -4,14 +4,18 @@ from unittest.mock import Mock
 
 import pytest
 
+from toady.exceptions import (
+    GitHubAPIError,
+    ResolveServiceError,
+    ThreadNotFoundError,
+    ThreadPermissionError,
+    ValidationError,
+)
 from toady.github_service import (
     GitHubService,
 )
 from toady.resolve_service import (
     ResolveService,
-    ResolveServiceError,
-    ThreadNotFoundError,
-    ThreadPermissionError,
 )
 
 
@@ -116,7 +120,7 @@ class TestResolveService:
         mock_github_service = Mock(spec=GitHubService)
         service = ResolveService(mock_github_service)
 
-        with pytest.raises(ResolveServiceError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             service.resolve_thread("invalid-id")
         assert "Invalid thread ID" in str(exc_info.value)
 
@@ -221,15 +225,15 @@ class TestResolveServiceExceptions:
         """Test exception message handling."""
         with pytest.raises(ResolveServiceError) as exc_info:
             raise ResolveServiceError("Test error")
-        assert str(exc_info.value) == "Test error"
+        assert "Test error" in str(exc_info.value)
 
         with pytest.raises(ThreadNotFoundError) as exc_info:
             raise ThreadNotFoundError("Thread not found")
-        assert str(exc_info.value) == "Thread not found"
+        assert "Thread not found" in str(exc_info.value)
 
         with pytest.raises(ThreadPermissionError) as exc_info:
             raise ThreadPermissionError("Permission denied")
-        assert str(exc_info.value) == "Permission denied"
+        assert "Permission denied" in str(exc_info.value)
 
 
 class TestResolveServiceErrorHandling:
@@ -405,9 +409,7 @@ class TestValidateThreadExists:
         assert result is False
 
     def test_validate_thread_exists_api_error(self) -> None:
-        """Test thread validation with API error (raises ResolveServiceError)."""
-        from toady.github_service import GitHubAPIError
-
+        """Test thread validation with API error (raises GitHubAPIError)."""
         mock_github_service = Mock(spec=GitHubService)
         mock_github_service.execute_graphql_query.side_effect = GitHubAPIError(
             "API failure"
@@ -415,14 +417,12 @@ class TestValidateThreadExists:
 
         service = ResolveService(mock_github_service)
 
-        with pytest.raises(ResolveServiceError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             service.validate_thread_exists(
                 "testowner", "testrepo", 123, "PRT_kwDOABcD12MAAAABcDE3fg"
             )
 
-        assert "Failed to validate thread existence due to API error" in str(
-            exc_info.value
-        )
+        # The original GitHubAPIError should be preserved (not wrapped)
         assert "API failure" in str(exc_info.value)
 
     def test_validate_thread_exists_malformed_response(self) -> None:

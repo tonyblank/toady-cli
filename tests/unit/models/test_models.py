@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 import pytest
 
+from toady.exceptions import ValidationError
 from toady.models import Comment, ReviewThread
 
 
@@ -33,7 +34,7 @@ class TestReviewThread:
 
     def test_thread_id_validation(self) -> None:
         """Test that thread_id cannot be empty."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             ReviewThread(
                 thread_id="",
                 title="Test",
@@ -46,7 +47,7 @@ class TestReviewThread:
 
     def test_title_validation(self) -> None:
         """Test that title cannot be empty."""
-        with pytest.raises(ValueError, match="title cannot be empty"):
+        with pytest.raises(ValidationError, match="title cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="",
@@ -59,7 +60,7 @@ class TestReviewThread:
 
     def test_status_validation(self) -> None:
         """Test that status must be valid."""
-        with pytest.raises(ValueError, match="status must be one of"):
+        with pytest.raises(ValidationError, match="status must be one of"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -72,7 +73,7 @@ class TestReviewThread:
 
     def test_author_validation(self) -> None:
         """Test that author cannot be empty."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -85,7 +86,9 @@ class TestReviewThread:
 
     def test_date_validation(self) -> None:
         """Test that updated_at cannot be before created_at."""
-        with pytest.raises(ValueError, match="updated_at cannot be before created_at"):
+        with pytest.raises(
+            ValidationError, match="updated_at cannot be before created_at"
+        ):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -98,6 +101,28 @@ class TestReviewThread:
 
     def test_to_dict(self) -> None:
         """Test serialization to dictionary."""
+        comment1 = Comment(
+            comment_id="comment1",
+            content="First comment",
+            author="johndoe",
+            created_at=datetime(2024, 1, 1, 12, 0, 0),
+            updated_at=datetime(2024, 1, 1, 12, 0, 0),
+            thread_id="RT_123",
+            parent_id=None,
+            review_id=None,
+            review_state=None,
+        )
+        comment2 = Comment(
+            comment_id="comment2",
+            content="Second comment",
+            author="janedoe",
+            created_at=datetime(2024, 1, 2, 12, 0, 0),
+            updated_at=datetime(2024, 1, 2, 12, 0, 0),
+            thread_id="RT_123",
+            parent_id=None,
+            review_id=None,
+            review_state=None,
+        )
         thread = ReviewThread(
             thread_id="RT_123",
             title="Test Review",
@@ -105,7 +130,7 @@ class TestReviewThread:
             updated_at=datetime(2024, 1, 2, 13, 0, 0),
             status="RESOLVED",
             author="johndoe",
-            comments=["comment1", "comment2"],
+            comments=[comment1, comment2],
         )
 
         result = thread.to_dict()
@@ -117,7 +142,30 @@ class TestReviewThread:
             "updated_at": "2024-01-02T13:00:00",
             "status": "RESOLVED",
             "author": "johndoe",
-            "comments": ["comment1", "comment2"],
+            "comments": [
+                {
+                    "comment_id": "comment1",
+                    "content": "First comment",
+                    "author": "johndoe",
+                    "created_at": "2024-01-01T12:00:00",
+                    "updated_at": "2024-01-01T12:00:00",
+                    "thread_id": "RT_123",
+                    "parent_id": None,
+                    "review_id": None,
+                    "review_state": None,
+                },
+                {
+                    "comment_id": "comment2",
+                    "content": "Second comment",
+                    "author": "janedoe",
+                    "created_at": "2024-01-02T12:00:00",
+                    "updated_at": "2024-01-02T12:00:00",
+                    "thread_id": "RT_123",
+                    "parent_id": None,
+                    "review_id": None,
+                    "review_state": None,
+                },
+            ],
         }
 
     def test_from_dict_valid(self) -> None:
@@ -153,7 +201,7 @@ class TestReviewThread:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Missing required field: thread_id"):
+        with pytest.raises(ValidationError, match="Missing required field: thread_id"):
             ReviewThread.from_dict(data)
 
     def test_from_dict_invalid_date_format(self) -> None:
@@ -168,7 +216,7 @@ class TestReviewThread:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for created_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for created_at"):
             ReviewThread.from_dict(data)
 
     def test_from_dict_with_microseconds(self) -> None:
@@ -208,6 +256,41 @@ class TestReviewThread:
 
     def test_roundtrip_serialization(self) -> None:
         """Test that to_dict and from_dict are inverse operations."""
+        comments = [
+            Comment(
+                comment_id="c1",
+                content="Comment 1",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 12, 0, 0),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="c2",
+                content="Comment 2",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 13, 0, 0),
+                updated_at=datetime(2024, 1, 1, 13, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="c3",
+                content="Comment 3",
+                author="johndoe",
+                created_at=datetime(2024, 1, 1, 14, 0, 0),
+                updated_at=datetime(2024, 1, 1, 14, 0, 0),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
         original = ReviewThread(
             thread_id="RT_123",
             title="Test Review",
@@ -215,7 +298,7 @@ class TestReviewThread:
             updated_at=datetime(2024, 1, 2, 13, 0, 0),
             status="RESOLVED",
             author="johndoe",
-            comments=["c1", "c2", "c3"],
+            comments=comments,
         )
 
         # Serialize and deserialize
@@ -361,7 +444,7 @@ class TestReviewThread:
 
     def test_parse_datetime_unparseable(self) -> None:
         """Test handling of completely unparseable datetime."""
-        with pytest.raises(ValueError, match="Unable to parse datetime"):
+        with pytest.raises(ValidationError, match="Unable to parse datetime"):
             ReviewThread._parse_datetime("not a date")
 
 
@@ -390,7 +473,7 @@ class TestComment:
 
     def test_comment_id_validation(self) -> None:
         """Test that comment_id cannot be empty."""
-        with pytest.raises(ValueError, match="comment_id cannot be empty"):
+        with pytest.raises(ValidationError, match="comment_id cannot be empty"):
             Comment(
                 comment_id="",
                 content="Test content",
@@ -403,7 +486,7 @@ class TestComment:
 
     def test_content_validation_empty(self) -> None:
         """Test that content cannot be empty."""
-        with pytest.raises(ValueError, match="content cannot be empty"):
+        with pytest.raises(ValidationError, match="content cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="",
@@ -417,7 +500,9 @@ class TestComment:
     def test_content_validation_too_long(self) -> None:
         """Test that content cannot exceed maximum length."""
         long_content = "x" * 65537  # Exceed the 65536 character limit
-        with pytest.raises(ValueError, match="content cannot exceed 65536 characters"):
+        with pytest.raises(
+            ValidationError, match="content cannot exceed 65536 characters"
+        ):
             Comment(
                 comment_id="C_456",
                 content=long_content,
@@ -430,7 +515,7 @@ class TestComment:
 
     def test_author_validation(self) -> None:
         """Test that author cannot be empty."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -443,7 +528,7 @@ class TestComment:
 
     def test_thread_id_validation(self) -> None:
         """Test that thread_id cannot be empty."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -459,7 +544,9 @@ class TestComment:
         created = datetime(2024, 1, 2, 12, 0, 0)
         updated = datetime(2024, 1, 1, 12, 0, 0)  # Before created
 
-        with pytest.raises(ValueError, match="updated_at cannot be before created_at"):
+        with pytest.raises(
+            ValidationError, match="updated_at cannot be before created_at"
+        ):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -573,7 +660,7 @@ class TestComment:
             # Missing author, created_at, updated_at, thread_id
         }
 
-        with pytest.raises(ValueError, match="Missing required field"):
+        with pytest.raises(ValidationError, match="Missing required field"):
             Comment.from_dict(data)
 
     def test_from_dict_invalid_date_format(self) -> None:
@@ -588,7 +675,7 @@ class TestComment:
             "thread_id": "RT_123",
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for created_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for created_at"):
             Comment.from_dict(data)
 
     def test_str_representation(self) -> None:
@@ -633,7 +720,7 @@ class TestComment:
             "thread_id": "RT_123",
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for updated_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for updated_at"):
             Comment.from_dict(data)
 
 
@@ -652,13 +739,13 @@ class TestReviewThreadEdgeCases:
             "comments": [],
         }
 
-        with pytest.raises(ValueError, match="Invalid date format for updated_at"):
+        with pytest.raises(ValidationError, match="Invalid date format for updated_at"):
             ReviewThread.from_dict(data)
 
     @pytest.mark.parametrize("invalid_id", ["", "   ", "\t", "\n"])
     def test_thread_id_validation_whitespace(self, invalid_id: str) -> None:
         """Test thread_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             ReviewThread(
                 thread_id=invalid_id,
                 title="Test",
@@ -672,7 +759,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_title", ["", "   ", "\t", "\n"])
     def test_title_validation_whitespace(self, invalid_title: str) -> None:
         """Test title validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="title cannot be empty"):
+        with pytest.raises(ValidationError, match="title cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title=invalid_title,
@@ -686,7 +773,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_author", ["", "   ", "\t", "\n"])
     def test_author_validation_whitespace(self, invalid_author: str) -> None:
         """Test author validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -700,7 +787,7 @@ class TestReviewThreadEdgeCases:
     @pytest.mark.parametrize("invalid_status", ["INVALID", "resolved", "pending", ""])
     def test_status_validation_invalid_values(self, invalid_status: str) -> None:
         """Test status validation with invalid values."""
-        with pytest.raises(ValueError, match="status must be one of"):
+        with pytest.raises(ValidationError, match="status must be one of"):
             ReviewThread(
                 thread_id="RT_123",
                 title="Test",
@@ -713,7 +800,30 @@ class TestReviewThreadEdgeCases:
 
     def test_comments_list_deep_copy(self) -> None:
         """Test that comments list is properly copied and isolated."""
-        original_comments = ["C_1", "C_2"]
+        original_comments = [
+            Comment(
+                comment_id="C_1",
+                content="Comment 1",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_2",
+                content="Comment 2",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
         thread = ReviewThread(
             thread_id="RT_123",
             title="Test",
@@ -725,16 +835,43 @@ class TestReviewThreadEdgeCases:
         )
 
         # Modify original list
-        original_comments.append("C_3")
+        original_comments.append(
+            Comment(
+                comment_id="C_3",
+                content="Comment 3",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+        )
 
         # Thread's comments should be unchanged
-        assert thread.comments == ["C_1", "C_2"]
+        assert len(thread.comments) == 2
+        assert thread.comments[0].comment_id == "C_1"
+        assert thread.comments[1].comment_id == "C_2"
 
         # Modify thread's comments list
-        thread.comments.append("C_4")
+        thread.comments.append(
+            Comment(
+                comment_id="C_4",
+                content="Comment 4",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+        )
 
         # Original list should be unchanged
-        assert original_comments == ["C_1", "C_2", "C_3"]
+        assert len(original_comments) == 3
+        assert original_comments[2].comment_id == "C_3"
 
     def test_extreme_date_differences(self) -> None:
         """Test with extreme date differences."""
@@ -756,7 +893,20 @@ class TestReviewThreadEdgeCases:
 
     def test_large_comments_list(self) -> None:
         """Test with large comments list."""
-        large_comments = [f"C_{i}" for i in range(1000)]
+        large_comments = [
+            Comment(
+                comment_id=f"C_{i}",
+                content=f"Comment {i}",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+            for i in range(1000)
+        ]
 
         thread = ReviewThread(
             thread_id="RT_123",
@@ -769,8 +919,8 @@ class TestReviewThreadEdgeCases:
         )
 
         assert len(thread.comments) == 1000
-        assert thread.comments[0] == "C_0"
-        assert thread.comments[999] == "C_999"
+        assert thread.comments[0].comment_id == "C_0"
+        assert thread.comments[999].comment_id == "C_999"
 
 
 class TestCommentEdgeCases:
@@ -779,7 +929,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_id", ["", "   ", "\t", "\n"])
     def test_comment_id_validation_whitespace(self, invalid_id: str) -> None:
         """Test comment_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="comment_id cannot be empty"):
+        with pytest.raises(ValidationError, match="comment_id cannot be empty"):
             Comment(
                 comment_id=invalid_id,
                 content="Test content",
@@ -793,7 +943,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_content", ["", "   ", "\t", "\n"])
     def test_content_validation_whitespace(self, invalid_content: str) -> None:
         """Test content validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="content cannot be empty"):
+        with pytest.raises(ValidationError, match="content cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content=invalid_content,
@@ -807,7 +957,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_author", ["", "   ", "\t", "\n"])
     def test_author_validation_whitespace(self, invalid_author: str) -> None:
         """Test author validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="author cannot be empty"):
+        with pytest.raises(ValidationError, match="author cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -821,7 +971,7 @@ class TestCommentEdgeCases:
     @pytest.mark.parametrize("invalid_thread_id", ["", "   ", "\t", "\n"])
     def test_thread_id_validation_whitespace(self, invalid_thread_id: str) -> None:
         """Test thread_id validation with various whitespace scenarios."""
-        with pytest.raises(ValueError, match="thread_id cannot be empty"):
+        with pytest.raises(ValidationError, match="thread_id cannot be empty"):
             Comment(
                 comment_id="C_456",
                 content="Test content",
@@ -851,7 +1001,7 @@ class TestCommentEdgeCases:
             assert len(comment.content) == content_length
         else:
             # Should fail
-            with pytest.raises(ValueError, match="content cannot exceed"):
+            with pytest.raises(ValidationError, match="content cannot exceed"):
                 Comment(
                     comment_id="C_456",
                     content=content,
@@ -935,6 +1085,42 @@ class TestSerializationRoundTrips:
 
     def test_review_thread_roundtrip_with_complex_data(self) -> None:
         """Test ReviewThread serialization roundtrip with complex data."""
+        comments = [
+            Comment(
+                comment_id="C_1",
+                content="Comment 1 with special chars: ñáéíóú",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 14, 30, 45, 123456),
+                updated_at=datetime(2024, 3, 15, 14, 30, 45, 123456),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_2",
+                content="Comment 2",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 15, 0, 0),
+                updated_at=datetime(2024, 3, 15, 15, 0, 0),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+            Comment(
+                comment_id="C_3",
+                content="Comment 3",
+                author="user.name_123",
+                created_at=datetime(2024, 3, 15, 15, 30, 0),
+                updated_at=datetime(2024, 3, 15, 15, 30, 0),
+                thread_id="RT_123-456.789",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            ),
+        ]
+
         original = ReviewThread(
             thread_id="RT_123-456.789",
             title="Complex Review Thread with Special Chars: ñáéíóú",
@@ -942,7 +1128,7 @@ class TestSerializationRoundTrips:
             updated_at=datetime(2024, 3, 16, 16, 45, 30, 987654),
             status="RESOLVED",
             author="user.name_123",
-            comments=["C_1", "C_2", "C_3"],
+            comments=comments,
         )
 
         # Serialize and deserialize
@@ -956,7 +1142,10 @@ class TestSerializationRoundTrips:
         assert reconstructed.updated_at == original.updated_at
         assert reconstructed.status == original.status
         assert reconstructed.author == original.author
-        assert reconstructed.comments == original.comments
+        assert len(reconstructed.comments) == len(original.comments)
+        for i, comment in enumerate(reconstructed.comments):
+            assert comment.comment_id == original.comments[i].comment_id
+            assert comment.content == original.comments[i].content
 
     def test_comment_roundtrip_with_complex_data(self) -> None:
         """Test Comment serialization roundtrip with complex data."""
@@ -988,6 +1177,30 @@ class TestSerializationRoundTrips:
         objects = []
 
         for i in range(10):
+            comments = [
+                Comment(
+                    comment_id=f"C_{i}_1",
+                    content=f"Comment {i}_1",
+                    author=f"user_{i}",
+                    created_at=datetime(2024, 1, i + 1, 12, 0, 0),
+                    updated_at=datetime(2024, 1, i + 1, 12, 0, 0),
+                    thread_id=f"RT_{i}",
+                    parent_id=None,
+                    review_id=None,
+                    review_state=None,
+                ),
+                Comment(
+                    comment_id=f"C_{i}_2",
+                    content=f"Comment {i}_2",
+                    author=f"user_{i}",
+                    created_at=datetime(2024, 1, i + 1, 12, 30, 0),
+                    updated_at=datetime(2024, 1, i + 1, 12, 30, 0),
+                    thread_id=f"RT_{i}",
+                    parent_id=None,
+                    review_id=None,
+                    review_state=None,
+                ),
+            ]
             thread = ReviewThread(
                 thread_id=f"RT_{i}",
                 title=f"Thread {i}",
@@ -995,7 +1208,7 @@ class TestSerializationRoundTrips:
                 updated_at=datetime(2024, 1, i + 1, 13, 0, 0),
                 status="UNRESOLVED",
                 author=f"user_{i}",
-                comments=[f"C_{i}_1", f"C_{i}_2"],
+                comments=comments,
             )
             objects.append(thread)
 
@@ -1010,7 +1223,9 @@ class TestSerializationRoundTrips:
             assert obj.thread_id == f"RT_{i}"
             assert obj.title == f"Thread {i}"
             assert obj.author == f"user_{i}"
-            assert obj.comments == [f"C_{i}_1", f"C_{i}_2"]
+            assert len(obj.comments) == 2
+            assert obj.comments[0].comment_id == f"C_{i}_1"
+            assert obj.comments[1].comment_id == f"C_{i}_2"
 
 
 class TestPerformanceAndLargeData:
@@ -1050,7 +1265,20 @@ class TestPerformanceAndLargeData:
 
     def test_large_comments_list_serialization(self) -> None:
         """Test serialization performance with large comments list."""
-        large_comments = [f"C_{i}" for i in range(10000)]
+        large_comments = [
+            Comment(
+                comment_id=f"C_{i}",
+                content=f"Comment {i}",
+                author="user",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                thread_id="RT_123",
+                parent_id=None,
+                review_id=None,
+                review_state=None,
+            )
+            for i in range(10000)
+        ]
 
         thread = ReviewThread(
             thread_id="RT_123",
@@ -1069,5 +1297,5 @@ class TestPerformanceAndLargeData:
         # Test deserialization
         reconstructed = ReviewThread.from_dict(data)
         assert len(reconstructed.comments) == 10000
-        assert reconstructed.comments[0] == "C_0"
-        assert reconstructed.comments[9999] == "C_9999"
+        assert reconstructed.comments[0].comment_id == "C_0"
+        assert reconstructed.comments[9999].comment_id == "C_9999"

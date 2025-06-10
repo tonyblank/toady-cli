@@ -209,7 +209,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with thread not found error in pretty mode."""
-        from toady.resolve_service import ThreadNotFoundError
+        from toady.exceptions import ThreadNotFoundError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ThreadNotFoundError(
@@ -219,14 +219,15 @@ class TestResolveCLI:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "999", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Thread not found: Thread 999 not found" in result.output
+        assert "❌ Thread not found:" in result.output
+        assert "Thread 999 not found" in result.output
 
     @patch("toady.commands.resolve.ResolveService")
     def test_resolve_thread_not_found_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with thread not found error in JSON mode."""
-        from toady.resolve_service import ThreadNotFoundError
+        from toady.exceptions import ThreadNotFoundError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ThreadNotFoundError(
@@ -247,7 +248,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with permission error in pretty mode."""
-        from toady.resolve_service import ThreadPermissionError
+        from toady.exceptions import ThreadPermissionError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ThreadPermissionError(
@@ -257,7 +258,8 @@ class TestResolveCLI:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Permission denied: Permission denied" in result.output
+        assert "❌ Permission denied:" in result.output
+        assert "Permission denied" in result.output
         assert "💡 Ensure you have write access to the repository" in result.output
 
     @patch("toady.commands.resolve.ResolveService")
@@ -265,7 +267,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with permission error in JSON mode."""
-        from toady.resolve_service import ThreadPermissionError
+        from toady.exceptions import ThreadPermissionError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ThreadPermissionError(
@@ -325,7 +327,7 @@ class TestResolveCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with API error in pretty mode."""
-        from toady.resolve_service import ResolveServiceError
+        from toady.exceptions import ResolveServiceError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ResolveServiceError(
@@ -335,14 +337,15 @@ class TestResolveCLI:
 
         result = runner.invoke(cli, ["resolve", "--thread-id", "123456789", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Failed to resolve thread: API request failed" in result.output
+        assert "❌ Failed to resolve thread:" in result.output
+        assert "API request failed" in result.output
 
     @patch("toady.commands.resolve.ResolveService")
     def test_resolve_api_error_json(
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test resolve with API error in JSON mode."""
-        from toady.resolve_service import ResolveServiceError
+        from toady.exceptions import ResolveServiceError
 
         mock_service = Mock()
         mock_service.resolve_thread.side_effect = ResolveServiceError(

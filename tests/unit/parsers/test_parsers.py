@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pytest
 
+from toady.exceptions import GitHubAPIError, ValidationError
 from toady.parsers import GraphQLResponseParser, ResponseValidator
 
 
@@ -121,7 +122,7 @@ class TestGraphQLResponseParser:
 
         invalid_response = {"invalid": "structure"}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             parser.parse_review_threads_response(invalid_response)
         assert "Response missing 'data' field" in str(exc_info.value)
 
@@ -174,7 +175,7 @@ class TestGraphQLResponseParser:
 
         thread_data = {"id": "RT_empty", "isResolved": False, "comments": {"nodes": []}}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             parser._parse_single_review_thread(thread_data)
         assert "has no comments" in str(exc_info.value)
 
@@ -369,7 +370,7 @@ class TestResponseValidator:
 
     def test_validate_graphql_response_not_dict(self) -> None:
         """Test validation fails for non-dictionary response."""
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response("not a dict")
         assert "must be a dictionary" in str(exc_info.value)
 
@@ -377,7 +378,7 @@ class TestResponseValidator:
         """Test validation fails when data field is missing."""
         response = {"errors": []}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
         assert "missing 'data' field" in str(exc_info.value)
 
@@ -387,16 +388,16 @@ class TestResponseValidator:
             "errors": [{"message": "Field not found"}, {"message": "Invalid argument"}]
         }
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(GitHubAPIError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
-        assert "GraphQL errors" in str(exc_info.value)
+        assert "GraphQL API errors" in str(exc_info.value)
         assert "Field not found" in str(exc_info.value)
 
     def test_validate_graphql_response_null_repository(self) -> None:
         """Test validation fails when repository is null."""
         response = {"data": {"repository": None}}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
         assert "Repository not found" in str(exc_info.value)
 
@@ -404,7 +405,7 @@ class TestResponseValidator:
         """Test validation fails when pull request is null."""
         response = {"data": {"repository": {"pullRequest": None}}}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
         assert "Pull request not found" in str(exc_info.value)
 
@@ -418,7 +419,7 @@ class TestResponseValidator:
         """Test validation fails when thread ID is missing."""
         thread_data = {"isResolved": False}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_review_thread_data(thread_data)
         assert "Missing required field 'id'" in str(exc_info.value)
 
@@ -426,7 +427,7 @@ class TestResponseValidator:
         """Test validation fails when comments structure is invalid."""
         thread_data = {"id": "RT_test", "comments": {"invalid": "structure"}}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_review_thread_data(thread_data)
         assert "Missing 'nodes' in comments data" in str(exc_info.value)
 
@@ -456,7 +457,7 @@ class TestResponseValidator:
             # Remove one required field
             del comment_data[missing_field]
 
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(ValidationError) as exc_info:
                 ResponseValidator.validate_comment_data(comment_data)
             assert f"Missing required field '{missing_field}'" in str(exc_info.value)
 

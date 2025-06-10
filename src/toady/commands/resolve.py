@@ -6,6 +6,11 @@ from typing import Any, Dict, List, Tuple
 
 import click
 
+from toady.exceptions import (
+    ResolveServiceError,
+    ThreadNotFoundError,
+    ThreadPermissionError,
+)
 from toady.fetch_service import FetchService, FetchServiceError
 from toady.github_service import (
     GitHubAPIError,
@@ -13,12 +18,7 @@ from toady.github_service import (
     GitHubRateLimitError,
 )
 from toady.node_id_validation import validate_thread_id
-from toady.resolve_service import (
-    ResolveService,
-    ResolveServiceError,
-    ThreadNotFoundError,
-    ThreadPermissionError,
-)
+from toady.resolve_service import ResolveService
 from toady.utils import MAX_PR_NUMBER
 
 

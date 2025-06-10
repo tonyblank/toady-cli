@@ -3,32 +3,21 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+from .exceptions import (
+    GitHubAPIError,
+    ResolveServiceError,
+    ThreadNotFoundError,
+    ThreadPermissionError,
+    ValidationError,
+    create_github_error,
+    create_validation_error,
+)
 from .github_service import (
     RESOLVE_THREAD_MUTATION,
     UNRESOLVE_THREAD_MUTATION,
-    GitHubAPIError,
     GitHubService,
-    GitHubServiceError,
 )
 from .node_id_validation import validate_thread_id
-
-
-class ResolveServiceError(GitHubServiceError):
-    """Base exception for resolve service errors."""
-
-    pass
-
-
-class ThreadNotFoundError(ResolveServiceError):
-    """Raised when the specified thread cannot be found."""
-
-    pass
-
-
-class ThreadPermissionError(ResolveServiceError):
-    """Raised when user lacks permission to resolve/unresolve the thread."""
-
-    pass
 
 
 class ResolveService:
@@ -55,53 +44,94 @@ class ResolveService:
             ResolveServiceError: If the resolve operation fails.
             ThreadNotFoundError: If the thread cannot be found.
             ThreadPermissionError: If user lacks permission to resolve.
+            ValidationError: If the thread ID is invalid.
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            # Validate thread ID
-            validate_thread_id(thread_id)
+            # Validate thread ID with enhanced error handling
+            try:
+                validate_thread_id(thread_id)
+            except ValueError as e:
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value=thread_id,
+                    expected_format="valid GitHub thread ID",
+                    message=f"Invalid thread ID format: {str(e)}",
+                ) from e
 
+            # Execute GraphQL mutation with error handling
             variables = {"threadId": thread_id}
-            result = self.github_service.execute_graphql_query(
-                RESOLVE_THREAD_MUTATION, variables
-            )
+            try:
+                result = self.github_service.execute_graphql_query(
+                    RESOLVE_THREAD_MUTATION, variables
+                )
+            except GitHubAPIError:
+                raise
+            except Exception as e:
+                raise create_github_error(
+                    message=f"Failed to execute resolve mutation: {str(e)}",
+                    api_endpoint="GraphQL resolve mutation",
+                ) from e
 
             # Check for GraphQL errors first
             if "errors" in result:
                 self._handle_graphql_errors(result["errors"], thread_id, "resolve")
 
-            # Extract thread data from response
-            thread_data = (
-                result.get("data", {}).get("resolveReviewThread", {}).get("thread", {})
-            )
-
-            if not thread_data:
-                raise ResolveServiceError(
-                    "No thread data returned from GraphQL mutation"
+            # Extract thread data from response with validation
+            try:
+                thread_data = (
+                    result.get("data", {})
+                    .get("resolveReviewThread", {})
+                    .get("thread", {})
                 )
 
-            return {
-                "thread_id": thread_id,
-                "action": "resolve",
-                "success": True,
-                "is_resolved": str(thread_data.get("isResolved", True)).lower(),
-                "thread_url": thread_data.get(
-                    "url",
-                    f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
-                ),
-            }
+                if not thread_data:
+                    raise ResolveServiceError(
+                        message="No thread data returned from GraphQL mutation",
+                        context={"thread_id": thread_id, "action": "resolve"},
+                    )
 
-        except ValueError as e:
-            raise ResolveServiceError(f"Invalid thread ID: {e}") from e
-        except GitHubAPIError as e:
-            # Handle specific GraphQL errors
-            if "not found" in str(e).lower():
-                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
-            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
-                raise ThreadPermissionError(
-                    f"Permission denied to resolve thread {thread_id}"
+                return {
+                    "thread_id": thread_id,
+                    "action": "resolve",
+                    "success": True,
+                    "is_resolved": str(thread_data.get("isResolved", True)).lower(),
+                    "thread_url": thread_data.get(
+                        "url",
+                        f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
+                    ),
+                }
+            except (KeyError, TypeError, AttributeError) as e:
+                raise ResolveServiceError(
+                    message=(
+                        "Invalid response structure from resolve mutation: " f"{str(e)}"
+                    ),
+                    context={
+                        "thread_id": thread_id,
+                        "action": "resolve",
+                        "response_keys": (
+                            list(result.keys())
+                            if isinstance(result, dict)
+                            else "not_dict"
+                        ),
+                    },
                 ) from e
-            raise ResolveServiceError(f"Failed to resolve thread: {e}") from e
+
+        except (
+            ValidationError,
+            ResolveServiceError,
+            ThreadNotFoundError,
+            ThreadPermissionError,
+            GitHubAPIError,
+        ):
+            # Re-raise our custom exceptions as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors
+            raise ResolveServiceError(
+                message=f"Unexpected error during thread resolution: {str(e)}",
+                context={"thread_id": thread_id, "action": "resolve"},
+            ) from e
 
     def unresolve_thread(self, thread_id: str) -> Dict[str, Any]:
         """Unresolve a review thread.
@@ -116,55 +146,95 @@ class ResolveService:
             ResolveServiceError: If the unresolve operation fails.
             ThreadNotFoundError: If the thread cannot be found.
             ThreadPermissionError: If user lacks permission to unresolve.
+            ValidationError: If the thread ID is invalid.
             GitHubAPIError: If the GitHub API call fails.
         """
         try:
-            # Validate thread ID
-            validate_thread_id(thread_id)
+            # Validate thread ID with enhanced error handling
+            try:
+                validate_thread_id(thread_id)
+            except ValueError as e:
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value=thread_id,
+                    expected_format="valid GitHub thread ID",
+                    message=f"Invalid thread ID format: {str(e)}",
+                ) from e
 
+            # Execute GraphQL mutation with error handling
             variables = {"threadId": thread_id}
-            result = self.github_service.execute_graphql_query(
-                UNRESOLVE_THREAD_MUTATION, variables
-            )
+            try:
+                result = self.github_service.execute_graphql_query(
+                    UNRESOLVE_THREAD_MUTATION, variables
+                )
+            except GitHubAPIError:
+                raise
+            except Exception as e:
+                raise create_github_error(
+                    message=f"Failed to execute unresolve mutation: {str(e)}",
+                    api_endpoint="GraphQL unresolve mutation",
+                ) from e
 
             # Check for GraphQL errors first
             if "errors" in result:
                 self._handle_graphql_errors(result["errors"], thread_id, "unresolve")
 
-            # Extract thread data from response
-            thread_data = (
-                result.get("data", {})
-                .get("unresolveReviewThread", {})
-                .get("thread", {})
-            )
-
-            if not thread_data:
-                raise ResolveServiceError(
-                    "No thread data returned from GraphQL mutation"
+            # Extract thread data from response with validation
+            try:
+                thread_data = (
+                    result.get("data", {})
+                    .get("unresolveReviewThread", {})
+                    .get("thread", {})
                 )
 
-            return {
-                "thread_id": thread_id,
-                "action": "unresolve",
-                "success": True,
-                "is_resolved": str(thread_data.get("isResolved", False)).lower(),
-                "thread_url": thread_data.get(
-                    "url",
-                    f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
-                ),
-            }
+                if not thread_data:
+                    raise ResolveServiceError(
+                        message="No thread data returned from GraphQL mutation",
+                        context={"thread_id": thread_id, "action": "unresolve"},
+                    )
 
-        except ValueError as e:
-            raise ResolveServiceError(f"Invalid thread ID: {e}") from e
-        except GitHubAPIError as e:
-            # Handle specific GraphQL errors
-            if "not found" in str(e).lower():
-                raise ThreadNotFoundError(f"Thread {thread_id} not found") from e
-            if "permission" in str(e).lower() or "forbidden" in str(e).lower():
-                raise ThreadPermissionError(
-                    f"Permission denied to unresolve thread {thread_id}"
+                return {
+                    "thread_id": thread_id,
+                    "action": "unresolve",
+                    "success": True,
+                    "is_resolved": str(thread_data.get("isResolved", False)).lower(),
+                    "thread_url": thread_data.get(
+                        "url",
+                        f"https://github.com/tonyblank/toady-cli/pull/123#discussion_r{thread_id}",
+                    ),
+                }
+            except (KeyError, TypeError, AttributeError) as e:
+                raise ResolveServiceError(
+                    message=(
+                        "Invalid response structure from unresolve mutation: "
+                        f"{str(e)}"
+                    ),
+                    context={
+                        "thread_id": thread_id,
+                        "action": "unresolve",
+                        "response_keys": (
+                            list(result.keys())
+                            if isinstance(result, dict)
+                            else "not_dict"
+                        ),
+                    },
                 ) from e
-            raise ResolveServiceError(f"Failed to unresolve thread: {e}") from e
+
+        except (
+            ValidationError,
+            ResolveServiceError,
+            ThreadNotFoundError,
+            ThreadPermissionError,
+            GitHubAPIError,
+        ):
+            # Re-raise our custom exceptions as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors
+            raise ResolveServiceError(
+                message=f"Unexpected error during thread unresolution: {str(e)}",
+                context={"thread_id": thread_id, "action": "unresolve"},
+            ) from e
 
     def _handle_graphql_errors(
         self, errors: List[Dict[str, Any]], thread_id: str, action: str
@@ -181,30 +251,86 @@ class ResolveService:
             ThreadPermissionError: If permission is denied.
             ResolveServiceError: For other GraphQL errors.
         """
-        error_messages = []
-        for error in errors:
-            message = error.get("message", str(error))
-
-            # Check for specific error types
-            if "not found" in message.lower() or "does not exist" in message.lower():
-                raise ThreadNotFoundError(f"Thread {thread_id} not found")
-            elif (
-                "permission" in message.lower()
-                or "forbidden" in message.lower()
-                or "not accessible" in message.lower()
-            ):
-                raise ThreadPermissionError(
-                    f"Permission denied: cannot {action} thread {thread_id}. "
-                    "Ensure you have write access to the repository."
+        try:
+            if not isinstance(errors, list):
+                raise ResolveServiceError(
+                    message=(
+                        f"Invalid GraphQL errors format: expected list, "
+                        f"got {type(errors).__name__}"
+                    ),
+                    context={"thread_id": thread_id, "action": action},
                 )
 
-            error_messages.append(message)
+            error_messages = []
+            for i, error in enumerate(errors):
+                try:
+                    if not isinstance(error, dict):
+                        # mypy: disable-error-code=unreachable
+                        error_messages.append(
+                            f"Invalid error format at index {i}: {str(error)}"
+                        )
+                        continue
 
-        # If we get here, it's a generic GraphQL error
-        combined_message = "; ".join(error_messages)
-        raise ResolveServiceError(
-            f"Failed to {action} thread {thread_id}: {combined_message}"
-        )
+                    message = error.get("message", str(error))
+
+                    # Check for specific error types and handle them
+                    message_lower = message.lower()
+
+                    if (
+                        "not found" in message_lower
+                        or "does not exist" in message_lower
+                    ):
+                        raise ThreadNotFoundError(
+                            message=f"Thread {thread_id} not found",
+                            thread_id=thread_id,
+                        )
+                    elif (
+                        "permission" in message_lower
+                        or "forbidden" in message_lower
+                        or "not accessible" in message_lower
+                    ):
+                        raise ThreadPermissionError(
+                            message=(
+                                f"Permission denied: cannot {action} thread "
+                                f"{thread_id}. Ensure you have write access to the "
+                                "repository."
+                            ),
+                            thread_id=thread_id,
+                        )
+                    else:
+                        # If we get here, it's a generic error message
+                        error_messages.append(message)
+                except (ThreadNotFoundError, ThreadPermissionError):
+                    # Re-raise these immediately
+                    raise
+                except Exception as e:
+                    # Continue processing other errors
+                    error_messages.append(
+                        f"Error processing GraphQL error {i}: {str(e)}"
+                    )
+
+            # If we get here, it's a generic GraphQL error
+            combined_message = (
+                "; ".join(error_messages) if error_messages else "Unknown GraphQL error"
+            )
+            raise ResolveServiceError(
+                message=f"Failed to {action} thread {thread_id}: {combined_message}",
+                context={
+                    "thread_id": thread_id,
+                    "action": action,
+                    "error_count": len(errors),
+                },
+            )
+
+        except (ThreadNotFoundError, ThreadPermissionError, ResolveServiceError):
+            # Re-raise our custom exceptions as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors in error handling
+            raise ResolveServiceError(
+                message=f"Error processing GraphQL errors during {action}: {str(e)}",
+                context={"thread_id": thread_id, "action": action},
+            ) from e
 
     def validate_thread_exists(
         self, owner: str, repo: str, pull_number: int, thread_id: str
@@ -224,11 +350,42 @@ class ResolveService:
             True if the thread exists, False otherwise.
 
         Raises:
+            ValidationError: If input parameters are invalid.
             ResolveServiceError: If there's an API error that prevents validation.
         """
         logger = logging.getLogger(__name__)
 
         try:
+            # Validate input parameters
+            if not isinstance(owner, str) or not owner.strip():
+                raise create_validation_error(
+                    field_name="owner",
+                    invalid_value=owner,
+                    expected_format="non-empty string",
+                    message="Repository owner must be a non-empty string",
+                )
+            if not isinstance(repo, str) or not repo.strip():
+                raise create_validation_error(
+                    field_name="repo",
+                    invalid_value=repo,
+                    expected_format="non-empty string",
+                    message="Repository name must be a non-empty string",
+                )
+            if not isinstance(pull_number, int) or pull_number <= 0:
+                raise create_validation_error(
+                    field_name="pull_number",
+                    invalid_value=pull_number,
+                    expected_format="positive integer",
+                    message="Pull request number must be a positive integer",
+                )
+            if not isinstance(thread_id, str) or not thread_id.strip():
+                raise create_validation_error(
+                    field_name="thread_id",
+                    invalid_value=thread_id,
+                    expected_format="non-empty string",
+                    message="Thread ID must be a non-empty string",
+                )
+
             # Query the specific thread directly using the GitHub GraphQL node interface
             # This is more efficient than fetching all threads and avoids pagination
             query = """
@@ -262,81 +419,117 @@ class ResolveService:
                 "number": pull_number,
             }
 
-            result = self.github_service.execute_graphql_query(query, variables)
+            try:
+                result = self.github_service.execute_graphql_query(query, variables)
+            except GitHubAPIError:
+                raise
+            except Exception as e:
+                raise create_github_error(
+                    message=f"Failed to execute thread validation query: {str(e)}",
+                    api_endpoint="GraphQL node validation",
+                ) from e
 
-            # Check for GraphQL errors
+            # Check for GraphQL errors with enhanced handling
             if "errors" in result:
-                error_messages = [
-                    error.get("message", str(error)) for error in result["errors"]
-                ]
-                logger.warning(
-                    "GraphQL errors during thread validation for thread %s: %s",
+                try:
+                    error_messages = []
+                    for error in result["errors"]:
+                        if isinstance(error, dict):
+                            error_messages.append(error.get("message", str(error)))
+                        else:
+                            error_messages.append(str(error))
+
+                    logger.warning(
+                        "GraphQL errors during thread validation for thread %s: %s",
+                        thread_id,
+                        "; ".join(error_messages),
+                    )
+                    # For validation, GraphQL errors typically mean the thread
+                    # doesn't exist
+                    # or we don't have access to it, so return False
+                    return False
+                except Exception as e:
+                    logger.warning(
+                        "Error processing GraphQL errors during thread validation: %s",
+                        str(e),
+                    )
+                    return False
+
+            # Extract the thread node from response with error handling
+            try:
+                thread_node = result.get("data", {}).get("node")
+
+                if not thread_node:
+                    # Thread doesn't exist or is not a PullRequestReviewThread
+                    return False
+
+                # Verify the thread belongs to the correct PR and repository
+                pull_request = thread_node.get("pullRequest", {})
+                if not isinstance(pull_request, dict):
+                    logger.warning(
+                        "Invalid pullRequest structure for thread %s",
+                        thread_id,
+                    )
+                    return False
+
+                if pull_request.get("number") != pull_number:
+                    logger.warning(
+                        "Thread %s exists but belongs to PR #%d, not #%d",
+                        thread_id,
+                        pull_request.get("number", -1),
+                        pull_number,
+                    )
+                    return False
+
+                repository = pull_request.get("repository", {})
+                if not isinstance(repository, dict):
+                    logger.warning(
+                        "Invalid repository structure for thread %s",
+                        thread_id,
+                    )
+                    return False
+
+                repo_owner = repository.get("owner", {}).get("login", "")
+                repo_name = repository.get("name", "")
+
+                if repo_owner != owner or repo_name != repo:
+                    logger.warning(
+                        "Thread %s exists but belongs to %s/%s, not %s/%s",
+                        thread_id,
+                        repo_owner,
+                        repo_name,
+                        owner,
+                        repo,
+                    )
+                    return False
+
+                return True
+
+            except (KeyError, TypeError, AttributeError) as e:
+                logger.error(
+                    (
+                        "Unexpected response structure during thread validation "
+                        "for thread %s: %s"
+                    ),
                     thread_id,
-                    "; ".join(error_messages),
+                    str(e),
                 )
-                # For validation, GraphQL errors typically mean the thread doesn't exist
-                # or we don't have access to it, so return False
-                return False
+                raise ResolveServiceError(
+                    message=(
+                        "Failed to validate thread existence due to unexpected "
+                        f"response structure: {str(e)}"
+                    ),
+                    context={
+                        "thread_id": thread_id,
+                        "owner": owner,
+                        "repo": repo,
+                        "pull_number": pull_number,
+                    },
+                ) from e
 
-            # Extract the thread node from response
-            thread_node = result.get("data", {}).get("node")
-
-            if not thread_node:
-                # Thread doesn't exist or is not a PullRequestReviewThread
-                return False
-
-            # Verify the thread belongs to the correct PR and repository
-            pull_request = thread_node.get("pullRequest", {})
-            if pull_request.get("number") != pull_number:
-                logger.warning(
-                    "Thread %s exists but belongs to PR #%d, not #%d",
-                    thread_id,
-                    pull_request.get("number", -1),
-                    pull_number,
-                )
-                return False
-
-            repository = pull_request.get("repository", {})
-            repo_owner = repository.get("owner", {}).get("login", "")
-            repo_name = repository.get("name", "")
-
-            if repo_owner != owner or repo_name != repo:
-                logger.warning(
-                    "Thread %s exists but belongs to %s/%s, not %s/%s",
-                    thread_id,
-                    repo_owner,
-                    repo_name,
-                    owner,
-                    repo,
-                )
-                return False
-
-            return True
-
-        except GitHubAPIError as e:
-            logger.error(
-                "GitHub API error during thread validation for thread %s in %s/%s "
-                "PR #%d: %s",
-                thread_id,
-                owner,
-                repo,
-                pull_number,
-                str(e),
-            )
-            raise ResolveServiceError(
-                f"Failed to validate thread existence due to API error: {e}"
-            ) from e
-        except KeyError as e:
-            logger.error(
-                "Unexpected response structure during thread validation for thread %s: "
-                "missing key %s",
-                thread_id,
-                str(e),
-            )
-            raise ResolveServiceError(
-                f"Failed to validate thread existence due to unexpected response "
-                f"structure: {e}"
-            ) from e
+        except (ValidationError, ResolveServiceError, GitHubAPIError):
+            # Re-raise our custom exceptions as-is
+            raise
         except Exception as e:
             logger.error(
                 "Unexpected error during thread validation for thread %s in %s/%s "
@@ -348,5 +541,14 @@ class ResolveService:
                 str(e),
             )
             raise ResolveServiceError(
-                f"Failed to validate thread existence due to unexpected error: {e}"
+                message=(
+                    "Failed to validate thread existence due to unexpected "
+                    f"error: {str(e)}"
+                ),
+                context={
+                    "thread_id": thread_id,
+                    "owner": owner,
+                    "repo": repo,
+                    "pull_number": pull_number,
+                },
             ) from e

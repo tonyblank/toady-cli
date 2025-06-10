@@ -467,13 +467,23 @@ def validate_datetime_string(date_str: str, field_name: str = "Date") -> datetim
         from .utils import parse_datetime
 
         return parse_datetime(date_str)
-    except ValueError as e:
-        raise create_validation_error(
-            field_name=field_name,
-            invalid_value=date_str,
-            expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
-            message=f"Invalid {field_name.lower()} format: {str(e)}",
-        ) from e
+    except (ValueError, ValidationError) as e:
+        # If it's already a ValidationError, check if it has the expected message format
+        if isinstance(e, ValidationError):
+            # Re-raise with a more user-friendly message but preserve the original
+            raise create_validation_error(
+                field_name=field_name,
+                invalid_value=date_str,
+                expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
+                message=f"Invalid {field_name.lower()} format",
+            ) from e
+        else:
+            raise create_validation_error(
+                field_name=field_name,
+                invalid_value=date_str,
+                expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
+                message=f"Invalid {field_name.lower()} format: {str(e)}",
+            ) from e
 
 
 def validate_email(email: str, field_name: str = "Email") -> str:
