@@ -745,13 +745,6 @@ class ResponseValidator:
                         message=f"GraphQL API errors: {'; '.join(error_messages)}",
                         api_endpoint="GraphQL",
                     )
-                else:
-                    raise create_validation_error(
-                        field_name="data",
-                        invalid_value="missing",
-                        expected_format="data field in GraphQL response",
-                        message="Response missing 'data' field",
-                    )
             raise create_validation_error(
                 field_name="data",
                 invalid_value="missing",
