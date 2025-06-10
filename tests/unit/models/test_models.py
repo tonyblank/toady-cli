@@ -176,7 +176,7 @@ class TestReviewThread:
             "start_line": None,
             "original_start_line": None,
             "diff_side": None,
-            "is_outdated": None,
+            "is_outdated": False,
         }
 
     def test_from_dict_valid(self) -> None:

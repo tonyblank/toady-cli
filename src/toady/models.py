@@ -69,7 +69,7 @@ class ReviewThread:
     start_line: Optional[int] = None
     original_start_line: Optional[int] = None
     diff_side: Optional[str] = None
-    is_outdated: Optional[bool] = None
+    is_outdated: bool = False
 
     # Valid status values
     VALID_STATUSES = {"RESOLVED", "UNRESOLVED", "PENDING", "OUTDATED", "DISMISSED"}
@@ -297,7 +297,7 @@ class ReviewThread:
             start_line=data.get("start_line"),
             original_start_line=data.get("original_start_line"),
             diff_side=data.get("diff_side"),
-            is_outdated=data.get("is_outdated"),
+            is_outdated=bool(data.get("is_outdated", False)),
         )
 
     @property

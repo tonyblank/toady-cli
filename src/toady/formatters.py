@@ -5,6 +5,7 @@ with the new formatter interface system.
 """
 
 import json
+import textwrap
 from typing import List, Optional
 
 import click
@@ -69,36 +70,24 @@ class PrettyFormatter:
         if not text:
             return ""
 
-        lines = []
-        # Split by existing newlines first
+        wrapper = textwrap.TextWrapper(
+            width=width,
+            initial_indent=indent,
+            subsequent_indent=indent,
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+
         paragraphs = text.split("\n")
+        wrapped_paragraphs = []
 
         for paragraph in paragraphs:
-            if not paragraph.strip():
-                lines.append("")
-                continue
+            if paragraph.strip():
+                wrapped_paragraphs.append(wrapper.fill(paragraph))
+            else:
+                wrapped_paragraphs.append("")
 
-            # Simple word wrapping
-            words = paragraph.split()
-            current_line = ""
-
-            for word in words:
-                test_line = f"{current_line} {word}".strip()
-                if len(test_line) <= width:
-                    current_line = test_line
-                else:
-                    if current_line:
-                        lines.append(f"{indent}{current_line}")
-                        current_line = word
-                    else:
-                        # Word is longer than width, just add it
-                        lines.append(f"{indent}{word}")
-                        current_line = ""
-
-            if current_line:
-                lines.append(f"{indent}{current_line}")
-
-        return "\n".join(lines)
+        return "\n".join(wrapped_paragraphs)
 
     @staticmethod
     def _format_file_context(thread: ReviewThread) -> str:

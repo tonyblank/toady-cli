@@ -157,7 +157,7 @@ class GraphQLResponseParser:
             start_line = thread_data.get("startLine")
             original_start_line = thread_data.get("originalStartLine")
             diff_side = thread_data.get("diffSide")
-            is_outdated = thread_data.get("isOutdated", False)
+            is_outdated = bool(thread_data.get("isOutdated", False))
 
             return ReviewThread(
                 thread_id=thread_id,
