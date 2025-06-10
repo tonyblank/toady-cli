@@ -6,7 +6,7 @@ from typing import Any, Dict
 import pytest
 
 from toady.exceptions import ValidationError
-from toady.models import Comment, PullRequest, ReviewThread
+from toady.models import Comment, PullRequest, ReviewThread, _parse_datetime
 
 
 class TestReviewThread:
@@ -475,7 +475,7 @@ class TestReviewThread:
     def test_parse_datetime_unparseable(self) -> None:
         """Test handling of completely unparseable datetime."""
         with pytest.raises(ValidationError, match="Unable to parse datetime"):
-            ReviewThread._parse_datetime("not a date")
+            _parse_datetime("not a date")
 
 
 class TestComment:

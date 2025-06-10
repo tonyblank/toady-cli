@@ -8,6 +8,33 @@ from .exceptions import ValidationError, create_validation_error
 from .utils import parse_datetime
 
 
+def _parse_datetime(date_str: str) -> datetime:
+    """Parse datetime string in various ISO formats.
+
+    Args:
+        date_str: Date string in ISO format
+
+    Returns:
+        datetime object
+
+    Raises:
+        ValidationError: If date string cannot be parsed
+    """
+    try:
+        return parse_datetime(date_str)
+    except Exception as e:
+        # parse_datetime now raises ValidationError, but handle any edge cases
+        if hasattr(e, "error_code"):
+            # Already a ValidationError
+            raise
+        raise create_validation_error(
+            field_name="date_str",
+            invalid_value=date_str,
+            expected_format="ISO datetime string",
+            message=f"Failed to parse datetime: {str(e)}",
+        ) from e
+
+
 @dataclass
 class ReviewThread:
     """Represents a GitHub pull request review thread.
@@ -206,7 +233,7 @@ class ReviewThread:
 
         # Parse dates
         try:
-            created_at = cls._parse_datetime(data["created_at"])
+            created_at = _parse_datetime(data["created_at"])
         except (ValueError, ValidationError) as err:
             raise create_validation_error(
                 field_name="created_at",
@@ -216,7 +243,7 @@ class ReviewThread:
             ) from err
 
         try:
-            updated_at = cls._parse_datetime(data["updated_at"])
+            updated_at = _parse_datetime(data["updated_at"])
         except (ValueError, ValidationError) as err:
             raise create_validation_error(
                 field_name="updated_at",
@@ -244,33 +271,6 @@ class ReviewThread:
             author=data["author"],
             comments=comments,
         )
-
-    @staticmethod
-    def _parse_datetime(date_str: str) -> datetime:
-        """Parse datetime string in various ISO formats.
-
-        Args:
-            date_str: Date string in ISO format
-
-        Returns:
-            datetime object
-
-        Raises:
-            ValidationError: If date string cannot be parsed
-        """
-        try:
-            return parse_datetime(date_str)
-        except Exception as e:
-            # parse_datetime now raises ValidationError, but handle any edge cases
-            if hasattr(e, "error_code"):
-                # Already a ValidationError
-                raise
-            raise create_validation_error(
-                field_name="date_str",
-                invalid_value=date_str,
-                expected_format="ISO datetime string",
-                message=f"Failed to parse datetime: {str(e)}",
-            ) from e
 
     @property
     def is_resolved(self) -> bool:
@@ -511,7 +511,7 @@ class Comment:
 
             # Parse dates with enhanced error handling
             try:
-                created_at = cls._parse_datetime(data["created_at"])
+                created_at = _parse_datetime(data["created_at"])
             except (ValueError, ValidationError) as err:
                 raise create_validation_error(
                     field_name="created_at",
@@ -521,7 +521,7 @@ class Comment:
                 ) from err
 
             try:
-                updated_at = cls._parse_datetime(data["updated_at"])
+                updated_at = _parse_datetime(data["updated_at"])
             except (ValueError, ValidationError) as err:
                 raise create_validation_error(
                     field_name="updated_at",
@@ -563,33 +563,6 @@ class Comment:
                 invalid_value=str(type(data)),
                 expected_format="valid dictionary for Comment creation",
                 message=f"Unexpected error creating Comment from dictionary: {str(e)}",
-            ) from e
-
-    @staticmethod
-    def _parse_datetime(date_str: str) -> datetime:
-        """Parse datetime string in various ISO formats.
-
-        Args:
-            date_str: Date string in ISO format
-
-        Returns:
-            datetime object
-
-        Raises:
-            ValidationError: If date string cannot be parsed
-        """
-        try:
-            return parse_datetime(date_str)
-        except Exception as e:
-            # parse_datetime now raises ValidationError, but handle any edge cases
-            if hasattr(e, "error_code"):
-                # Already a ValidationError
-                raise
-            raise create_validation_error(
-                field_name="date_str",
-                invalid_value=date_str,
-                expected_format="ISO datetime string",
-                message=f"Failed to parse datetime: {str(e)}",
             ) from e
 
     def __str__(self) -> str:
@@ -850,7 +823,7 @@ class PullRequest:
 
         # Parse dates
         try:
-            created_at = cls._parse_datetime(data["created_at"])
+            created_at = _parse_datetime(data["created_at"])
         except (ValueError, ValidationError) as err:
             raise create_validation_error(
                 field_name="created_at",
@@ -860,7 +833,7 @@ class PullRequest:
             ) from err
 
         try:
-            updated_at = cls._parse_datetime(data["updated_at"])
+            updated_at = _parse_datetime(data["updated_at"])
         except (ValueError, ValidationError) as err:
             raise create_validation_error(
                 field_name="updated_at",
@@ -883,33 +856,6 @@ class PullRequest:
             review_thread_count=data["review_thread_count"],
             node_id=data.get("node_id"),
         )
-
-    @staticmethod
-    def _parse_datetime(date_str: str) -> datetime:
-        """Parse datetime string in various ISO formats.
-
-        Args:
-            date_str: Date string in ISO format
-
-        Returns:
-            datetime object
-
-        Raises:
-            ValidationError: If date string cannot be parsed
-        """
-        try:
-            return parse_datetime(date_str)
-        except Exception as e:
-            # parse_datetime now raises ValidationError, but handle any edge cases
-            if hasattr(e, "error_code"):
-                # Already a ValidationError
-                raise
-            raise create_validation_error(
-                field_name="date_str",
-                invalid_value=date_str,
-                expected_format="ISO datetime string",
-                message=f"Failed to parse datetime: {str(e)}",
-            ) from e
 
     def __str__(self) -> str:
         """Return a human-readable string representation."""
