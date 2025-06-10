@@ -256,42 +256,53 @@ class ErrorMessageFormatter:
         Returns:
             Formatted error message with suggestions.
         """
-        if isinstance(error, GitHubCLINotFoundError):
-            return ErrorMessageTemplates.GITHUB_CLI_NOT_FOUND
-        elif isinstance(error, GitHubAuthenticationError):
-            return ErrorMessageTemplates.GITHUB_AUTH_ERROR
-        elif isinstance(error, GitHubRateLimitError):
+        # Dictionary mapping for simple error types with static templates
+        simple_error_templates = {
+            GitHubCLINotFoundError: ErrorMessageTemplates.GITHUB_CLI_NOT_FOUND,
+            GitHubAuthenticationError: ErrorMessageTemplates.GITHUB_AUTH_ERROR,
+            GitHubPermissionError: ErrorMessageTemplates.GITHUB_PERMISSION_ERROR,
+            NetworkError: ErrorMessageTemplates.NETWORK_ERROR,
+        }
+
+        # Check simple mappings first
+        error_type = type(error)
+        if error_type in simple_error_templates:
+            return simple_error_templates[error_type]
+
+        # Handle errors requiring dynamic content assembly
+        if isinstance(error, GitHubRateLimitError):
             template = ErrorMessageTemplates.GITHUB_RATE_LIMIT
             if hasattr(error, "reset_time") and error.reset_time:
                 template += f"\n🕒 Rate limit resets at: {error.reset_time}"
             return template
-        elif isinstance(error, GitHubNotFoundError):
+
+        if isinstance(error, GitHubNotFoundError):
             template = ErrorMessageTemplates.GITHUB_NOT_FOUND
             if hasattr(error, "resource_type") and error.resource_type:
                 template = template.replace("resource", error.resource_type)
             return template
-        elif isinstance(error, GitHubPermissionError):
-            return ErrorMessageTemplates.GITHUB_PERMISSION_ERROR
-        elif isinstance(error, ValidationError):
+
+        if isinstance(error, ValidationError):
             template = ErrorMessageTemplates.VALIDATION_ERROR
             if hasattr(error, "field_name") and error.field_name:
                 template += f"\n❌ Problem with: {error.field_name}"
             if hasattr(error, "expected_format") and error.expected_format:
                 template += f"\n📋 Expected format: {error.expected_format}"
             return template
-        elif isinstance(error, NetworkError):
-            return ErrorMessageTemplates.NETWORK_ERROR
-        elif isinstance(error, CommandExecutionError):
+
+        if isinstance(error, CommandExecutionError):
             template = ErrorMessageTemplates.COMMAND_EXECUTION_ERROR
             if hasattr(error, "command") and error.command:
                 template += f"\n💻 Failed command: {error.command}"
             return template
-        elif isinstance(error, FileOperationError):
+
+        if isinstance(error, FileOperationError):
             template = ErrorMessageTemplates.FILE_OPERATION_ERROR
             if hasattr(error, "file_path") and error.file_path:
                 template += f"\n📁 File path: {error.file_path}"
             return template
-        elif isinstance(error, ToadyError):
+
+        if isinstance(error, ToadyError):
             # For other ToadyError subclasses, show the message with suggestions
             message = f"❌ {error.message}\n"
             if error.suggestions:
@@ -299,12 +310,11 @@ class ErrorMessageFormatter:
                 for suggestion in error.suggestions:
                     message += f"   • {suggestion}\n"
             return message
-        else:
-            # For unexpected errors, use the generic template
-            return (
-                ErrorMessageTemplates.GENERIC_ERROR
-                + f"\n\n🔍 Error details: {str(error)}"
-            )
+
+        # For unexpected errors, use the generic template
+        return (
+            ErrorMessageTemplates.GENERIC_ERROR + f"\n\n🔍 Error details: {str(error)}"
+        )
 
     @staticmethod
     def get_exit_code(error: Exception) -> int:
@@ -316,42 +326,38 @@ class ErrorMessageFormatter:
         Returns:
             Appropriate exit code integer.
         """
-        if isinstance(error, GitHubCLINotFoundError):
-            return ExitCode.GITHUB_CLI_NOT_FOUND
-        elif isinstance(error, GitHubAuthenticationError):
-            return ExitCode.GITHUB_AUTH_ERROR
-        elif isinstance(error, GitHubRateLimitError):
-            return ExitCode.GITHUB_RATE_LIMIT
-        elif isinstance(error, GitHubNotFoundError):
-            return ExitCode.GITHUB_NOT_FOUND
-        elif isinstance(error, GitHubPermissionError):
-            return ExitCode.GITHUB_PERMISSION_ERROR
-        elif isinstance(error, GitHubTimeoutError):
-            return ExitCode.GITHUB_TIMEOUT
-        elif isinstance(error, GitHubAPIError):
-            return ExitCode.GITHUB_ERROR
-        elif isinstance(error, ValidationError):
-            return ExitCode.VALIDATION_ERROR
-        elif isinstance(error, NetworkError):
-            return ExitCode.NETWORK_ERROR
-        elif isinstance(error, CommandExecutionError):
-            return ExitCode.COMMAND_ERROR
-        elif isinstance(error, FileOperationError):
-            return ExitCode.FILE_NOT_FOUND
-        elif isinstance(error, ConfigurationError):
-            return ExitCode.CONFIGURATION_ERROR
-        elif isinstance(error, ToadyError):
-            # Map error codes to exit codes
-            if error.error_code == ErrorCode.FETCH_SERVICE_ERROR:
-                return ExitCode.FETCH_ERROR
-            elif error.error_code == ErrorCode.REPLY_SERVICE_ERROR:
-                return ExitCode.REPLY_ERROR
-            elif error.error_code == ErrorCode.RESOLVE_SERVICE_ERROR:
-                return ExitCode.RESOLVE_ERROR
-            else:
-                return ExitCode.GENERAL_ERROR
-        else:
-            return ExitCode.GENERAL_ERROR
+        # Dictionary mapping for direct exception type to exit code mapping
+        exit_code_mapping = {
+            GitHubCLINotFoundError: ExitCode.GITHUB_CLI_NOT_FOUND,
+            GitHubAuthenticationError: ExitCode.GITHUB_AUTH_ERROR,
+            GitHubRateLimitError: ExitCode.GITHUB_RATE_LIMIT,
+            GitHubNotFoundError: ExitCode.GITHUB_NOT_FOUND,
+            GitHubPermissionError: ExitCode.GITHUB_PERMISSION_ERROR,
+            GitHubTimeoutError: ExitCode.GITHUB_TIMEOUT,
+            GitHubAPIError: ExitCode.GITHUB_ERROR,
+            ValidationError: ExitCode.VALIDATION_ERROR,
+            NetworkError: ExitCode.NETWORK_ERROR,
+            CommandExecutionError: ExitCode.COMMAND_ERROR,
+            FileOperationError: ExitCode.FILE_NOT_FOUND,
+            ConfigurationError: ExitCode.CONFIGURATION_ERROR,
+        }
+
+        # Check direct exception type mapping
+        error_type = type(error)
+        if error_type in exit_code_mapping:
+            return exit_code_mapping[error_type]
+
+        # Handle ToadyError with error code mapping
+        if isinstance(error, ToadyError):
+            error_code_mapping = {
+                ErrorCode.FETCH_SERVICE_ERROR: ExitCode.FETCH_ERROR,
+                ErrorCode.REPLY_SERVICE_ERROR: ExitCode.REPLY_ERROR,
+                ErrorCode.RESOLVE_SERVICE_ERROR: ExitCode.RESOLVE_ERROR,
+            }
+            return error_code_mapping.get(error.error_code, ExitCode.GENERAL_ERROR)
+
+        # Default fallback
+        return ExitCode.GENERAL_ERROR
 
 
 def handle_error(error: Exception, show_traceback: bool = False) -> None:
@@ -378,7 +384,6 @@ def handle_error(error: Exception, show_traceback: bool = False) -> None:
 
 
 def create_user_friendly_error(
-    error_type: str,  # noqa: ARG001
     message: str,
     suggestions: Optional[List[str]] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -386,7 +391,6 @@ def create_user_friendly_error(
     """Create a user-friendly error message.
 
     Args:
-        error_type: Type of error (e.g., "validation", "github", "network").
         message: The main error message.
         suggestions: List of suggestions for resolving the error.
         context: Additional context information.

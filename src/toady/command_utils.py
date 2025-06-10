@@ -37,6 +37,7 @@ def handle_command_errors(func: Callable[..., Any]) -> Callable[..., Any]:
                 debug = False
 
             handle_error(e, show_traceback=debug)
+            # Note: handle_error calls sys.exit() and never returns
         except Exception:
             # For unexpected errors, let them bubble up to main()
             raise

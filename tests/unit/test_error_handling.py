@@ -253,14 +253,13 @@ class TestCreateUserFriendlyError:
 
     def test_create_basic_error(self):
         """Test creating basic error message."""
-        message = create_user_friendly_error("validation", "Invalid input provided")
+        message = create_user_friendly_error("Invalid input provided")
 
         assert "❌ Invalid input provided" in message
 
     def test_create_error_with_suggestions(self):
         """Test creating error message with suggestions."""
         message = create_user_friendly_error(
-            "github",
             "Authentication failed",
             suggestions=["Run 'gh auth login'", "Check permissions"],
         )
@@ -273,7 +272,6 @@ class TestCreateUserFriendlyError:
     def test_create_error_with_context(self):
         """Test creating error message with context."""
         message = create_user_friendly_error(
-            "file",
             "File operation failed",
             context={"file_path": "/path/to/file", "operation": "read"},
         )
@@ -286,7 +284,6 @@ class TestCreateUserFriendlyError:
     def test_create_error_with_suggestions_and_context(self):
         """Test creating error message with both suggestions and context."""
         message = create_user_friendly_error(
-            "network",
             "Connection failed",
             suggestions=["Check internet connection"],
             context={"url": "https://api.github.com"},

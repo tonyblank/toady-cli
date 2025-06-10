@@ -82,6 +82,7 @@ def fetch(
 
     except Exception as e:
         # Import here to avoid circular imports
+        from toady.error_handling import ErrorMessageFormatter
         from toady.exceptions import (
             FetchServiceError,
             GitHubAPIError,
@@ -91,30 +92,35 @@ def fetch(
         )
         from toady.utils import emit_error
 
-        # Use new error handling for pretty output, old system for JSON
+        # Unified error handling approach - use new system for both modes
         if pretty:
-            from toady.error_handling import ErrorMessageFormatter
-
             message = ErrorMessageFormatter.format_error(e)
             click.echo(message, err=True)
             exit_code = ErrorMessageFormatter.get_exit_code(e)
             ctx.exit(exit_code)
         else:
-            # Handle specific error types for JSON output compatibility
-            if isinstance(e, GitHubAuthenticationError):
-                emit_error(ctx, pr_number, "authentication_failed", str(e), pretty)
-            elif isinstance(e, GitHubTimeoutError):
-                emit_error(ctx, pr_number, "timeout", str(e), pretty)
-            elif isinstance(e, GitHubRateLimitError):
-                emit_error(ctx, pr_number, "rate_limit_exceeded", str(e), pretty)
-            elif isinstance(e, GitHubAPIError):
-                if "404" in str(e) or "not found" in str(e).lower():
-                    emit_error(ctx, pr_number, "pr_not_found", str(e), pretty)
-                elif "403" in str(e) or "forbidden" in str(e).lower():
-                    emit_error(ctx, pr_number, "permission_denied", str(e), pretty)
+            # JSON mode: use centralized error mapping for consistency
+            error_mapping = {
+                GitHubAuthenticationError: "authentication_failed",
+                GitHubTimeoutError: "timeout",
+                GitHubRateLimitError: "rate_limit_exceeded",
+                FetchServiceError: "service_error",
+            }
+
+            error_type = "internal_error"  # default
+            for exception_class, error_code in error_mapping.items():
+                if isinstance(e, exception_class):
+                    error_type = error_code
+                    break
+
+            # Special handling for GitHubAPIError based on message content
+            if isinstance(e, GitHubAPIError):
+                error_msg = str(e).lower()
+                if "404" in error_msg or "not found" in error_msg:
+                    error_type = "pr_not_found"
+                elif "403" in error_msg or "forbidden" in error_msg:
+                    error_type = "permission_denied"
                 else:
-                    emit_error(ctx, pr_number, "api_error", str(e), pretty)
-            elif isinstance(e, FetchServiceError):
-                emit_error(ctx, pr_number, "service_error", str(e), pretty)
-            else:
-                emit_error(ctx, pr_number, "internal_error", str(e), pretty)
+                    error_type = "api_error"
+
+            emit_error(ctx, pr_number, error_type, str(e), pretty)
