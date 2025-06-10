@@ -20,7 +20,6 @@ class TestPRSelector:
 
         # Create test PRs
         self.pr1 = PullRequest(
-            pr_id="PR_kwDOAbc123_1",
             number=1,
             title="First PR",
             author="user1",
@@ -31,10 +30,10 @@ class TestPRSelector:
             updated_at=datetime(2023, 1, 1, 11, 0, 0),
             url="https://github.com/owner/repo/pull/1",
             review_thread_count=2,
+            node_id="PR_kwDOAbc123_1",
         )
 
         self.pr2 = PullRequest(
-            pr_id="PR_kwDOAbc123_2",
             number=2,
             title="Second PR (Draft)",
             author="user2",
@@ -45,10 +44,10 @@ class TestPRSelector:
             updated_at=datetime(2023, 1, 2, 12, 0, 0),
             url="https://github.com/owner/repo/pull/2",
             review_thread_count=0,
+            node_id="PR_kwDOAbc123_2",
         )
 
         self.pr3 = PullRequest(
-            pr_id="PR_kwDOAbc123_3",
             number=3,
             title="Third PR with very long title that should be displayed properly",
             author="user3",
@@ -59,6 +58,7 @@ class TestPRSelector:
             updated_at=datetime(2023, 1, 3, 13, 0, 0),
             url="https://github.com/owner/repo/pull/3",
             review_thread_count=5,
+            node_id="PR_kwDOAbc123_3",
         )
 
     def test_init(self):
@@ -176,7 +176,7 @@ class TestPRSelector:
         """Test that PRs are sorted by update time (most recent first)."""
         # Create PRs with different update times
         older_pr = PullRequest(
-            pr_id="PR_kwDOAbc123_10",
+            node_id="PR_kwDOAbc123_10",
             number=10,
             title="Older PR",
             author="user",
@@ -190,7 +190,7 @@ class TestPRSelector:
         )
 
         newer_pr = PullRequest(
-            pr_id="PR_kwDOAbc123_5",
+            node_id="PR_kwDOAbc123_5",
             number=5,
             title="Newer PR",
             author="user",
@@ -301,7 +301,7 @@ class TestPRSelectionIntegration:
         # Create test PRs
         prs = [
             PullRequest(
-                pr_id=f"PR_kwDOAbc123_{i}",
+                node_id=f"PR_kwDOAbc123_{i}",
                 number=i,
                 title=f"Test PR {i}",
                 author=f"user{i}",
@@ -333,7 +333,7 @@ class TestPRSelectionIntegration:
         # This should fail during PR creation due to validation
         with pytest.raises(ValidationError) as exc_info:
             PullRequest(
-                pr_id="PR_kwDOAbc123_1",
+                node_id="PR_kwDOAbc123_1",
                 number=1,
                 title="",  # Edge case: empty title - should fail validation
                 author="user",

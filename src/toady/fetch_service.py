@@ -6,7 +6,6 @@ from .github_service import GitHubService, GitHubServiceError
 from .graphql_queries import (
     build_open_prs_query,
     build_review_threads_query,
-    create_open_prs_query_variables,
 )
 from .models import PullRequest, ReviewThread
 from .parsers import GraphQLResponseParser
@@ -165,16 +164,21 @@ class FetchService:
         """
         try:
             # Build the GraphQL query
-            query = build_open_prs_query(include_drafts=include_drafts, limit=limit)
-            variables = create_open_prs_query_variables(owner, repo)
+            query_builder = build_open_prs_query(
+                include_drafts=include_drafts, limit=limit
+            )
+            query = query_builder.build_query()
+            variables = query_builder.build_variables(owner, repo)
 
             # Execute the GraphQL query
             response = self.github_service.execute_graphql_query(query, variables)
 
             # Parse the response and apply filtering
-            prs = self.parser.parse_pull_requests_response(
-                response, include_drafts=include_drafts
-            )
+            prs = self.parser.parse_pull_requests_response(response)
+
+            # Filter drafts if needed (safety net in case query builder doesn't filter)
+            if not include_drafts:
+                prs = [pr for pr in prs if not pr.is_draft]
 
             # Return the PRs
             return prs
