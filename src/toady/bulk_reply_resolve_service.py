@@ -14,6 +14,13 @@ from .fetch_service import FetchService
 from .models import ReviewThread
 from .reply_service import ReplyRequest, ReplyService
 from .resolve_service import ResolveService
+from .rollback_handlers import create_default_rollback_handler
+from .transaction_manager import (
+    OperationType,
+    RollbackStrategy,
+    TransactionManager,
+    TransactionStatus,
+)
 
 
 @dataclass
@@ -50,6 +57,10 @@ class BulkOperationSummary:
     results: List[BulkOperationResult]
     atomic_failure: bool = False
     rollback_performed: bool = False
+    transaction_id: Optional[str] = None
+    transaction_status: Optional[str] = None
+    checkpoints_created: int = 0
+    audit_report: Optional[Dict[str, Any]] = None
 
 
 class BulkReplyResolveService:
@@ -60,6 +71,9 @@ class BulkReplyResolveService:
         fetch_service: Optional[FetchService] = None,
         reply_service: Optional[ReplyService] = None,
         resolve_service: Optional[ResolveService] = None,
+        transaction_manager: Optional[TransactionManager] = None,
+        enable_transaction_logging: bool = True,
+        checkpoint_interval: int = 10,
     ) -> None:
         """Initialize the bulk reply resolve service.
 
@@ -67,11 +81,35 @@ class BulkReplyResolveService:
             fetch_service: Optional FetchService instance. If None, creates a new one.
             reply_service: Optional ReplyService instance. If None, creates a new one.
             resolve_service: Optional ResolveService. If None, creates new.
+            transaction_manager: Optional TransactionManager. If None, creates new.
+            enable_transaction_logging: Whether to enable detailed transaction logging.
+            checkpoint_interval: Number of operations between automatic checkpoints.
         """
         self.fetch_service = fetch_service or FetchService()
         self.reply_service = reply_service or ReplyService()
         self.resolve_service = resolve_service or ResolveService()
+        self.transaction_manager = transaction_manager or TransactionManager(
+            rollback_strategy=RollbackStrategy.IMMEDIATE,
+            enable_checkpoints=True,
+        )
+        self.enable_transaction_logging = enable_transaction_logging
+        self.checkpoint_interval = checkpoint_interval
         self.logger = logging.getLogger(__name__)
+
+        # Set up rollback handlers
+        rollback_handler = create_default_rollback_handler(
+            reply_service=self.reply_service,
+            resolve_service=self.resolve_service,
+        )
+        self.transaction_manager.register_rollback_handler(
+            OperationType.REPLY_POST, rollback_handler
+        )
+        self.transaction_manager.register_rollback_handler(
+            OperationType.THREAD_RESOLVE, rollback_handler
+        )
+        self.transaction_manager.register_rollback_handler(
+            OperationType.THREAD_UNRESOLVE, rollback_handler
+        )
 
     def bulk_reply_and_resolve(
         self,
@@ -80,6 +118,7 @@ class BulkReplyResolveService:
         thread_ids: Optional[List[str]] = None,
         atomic: bool = True,
         dry_run: bool = False,
+        rollback_strategy: Optional[RollbackStrategy] = None,
     ) -> BulkOperationSummary:
         """Perform bulk reply and resolve operations on review threads.
 
@@ -90,6 +129,7 @@ class BulkReplyResolveService:
                        unresolved threads.
             atomic: If True, all operations must succeed or all will be rolled back.
             dry_run: If True, simulate operations without making actual changes.
+            rollback_strategy: Optional strategy for rollback behavior.
 
         Returns:
             BulkOperationSummary with details of all operations performed.
@@ -99,6 +139,7 @@ class BulkReplyResolveService:
             BulkOperationError: If atomic operations fail and cannot be rolled back.
             GitHubServiceError: If GitHub API calls fail preventing recovery.
         """
+        transaction_id = None
         try:
             # Validate input parameters
             self._validate_bulk_operation_params(pr_number, message, thread_ids)
@@ -117,17 +158,48 @@ class BulkReplyResolveService:
             # Create bulk operations
             operations = self._create_bulk_operations(target_threads, message)
 
+            # Start transaction (unless dry run)
+            if not dry_run:
+                transaction_id = self.transaction_manager.begin_transaction(
+                    rollback_strategy=rollback_strategy,
+                    metadata={
+                        "pr_number": pr_number,
+                        "operation_count": len(operations),
+                        "atomic": atomic,
+                        "message_preview": message[:100],
+                    },
+                )
+
             # Execute operations
             if dry_run:
                 return self._perform_dry_run(operations)
             elif atomic:
-                return self._perform_atomic_operations(operations)
+                assert transaction_id is not None  # Should be set for non-dry-run
+                return self._perform_atomic_operations_with_transaction(
+                    operations, transaction_id
+                )
             else:
-                return self._perform_non_atomic_operations(operations)
+                assert transaction_id is not None  # Should be set for non-dry-run
+                return self._perform_non_atomic_operations_with_transaction(
+                    operations, transaction_id
+                )
 
         except (ValidationError, BulkOperationError, GitHubServiceError):
+            # Abort transaction if active
+            if transaction_id and not dry_run:
+                try:
+                    self.transaction_manager.abort_transaction("Operation failed")
+                except Exception as abort_error:
+                    self.logger.error(f"Failed to abort transaction: {abort_error}")
             raise
         except Exception as e:
+            # Abort transaction if active
+            if transaction_id and not dry_run:
+                try:
+                    self.transaction_manager.abort_transaction(str(e))
+                except Exception as abort_error:
+                    self.logger.error(f"Failed to abort transaction: {abort_error}")
+
             raise BulkOperationError(
                 message=f"Unexpected error during bulk operations: {str(e)}",
                 context={
@@ -135,6 +207,7 @@ class BulkReplyResolveService:
                     "thread_ids": thread_ids,
                     "atomic": atomic,
                     "dry_run": dry_run,
+                    "transaction_id": transaction_id,
                 },
             ) from e
 
@@ -239,6 +312,272 @@ class BulkReplyResolveService:
             )
             operations.append(operation)
         return operations
+
+    def _perform_atomic_operations_with_transaction(
+        self, operations: List[BulkOperation], transaction_id: str
+    ) -> BulkOperationSummary:
+        """Perform atomic operations with comprehensive transaction management."""
+        checkpoints_created = 0
+
+        try:
+            # Create initial checkpoint
+            if self.transaction_manager.enable_checkpoints:
+                self.transaction_manager.create_checkpoint(
+                    f"Starting bulk operation with {len(operations)} operations"
+                )
+                checkpoints_created += 1
+
+            # Execute operations with transaction tracking
+            successful_results: List[BulkOperationResult] = []
+            for i, operation in enumerate(operations):
+                try:
+                    result = self._execute_single_operation_with_transaction(
+                        operation, transaction_id
+                    )
+                    if result.success:
+                        successful_results.append(result)
+
+                        # Create checkpoint at intervals
+                        if (
+                            self.checkpoint_interval > 0
+                            and (i + 1) % self.checkpoint_interval == 0
+                            and self.transaction_manager.enable_checkpoints
+                        ):
+                            self.transaction_manager.create_checkpoint(
+                                f"Completed {i + 1} operations"
+                            )
+                            checkpoints_created += 1
+                    else:
+                        # Atomic failure - abort transaction
+                        self.transaction_manager.abort_transaction(
+                            f"Operation {operation.operation_id} failed: {result.error}"
+                        )
+
+                        # Generate audit report
+                        audit_report = self.transaction_manager.generate_audit_report(
+                            transaction_id
+                        )
+
+                        return BulkOperationSummary(
+                            total_operations=len(operations),
+                            successful_operations=0,
+                            failed_operations=len(operations),
+                            results=successful_results + [result],
+                            atomic_failure=True,
+                            rollback_performed=True,
+                            transaction_id=transaction_id,
+                            transaction_status=TransactionStatus.FAILED.value,
+                            checkpoints_created=checkpoints_created,
+                            audit_report=audit_report,
+                        )
+
+                except Exception as e:
+                    # Create failed result and abort
+                    failed_result = BulkOperationResult(
+                        operation_id=operation.operation_id,
+                        thread_id=operation.thread_id,
+                        success=False,
+                        error=str(e),
+                    )
+
+                    self.transaction_manager.abort_transaction(
+                        f"Exception in operation {operation.operation_id}: {str(e)}"
+                    )
+
+                    audit_report = self.transaction_manager.generate_audit_report(
+                        transaction_id
+                    )
+
+                    return BulkOperationSummary(
+                        total_operations=len(operations),
+                        successful_operations=0,
+                        failed_operations=len(operations),
+                        results=successful_results + [failed_result],
+                        atomic_failure=True,
+                        rollback_performed=True,
+                        transaction_id=transaction_id,
+                        transaction_status=TransactionStatus.FAILED.value,
+                        checkpoints_created=checkpoints_created,
+                        audit_report=audit_report,
+                    )
+
+            # All operations succeeded - commit transaction
+            self.transaction_manager.commit_transaction()
+            audit_report = self.transaction_manager.generate_audit_report(
+                transaction_id
+            )
+
+            return BulkOperationSummary(
+                total_operations=len(operations),
+                successful_operations=len(successful_results),
+                failed_operations=0,
+                results=successful_results,
+                transaction_id=transaction_id,
+                transaction_status=TransactionStatus.COMMITTED.value,
+                checkpoints_created=checkpoints_created,
+                audit_report=audit_report,
+            )
+
+        except Exception as e:
+            # Unexpected error during atomic operations
+            try:
+                self.transaction_manager.abort_transaction(str(e))
+                audit_report = self.transaction_manager.generate_audit_report(
+                    transaction_id
+                )
+            except Exception:
+                audit_report = None
+
+            raise BulkOperationError(
+                message=f"Critical error during atomic operations: {str(e)}",
+                context={
+                    "transaction_id": transaction_id,
+                    "completed_operations": len(successful_results),
+                    "total_operations": len(operations),
+                    "checkpoints_created": checkpoints_created,
+                },
+            ) from e
+
+    def _perform_non_atomic_operations_with_transaction(
+        self, operations: List[BulkOperation], transaction_id: str
+    ) -> BulkOperationSummary:
+        """Perform non-atomic operations with transaction logging."""
+        results = []
+        successful_count = 0
+        checkpoints_created = 0
+
+        try:
+            # Create initial checkpoint
+            if self.transaction_manager.enable_checkpoints:
+                self.transaction_manager.create_checkpoint(
+                    f"Starting non-atomic bulk operation with {len(operations)} ops"
+                )
+                checkpoints_created += 1
+
+            for i, operation in enumerate(operations):
+                try:
+                    result = self._execute_single_operation_with_transaction(
+                        operation, transaction_id
+                    )
+                    results.append(result)
+                    if result.success:
+                        successful_count += 1
+
+                    # Create checkpoint at intervals
+                    if (
+                        self.checkpoint_interval > 0
+                        and (i + 1) % self.checkpoint_interval == 0
+                        and self.transaction_manager.enable_checkpoints
+                    ):
+                        self.transaction_manager.create_checkpoint(
+                            f"Completed {i + 1} ops ({successful_count} successful)"
+                        )
+                        checkpoints_created += 1
+
+                except Exception as e:
+                    # Create failed result for exception but continue
+                    result = BulkOperationResult(
+                        operation_id=operation.operation_id,
+                        thread_id=operation.thread_id,
+                        success=False,
+                        error=str(e),
+                    )
+                    results.append(result)
+
+            # Commit transaction
+            self.transaction_manager.commit_transaction()
+            audit_report = self.transaction_manager.generate_audit_report(
+                transaction_id
+            )
+
+            return BulkOperationSummary(
+                total_operations=len(operations),
+                successful_operations=successful_count,
+                failed_operations=len(operations) - successful_count,
+                results=results,
+                transaction_id=transaction_id,
+                transaction_status=TransactionStatus.COMMITTED.value,
+                checkpoints_created=checkpoints_created,
+                audit_report=audit_report,
+            )
+
+        except Exception as e:
+            try:
+                self.transaction_manager.abort_transaction(str(e))
+                audit_report = self.transaction_manager.generate_audit_report(
+                    transaction_id
+                )
+            except Exception:
+                audit_report = None
+
+            raise BulkOperationError(
+                message=f"Error during non-atomic operations: {str(e)}",
+                context={
+                    "transaction_id": transaction_id,
+                    "completed_operations": len(results),
+                    "total_operations": len(operations),
+                    "checkpoints_created": checkpoints_created,
+                },
+            ) from e
+
+    def _execute_single_operation_with_transaction(
+        self, operation: BulkOperation, _transaction_id: str
+    ) -> BulkOperationResult:
+        """Execute a single operation with transaction recording."""
+        try:
+            # Step 1: Post reply
+            reply_request = ReplyRequest(
+                comment_id=operation.thread_id,
+                reply_body=operation.reply_body,
+            )
+
+            reply_result = self.reply_service.post_reply(reply_request)
+
+            # Record reply operation in transaction
+            self.transaction_manager.record_operation(
+                operation_type=OperationType.REPLY_POST,
+                thread_id=operation.thread_id,
+                data={
+                    "reply_body": operation.reply_body,
+                    "reply_result": reply_result,
+                },
+                rollback_data={
+                    "reply_id": reply_result.get("reply_id"),
+                    "thread_id": operation.thread_id,
+                },
+            )
+
+            # Step 2: Resolve thread
+            resolve_result = self.resolve_service.resolve_thread(operation.thread_id)
+
+            # Record resolve operation in transaction
+            self.transaction_manager.record_operation(
+                operation_type=OperationType.THREAD_RESOLVE,
+                thread_id=operation.thread_id,
+                data={
+                    "resolve_result": resolve_result,
+                },
+                rollback_data={
+                    "thread_id": operation.thread_id,
+                    "previous_state": "unresolved",
+                },
+            )
+
+            return BulkOperationResult(
+                operation_id=operation.operation_id,
+                thread_id=operation.thread_id,
+                success=True,
+                reply_result=reply_result,
+                resolve_result=resolve_result,
+            )
+
+        except Exception as e:
+            return BulkOperationResult(
+                operation_id=operation.operation_id,
+                thread_id=operation.thread_id,
+                success=False,
+                error=str(e),
+            )
 
     def _perform_dry_run(self, operations: List[BulkOperation]) -> BulkOperationSummary:
         """Simulate bulk operations without making actual changes."""

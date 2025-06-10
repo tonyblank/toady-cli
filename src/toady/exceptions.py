@@ -67,6 +67,7 @@ class ErrorCode(Enum):
     COMMENT_NOT_FOUND = 1603
     THREAD_NOT_FOUND = 1604
     BULK_OPERATION_ERROR = 1605
+    TRANSACTION_ERROR = 1606
 
 
 class ToadyError(Exception):
