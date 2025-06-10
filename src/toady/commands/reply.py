@@ -19,33 +19,155 @@ from toady.reply_service import (
 )
 
 
-def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
-    """Validate reply command arguments.
+def _show_id_help(ctx: click.Context) -> None:
+    """Show detailed help about ID types and how to find them.
 
     Args:
-        comment_id: The comment ID to validate
-        body: The reply body to validate
+        ctx: Click context for exit handling
+    """
+    help_text = """
+🎯 GitHub ID Types for Reply Command
+
+📋 SUPPORTED ID TYPES:
+
+1. Thread IDs (Recommended):
+   • PRRT_kwDOABcD12MAAAABcDE3fg  - Pull Request Review Thread
+   • PRT_kwDOABcD12MAAAABcDE3fg   - Pull Request Thread
+   • RT_kwDOABcD12MAAAABcDE3fg    - Review Thread
+
+2. Comment IDs:
+   • IC_kwDOABcD12MAAAABcDE3fg    - Issue Comment
+   • RP_kwDOABcD12MAAAABcDE3fg    - Reply Comment
+   • 123456789                    - Numeric ID (legacy)
+
+⚠️  NOT SUPPORTED:
+   • PRRC_kwDOABcD12MAAAABcDE3fg  - Individual comments in submitted reviews
+     (Use the thread ID instead)
+
+🔍 HOW TO FIND THE RIGHT ID:
+
+1. Use the fetch command:
+   toady fetch --pr <PR_NUMBER> --pretty
+
+2. Look for:
+   • "Thread ID:" for thread-level replies (recommended)
+   • "Comment ID:" for comment-specific replies
+
+3. Copy the ID and use it with --reply-to-id
+
+💡 BEST PRACTICES:
+
+• Use thread IDs when possible - they're more reliable
+• For submitted reviews, always use thread IDs (PRRT_, PRT_, RT_)
+• Thread IDs allow replies to be grouped properly in GitHub's UI
+• Comment IDs are best for individual, standalone comments
+
+📚 EXAMPLES:
+
+Reply to a thread:
+  toady reply --reply-to-id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the review!"
+
+Reply to a specific comment:
+  toady reply --reply-to-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+
+Reply with legacy numeric ID:
+  toady reply --reply-to-id 123456789 --body "Fixed!"
+
+🆘 TROUBLESHOOTING:
+
+If you get an error about PRRC_ IDs:
+1. Run: toady fetch --pr <PR_NUMBER> --pretty
+2. Find the "Thread ID" for that comment
+3. Use the thread ID instead
+
+For more help: toady reply --help
+"""
+    click.echo(help_text)
+    ctx.exit(0)
+
+
+def validate_reply_target_id(reply_to_id: str) -> str:
+    """Validate and potentially suggest corrections for reply target ID.
+
+    This function implements intelligent ID validation that can distinguish
+    between comment IDs and thread IDs, providing helpful guidance when
+    users provide the wrong type.
+
+    Args:
+        reply_to_id: The ID to validate
 
     Returns:
-        Tuple of (validated_comment_id, validated_body)
+        The validated reply target ID
 
     Raises:
-        click.BadParameter: If validation fails
+        click.BadParameter: If validation fails with detailed guidance
     """
-    # Validate comment ID using centralized validation
-    comment_id = comment_id.strip()
-    if not comment_id:
+    reply_to_id = reply_to_id.strip()
+    if not reply_to_id:
         raise click.BadParameter(
-            "Comment ID cannot be empty", param_hint="--comment-id"
+            "Reply target ID cannot be empty", param_hint="--reply-to-id"
         )
 
     try:
         # Accept both comment IDs and thread IDs for the reply command
         # This allows users to reply to either a specific comment or a thread
         universal_validator = create_universal_validator()
-        universal_validator.validate_id(comment_id, "Comment/Thread ID")
+        entity_type = universal_validator.validate_id(reply_to_id, "Reply target ID")
+
+        # Check if user provided a submitted review comment ID (PRRC_)
+        if entity_type and entity_type.value == "PRRC_":
+            raise click.BadParameter(
+                "Individual comment IDs from submitted reviews (PRRC_) "
+                "cannot be replied to directly.\n"
+                "\n💡 Use the thread ID instead:\n"
+                "   • Run: toady fetch --pr <PR_NUMBER> --pretty\n"
+                "   • Look for the thread ID (starts with PRRT_, PRT_, or RT_)\n"
+                "   • Use that thread ID with --reply-to-id\n"
+                "\n📖 For more help with ID types, use: toady reply --help-ids",
+                param_hint="--reply-to-id",
+            )
+
+        return reply_to_id
+
     except ValueError as e:
-        raise click.BadParameter(str(e), param_hint="--comment-id") from e
+        error_msg = str(e)
+
+        # Enhance error message with helpful guidance
+        if "must start with one of" in error_msg:
+            enhanced_msg = (
+                f"{error_msg}\n\n"
+                "💡 Common ID types for replies:\n"
+                "   • Thread IDs: PRRT_, PRT_, RT_ (recommended)\n"
+                "   • Comment IDs: IC_, RP_ (individual comments)\n"
+                "   • Numeric IDs: 123456789 (legacy format)\n\n"
+                "🔍 To find the correct ID:\n"
+                "   • Run: toady fetch --pr <PR_NUMBER> --pretty\n"
+                "   • Look for 'Thread ID' or 'Comment ID' in the output\n\n"
+                "📖 For detailed ID help: toady reply --help-ids"
+            )
+        else:
+            enhanced_msg = (
+                f"{error_msg}\n\n📖 For help with ID formats: toady reply --help-ids"
+            )
+
+        raise click.BadParameter(enhanced_msg, param_hint="--reply-to-id") from e
+
+
+def _validate_reply_args(reply_to_id: str, body: str) -> Tuple[str, str]:
+    """Validate reply command arguments.
+
+    Args:
+        reply_to_id: The reply target ID to validate
+        body: The reply body to validate
+
+    Returns:
+        Tuple of (validated_reply_to_id, validated_body)
+
+    Raises:
+        click.BadParameter: If validation fails
+    """
+    # Validate reply target ID with enhanced error messaging
+    reply_to_id = validate_reply_target_id(reply_to_id)
 
     # Validate reply body
     body = body.strip()
@@ -79,7 +201,7 @@ def _validate_reply_args(comment_id: str, body: str) -> Tuple[str, str]:
             param_hint="--body",
         )
 
-    return comment_id, body
+    return reply_to_id, body
 
 
 def _print_pretty_reply(reply_info: Dict[str, Any], verbose: bool) -> None:
@@ -122,12 +244,12 @@ def _print_pretty_reply(reply_info: Dict[str, Any], verbose: bool) -> None:
 
 
 def _build_json_reply(
-    comment_id: str, reply_info: Dict[str, Any], verbose: bool
+    reply_to_id: str, reply_info: Dict[str, Any], verbose: bool
 ) -> Dict[str, Any]:
     """Build JSON response for reply command.
 
     Args:
-        comment_id: The original comment ID
+        reply_to_id: The original reply target ID
         reply_info: Dictionary with reply information
         verbose: Whether verbose mode was requested
 
@@ -136,7 +258,7 @@ def _build_json_reply(
     """
     # Return JSON response with all available reply information
     result = {
-        "comment_id": comment_id,
+        "reply_to_id": reply_to_id,
         "success": True,
         "reply_posted": True,
         "reply_id": reply_info.get("reply_id", ""),
@@ -191,28 +313,28 @@ def _show_warnings(body: str, pretty: bool) -> None:
         )
 
 
-def _show_progress(comment_id: str, body: str, pretty: bool) -> None:
+def _show_progress(reply_to_id: str, body: str, pretty: bool) -> None:
     """Show progress messages for the reply operation.
 
     Args:
-        comment_id: The comment ID being replied to
+        reply_to_id: The reply target ID being replied to
         body: The reply body
         pretty: Whether to show pretty progress messages
     """
     if pretty:
-        click.echo(f"💬 Posting reply to comment {comment_id}")
+        click.echo(f"💬 Posting reply to {reply_to_id}")
         click.echo(f"📝 Reply: {body[:100]}{'...' if len(body) > 100 else ''}")
 
 
 def _handle_reply_error(
-    ctx: click.Context, error: Exception, comment_id: str, pretty: bool
+    ctx: click.Context, error: Exception, reply_to_id: str, pretty: bool
 ) -> None:
     """Handle different types of reply errors with appropriate output.
 
     Args:
         ctx: Click context for exit handling
         error: The exception that occurred
-        comment_id: The comment ID that failed
+        reply_to_id: The reply target ID that failed
         pretty: Whether to use pretty output format
     """
     error_handlers = {
@@ -265,7 +387,7 @@ def _handle_reply_error(
                     click.echo(hint, err=True)
             else:
                 error_result = {
-                    "comment_id": comment_id,
+                    "reply_to_id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": handler["error_code"],
@@ -291,7 +413,7 @@ def _handle_reply_error(
                 )
             else:
                 error_result = {
-                    "comment_id": comment_id,
+                    "reply_to_id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": "permission_denied",
@@ -308,7 +430,7 @@ def _handle_reply_error(
                 )
             else:
                 error_result = {
-                    "comment_id": comment_id,
+                    "reply_to_id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": "api_error",
@@ -325,7 +447,7 @@ def _handle_reply_error(
         click.echo("   • Try again with a different comment", err=True)
     else:
         error_result = {
-            "comment_id": comment_id,
+            "reply_to_id": reply_to_id,
             "success": False,
             "reply_posted": False,
             "error": "api_error",
@@ -337,18 +459,16 @@ def _handle_reply_error(
 
 @click.command()
 @click.option(
-    "--comment-id",
-    required=True,
+    "--reply-to-id",
     type=str,
     help=(
-        "GitHub thread ID (PRRT_/PRT_/RT_) or comment ID (numeric, IC_/RP_). "
-        "Note: PRRC_ IDs from submitted reviews won't work - use the thread ID instead"
+        "ID to reply to: thread ID (PRRT_/PRT_/RT_) or comment ID (numeric, IC_/RP_). "
+        "Use thread IDs for submitted reviews. Use --help-ids for detailed guidance."
     ),
     metavar="ID",
 )
 @click.option(
     "--body",
-    required=True,
     type=str,
     help="Reply message body (1-65536 characters)",
     metavar="TEXT",
@@ -364,16 +484,26 @@ def _handle_reply_error(
     is_flag=True,
     help="Show additional details about the reply and context",
 )
+@click.option(
+    "--help-ids",
+    is_flag=True,
+    help="Show detailed help about ID types and how to find them",
+)
 @click.pass_context
 def reply(
-    ctx: click.Context, comment_id: str, body: str, pretty: bool, verbose: bool
+    ctx: click.Context,
+    reply_to_id: str,
+    body: str,
+    pretty: bool,
+    verbose: bool,
+    help_ids: bool,
 ) -> None:
     """Post a reply to a specific review comment or thread.
 
     Reply to comments or threads using:
-    • Numeric IDs (e.g., 123456789) for legacy compatibility
-    • Thread node IDs (PRT_, PRRT_, RT_) to reply to entire threads
-    • Comment node IDs (IC_, RP_) for individual comments (NOT in submitted reviews)
+    • Thread IDs (PRRT_, PRT_, RT_) - recommended for most cases
+    • Comment IDs (IC_, RP_) - for individual comments
+    • Numeric IDs (e.g., 123456789) - legacy format
 
     IMPORTANT: For submitted reviews, you MUST use thread IDs (PRRT_, PRT_, RT_).
     Individual comment IDs (PRRC_) within submitted reviews cannot be replied to
@@ -382,37 +512,51 @@ def reply(
     Use --verbose/-v flag to show additional context including the PR title,
     parent comment author, and thread details.
 
+    Use --help-ids to get detailed help about ID types and how to find them.
+
     Examples:
 
-        toady reply --comment-id 123456789 --body "Fixed in latest commit"
+        toady reply --reply-to-id 123456789 --body "Fixed in latest commit"
 
-        toady reply --comment-id PRRT_kwDOO3WQIc5Rv3_r --body "Fixed!"
+        toady reply --reply-to-id PRRT_kwDOO3WQIc5Rv3_r --body "Fixed!"
 
-        toady reply --comment-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+        toady reply --reply-to-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
 
-        toady reply --comment-id PRT_kwDOABcD12MAAAABcDE3fg --body "Updated" --pretty -v
+        toady reply --reply-to-id PRT_kwDOABcD12MAAAABcDE3fg \\
+            --body "Updated" --pretty -v
     """
+    # Show ID help if requested
+    if help_ids:
+        _show_id_help(ctx)
+        return
+
+    # Check for required arguments
+    if not reply_to_id:
+        raise click.UsageError("Missing option '--reply-to-id'.")
+    if not body:
+        raise click.UsageError("Missing option '--body'.")
+
     # Validate arguments using helper function
-    comment_id, body = _validate_reply_args(comment_id, body)
+    reply_to_id, body = _validate_reply_args(reply_to_id, body)
 
     # Show warnings if needed
     _show_warnings(body, pretty)
 
     # Show progress messages
-    _show_progress(comment_id, body, pretty)
+    _show_progress(reply_to_id, body, pretty)
 
     # Post the reply using the reply service
     reply_service = ReplyService()
     try:
-        request = ReplyRequest(comment_id=comment_id, reply_body=body)
+        request = ReplyRequest(comment_id=reply_to_id, reply_body=body)
         # Only fetch context if verbose mode is requested (reduces API calls)
         reply_info = reply_service.post_reply(request, fetch_context=verbose)
 
         if pretty:
             _print_pretty_reply(reply_info, verbose)
         else:
-            result = _build_json_reply(comment_id, reply_info, verbose)
+            result = _build_json_reply(reply_to_id, reply_info, verbose)
             click.echo(json.dumps(result))
 
     except Exception as e:
-        _handle_reply_error(ctx, e, comment_id, pretty)
+        _handle_reply_error(ctx, e, reply_to_id, pretty)
