@@ -9,6 +9,7 @@ from .graphql_queries import (
 )
 from .models import PullRequest, ReviewThread
 from .parsers import GraphQLResponseParser
+from .pr_selector import PRSelectionResult, PRSelector
 
 
 class FetchServiceError(Exception):
@@ -28,6 +29,7 @@ class FetchService:
         """
         self.github_service = github_service or GitHubService()
         self.parser = GraphQLResponseParser()
+        self.pr_selector = PRSelector()
 
     def fetch_review_threads(
         self,
@@ -219,3 +221,128 @@ class FetchService:
             include_drafts=include_drafts,
             limit=limit,
         )
+
+    def select_pr_interactively(
+        self,
+        include_drafts: bool = False,
+        limit: int = 100,
+    ) -> PRSelectionResult:
+        """Interactively select a PR from the current repository.
+
+        Fetches open PRs from the current repository and presents an interactive
+        selection interface to the user. Handles different scenarios:
+        - No PRs: Shows appropriate message and returns no selection
+        - Single PR: Auto-selects and returns it
+        - Multiple PRs: Shows interactive menu for user selection
+
+        Args:
+            include_drafts: Whether to include draft PRs (default: False).
+            limit: Maximum number of PRs to fetch (default: 100).
+
+        Returns:
+            PRSelectionResult with selected PR number or cancellation status.
+
+        Raises:
+            FetchServiceError: If the fetch operation fails.
+            GitHubAPIError: If the GitHub API call fails.
+            GitHubAuthenticationError: If authentication fails.
+        """
+        try:
+            # Fetch open PRs from current repository
+            pull_requests = self.fetch_open_pull_requests_from_current_repo(
+                include_drafts=include_drafts,
+                limit=limit,
+            )
+
+            # Handle different scenarios
+            if not pull_requests:
+                # No PRs found - show message and return no selection
+                self.pr_selector.display_no_prs_message()
+                return PRSelectionResult(pr_number=None, cancelled=False)
+
+            elif len(pull_requests) == 1:
+                # Single PR - auto-select it
+                selected_pr = pull_requests[0]
+                self.pr_selector.display_auto_selected_pr(selected_pr)
+                return PRSelectionResult(pr_number=selected_pr.number, cancelled=False)
+
+            else:
+                # Multiple PRs - show interactive selection
+                selected_pr_number = self.pr_selector.select_pr(pull_requests)
+                if selected_pr_number is None:
+                    return PRSelectionResult(pr_number=None, cancelled=True)
+                return PRSelectionResult(pr_number=selected_pr_number, cancelled=False)
+
+        except Exception as e:
+            # Re-raise GitHub service exceptions as-is
+            if isinstance(e, GitHubServiceError):
+                raise
+            # Wrap other exceptions in FetchServiceError
+            raise FetchServiceError(f"Failed to select PR interactively: {e}") from e
+
+    def fetch_review_threads_with_pr_selection(
+        self,
+        pr_number: Optional[int] = None,
+        include_resolved: bool = False,
+        include_drafts: bool = False,
+        threads_limit: int = 100,
+        prs_limit: int = 100,
+    ) -> Tuple[List[ReviewThread], Optional[int]]:
+        """Fetch review threads with optional interactive PR selection.
+
+        If pr_number is provided, fetches threads from that PR directly.
+        If pr_number is None, performs interactive PR selection first.
+
+        Args:
+            pr_number: Optional PR number. If None, triggers interactive selection.
+            include_resolved: Whether to include resolved threads (default: False).
+            include_drafts: Whether to include draft PRs in selection (default: False).
+            threads_limit: Maximum number of threads to fetch (default: 100).
+            prs_limit: Maximum number of PRs to fetch for selection (default: 100).
+
+        Returns:
+            Tuple of (review_threads_list, selected_pr_number).
+            If interactive selection was cancelled, returns ([], None).
+
+        Raises:
+            FetchServiceError: If the fetch operation fails.
+            GitHubAPIError: If the GitHub API call fails.
+            GitHubAuthenticationError: If authentication fails.
+        """
+        try:
+            # Determine PR number
+            if pr_number is not None:
+                # Use provided PR number directly
+                selected_pr_number = pr_number
+            else:
+                # Perform interactive PR selection
+                selection_result = self.select_pr_interactively(
+                    include_drafts=include_drafts,
+                    limit=prs_limit,
+                )
+
+                if not selection_result.should_continue:
+                    # User cancelled or no PR available
+                    return [], None
+
+                # At this point, should_continue is True, so pr_number must be set
+                assert selection_result.pr_number is not None
+                selected_pr_number = selection_result.pr_number
+
+            # Fetch review threads from the selected PR
+            threads = self.fetch_review_threads_from_current_repo(
+                pr_number=selected_pr_number,
+                include_resolved=include_resolved,
+                limit=threads_limit,
+            )
+
+            return threads, selected_pr_number
+
+        except Exception as e:
+            # Re-raise GitHub service exceptions as-is
+            if isinstance(e, GitHubServiceError):
+                raise
+            # Wrap other exceptions in FetchServiceError
+            raise FetchServiceError(
+                f"Failed to fetch review threads with PR selection: {e}"
+            ) from e
