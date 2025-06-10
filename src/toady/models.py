@@ -47,6 +47,13 @@ class ReviewThread:
         status: Current status (RESOLVED, UNRESOLVED, PENDING, OUTDATED, DISMISSED)
         author: Username of the thread author
         comments: List of Comment objects in this thread
+        file_path: Path to the file this thread comments on (optional)
+        line: Line number in the file (optional)
+        original_line: Original line number before diff (optional)
+        start_line: Start line for multi-line comments (optional)
+        original_start_line: Original start line before diff (optional)
+        diff_side: Side of diff (LEFT, RIGHT) (optional)
+        is_outdated: Whether the thread is outdated (optional)
     """
 
     thread_id: str
@@ -56,6 +63,13 @@ class ReviewThread:
     status: str
     author: str
     comments: List["Comment"] = field(default_factory=list)
+    file_path: Optional[str] = None
+    line: Optional[int] = None
+    original_line: Optional[int] = None
+    start_line: Optional[int] = None
+    original_start_line: Optional[int] = None
+    diff_side: Optional[str] = None
+    is_outdated: Optional[bool] = None
 
     # Valid status values
     VALID_STATUSES = {"RESOLVED", "UNRESOLVED", "PENDING", "OUTDATED", "DISMISSED"}
@@ -198,6 +212,13 @@ class ReviewThread:
             "status": self.status,
             "author": self.author,
             "comments": serialized_comments,
+            "file_path": self.file_path,
+            "line": self.line,
+            "original_line": self.original_line,
+            "start_line": self.start_line,
+            "original_start_line": self.original_start_line,
+            "diff_side": self.diff_side,
+            "is_outdated": self.is_outdated,
         }
 
     @classmethod
@@ -270,6 +291,13 @@ class ReviewThread:
             status=data["status"],
             author=data["author"],
             comments=comments,
+            file_path=data.get("file_path"),
+            line=data.get("line"),
+            original_line=data.get("original_line"),
+            start_line=data.get("start_line"),
+            original_start_line=data.get("original_start_line"),
+            diff_side=data.get("diff_side"),
+            is_outdated=data.get("is_outdated"),
         )
 
     @property
@@ -303,6 +331,8 @@ class Comment:
         thread_id: ID of the review thread this comment belongs to
         review_id: ID of the pull request review this comment belongs to (optional)
         review_state: State of the review (PENDING, SUBMITTED, etc.) (optional)
+        url: GitHub URL for the comment (optional)
+        author_name: Full name of the comment author (optional)
     """
 
     comment_id: str
@@ -314,6 +344,8 @@ class Comment:
     thread_id: str
     review_id: Optional[str] = None
     review_state: Optional[str] = None
+    url: Optional[str] = None
+    author_name: Optional[str] = None
 
     # Content length limit (GitHub's actual limit)
     MAX_CONTENT_LENGTH = 65536
@@ -455,6 +487,8 @@ class Comment:
                 "thread_id": self.thread_id,
                 "review_id": self.review_id,
                 "review_state": self.review_state,
+                "url": self.url,
+                "author_name": self.author_name,
             }
         except Exception as e:
             raise create_validation_error(
@@ -542,6 +576,8 @@ class Comment:
                     thread_id=data["thread_id"],
                     review_id=data.get("review_id"),
                     review_state=data.get("review_state"),
+                    url=data.get("url"),
+                    author_name=data.get("author_name"),
                 )
             except ValidationError:
                 # Re-raise ValidationErrors from __post_init__

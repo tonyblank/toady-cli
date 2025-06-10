@@ -150,6 +150,15 @@ class GraphQLResponseParser:
                     ),
                 ) from e
 
+            # Extract file context information
+            file_path = thread_data.get("path")
+            line = thread_data.get("line")
+            original_line = thread_data.get("originalLine")
+            start_line = thread_data.get("startLine")
+            original_start_line = thread_data.get("originalStartLine")
+            diff_side = thread_data.get("diffSide")
+            is_outdated = thread_data.get("isOutdated", False)
+
             return ReviewThread(
                 thread_id=thread_id,
                 title=title,
@@ -158,6 +167,13 @@ class GraphQLResponseParser:
                 status=status,
                 author=author,
                 comments=comments,
+                file_path=file_path,
+                line=line,
+                original_line=original_line,
+                start_line=start_line,
+                original_start_line=original_start_line,
+                diff_side=diff_side,
+                is_outdated=is_outdated,
             )
 
         except ValidationError:
@@ -230,6 +246,7 @@ class GraphQLResponseParser:
             # Extract author information with fallback
             author_data = comment_data.get("author", {})
             author = author_data.get("login", "unknown") if author_data else "unknown"
+            author_name = author_data.get("name") if author_data else None
 
             # Handle parent comment (replies) with error handling
             parent_id = None
@@ -254,6 +271,9 @@ class GraphQLResponseParser:
                     review_id = None
                     review_state = None
 
+            # Extract comment URL
+            url = comment_data.get("url")
+
             return Comment(
                 comment_id=comment_id,
                 content=content,
@@ -264,6 +284,8 @@ class GraphQLResponseParser:
                 thread_id=thread_id,
                 review_id=review_id,
                 review_state=review_state,
+                url=url,
+                author_name=author_name,
             )
 
         except ValidationError:

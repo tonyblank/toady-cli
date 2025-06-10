@@ -11,7 +11,7 @@ import click
 
 from .format_interfaces import FormatterFactory
 from .json_formatter import JSONFormatter as NewJSONFormatter
-from .models import ReviewThread
+from .models import Comment, ReviewThread
 
 
 class OutputFormatter:
@@ -55,14 +55,155 @@ class PrettyFormatter:
     """Human-readable output formatter with colors and emojis."""
 
     @staticmethod
+    def _wrap_text(text: str, width: int = 76, indent: str = "   ") -> str:
+        """Wrap text to specified width with consistent indentation.
+
+        Args:
+            text: Text to wrap
+            width: Maximum line width
+            indent: Indentation string for wrapped lines
+
+        Returns:
+            Wrapped text with proper indentation
+        """
+        if not text:
+            return ""
+
+        lines = []
+        # Split by existing newlines first
+        paragraphs = text.split("\n")
+
+        for paragraph in paragraphs:
+            if not paragraph.strip():
+                lines.append("")
+                continue
+
+            # Simple word wrapping
+            words = paragraph.split()
+            current_line = ""
+
+            for word in words:
+                test_line = f"{current_line} {word}".strip()
+                if len(test_line) <= width:
+                    current_line = test_line
+                else:
+                    if current_line:
+                        lines.append(f"{indent}{current_line}")
+                        current_line = word
+                    else:
+                        # Word is longer than width, just add it
+                        lines.append(f"{indent}{word}")
+                        current_line = ""
+
+            if current_line:
+                lines.append(f"{indent}{current_line}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_file_context(thread: ReviewThread) -> str:
+        """Format file context information for a thread.
+
+        Args:
+            thread: ReviewThread with file context
+
+        Returns:
+            Formatted file context string
+        """
+        if not thread.file_path:
+            return ""
+
+        context_parts = []
+
+        # File path
+        context_parts.append(f"📁 File: {thread.file_path}")
+
+        # Line information
+        if thread.line is not None:
+            if thread.start_line is not None and thread.start_line != thread.line:
+                context_parts.append(f"📍 Lines: {thread.start_line}-{thread.line}")
+            else:
+                context_parts.append(f"📍 Line: {thread.line}")
+
+        # Diff side
+        if thread.diff_side:
+            side_emoji = "◀️" if thread.diff_side == "LEFT" else "▶️"
+            context_parts.append(f"{side_emoji} Side: {thread.diff_side}")
+
+        # Outdated indicator
+        if thread.is_outdated:
+            context_parts.append("⚠️ Outdated")
+
+        return "\n   ".join(context_parts)
+
+    @staticmethod
+    def _format_comment(
+        comment: Comment, is_first: bool = False, indent: str = "   "
+    ) -> str:
+        """Format a single comment with proper styling.
+
+        Args:
+            comment: Comment object to format
+            is_first: Whether this is the first comment in thread
+            indent: Base indentation level
+
+        Returns:
+            Formatted comment string
+        """
+        lines = []
+
+        # Comment header
+        author_display = comment.author
+        if comment.author_name and comment.author_name != comment.author:
+            author_display = f"{comment.author_name} (@{comment.author})"
+
+        timestamp = comment.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        if is_first:
+            header = f"💬 {author_display} • {timestamp}"
+        else:
+            header = f"↪️ {author_display} • {timestamp}"
+
+        lines.append(f"{indent}{header}")
+
+        # Comment content with proper wrapping
+        if comment.content:
+            # Handle code blocks and preserve formatting
+            content_lines = comment.content.split("\n")
+            in_code_block = False
+
+            for line in content_lines:
+                if line.strip().startswith("```"):
+                    in_code_block = not in_code_block
+                    lines.append(f"{indent}   {line}")
+                elif in_code_block:
+                    # Preserve code formatting
+                    lines.append(f"{indent}   {line}")
+                else:
+                    # Wrap regular text
+                    if line.strip():
+                        wrapped = PrettyFormatter._wrap_text(line, width=70, indent="")
+                        for wrapped_line in wrapped.split("\n"):
+                            if wrapped_line.strip():
+                                lines.append(f"{indent}   {wrapped_line.strip()}")
+                    else:
+                        lines.append("")
+
+        # Comment URL (if available)
+        if comment.url:
+            lines.append(f"{indent}   🔗 {comment.url}")
+
+        return "\n".join(lines)
+
+    @staticmethod
     def format_threads(threads: List[ReviewThread]) -> str:
-        """Format threads in a human-readable table format.
+        """Format threads in a human-readable format with full comment content.
 
         Args:
             threads: List of ReviewThread objects
 
         Returns:
-            Pretty formatted string
+            Pretty formatted string with enhanced comment preview
         """
         if not threads:
             return "No review threads found."
@@ -74,11 +215,27 @@ class PrettyFormatter:
         lines.append("=" * 80)
 
         for i, thread in enumerate(threads, 1):
-            # Thread header with status emoji
-            status_emoji = "✅" if thread.status == "RESOLVED" else "❌"
-            lines.append(f"\n{i}. {status_emoji} {thread.title}")
+            # Thread header with enhanced status indicator
+            if thread.status == "RESOLVED":
+                status_emoji = "✅"
+                status_color = "green"
+            elif thread.status == "OUTDATED" or thread.is_outdated:
+                status_emoji = "⏰"
+                status_color = "yellow"
+            else:
+                status_emoji = "❌"
+                status_color = "red"
 
-            # Thread details
+            # Thread title with status
+            status_text = click.style(thread.status, fg=status_color, bold=True)
+            lines.append(f"\n{i}. {status_emoji} {thread.title} ({status_text})")
+
+            # File context
+            file_context = PrettyFormatter._format_file_context(thread)
+            if file_context:
+                lines.append(f"   {file_context}")
+
+            # Thread metadata
             lines.append(f"   📝 ID: {thread.thread_id}")
             lines.append(f"   👤 Author: {thread.author}")
             lines.append(
@@ -90,17 +247,37 @@ class PrettyFormatter:
             lines.append(f"   💬 Comments: {len(thread.comments)}")
 
             # Status with color
-            status_color = "green" if thread.status == "RESOLVED" else "red"
-            status_text = click.style(thread.status, fg=status_color, bold=True)
-            lines.append(f"   🏷️  Status: {status_text}")
+            status_text_colored = click.style(thread.status, fg=status_color, bold=True)
+            lines.append(f"   🏷️  Status: {status_text_colored}")
+
+            # Show full comment content if there are comments
+            if thread.comments:
+                lines.append("")
+                lines.append("   📝 Comment Details:")
+
+                # Sort comments by creation date to show conversation flow
+                sorted_comments = sorted(thread.comments, key=lambda c: c.created_at)
+
+                for j, comment in enumerate(sorted_comments):
+                    is_first = j == 0
+                    comment_text = PrettyFormatter._format_comment(comment, is_first)
+                    lines.append(comment_text)
+
+                    # Add spacing between comments
+                    if j < len(sorted_comments) - 1:
+                        lines.append("")
 
             # Separator between threads (except for last one)
             if i < len(threads):
-                lines.append("   " + "-" * 60)
+                lines.append("")
+                lines.append("   " + "─" * 76)
 
         # Summary footer
         resolved_count = sum(1 for t in threads if t.status == "RESOLVED")
         unresolved_count = len(threads) - resolved_count
+        outdated_count = sum(
+            1 for t in threads if t.is_outdated or t.status == "OUTDATED"
+        )
 
         lines.append("\n" + "=" * 80)
         lines.append(f"📊 Summary: {len(threads)} total threads")
@@ -108,6 +285,8 @@ class PrettyFormatter:
             lines.append(f"   ✅ Resolved: {resolved_count}")
         if unresolved_count > 0:
             lines.append(f"   ❌ Unresolved: {unresolved_count}")
+        if outdated_count > 0:
+            lines.append(f"   ⏰ Outdated: {outdated_count}")
 
         return "\n".join(lines)
 
