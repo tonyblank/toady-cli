@@ -153,6 +153,8 @@ class TestReviewThread:
                     "parent_id": None,
                     "review_id": None,
                     "review_state": None,
+                    "url": None,
+                    "author_name": None,
                 },
                 {
                     "comment_id": "comment2",
@@ -164,8 +166,17 @@ class TestReviewThread:
                     "parent_id": None,
                     "review_id": None,
                     "review_state": None,
+                    "url": None,
+                    "author_name": None,
                 },
             ],
+            "file_path": None,
+            "line": None,
+            "original_line": None,
+            "start_line": None,
+            "original_start_line": None,
+            "diff_side": None,
+            "is_outdated": False,
         }
 
     def test_from_dict_valid(self) -> None:
@@ -611,6 +622,8 @@ class TestComment:
             "thread_id": "RT_123",
             "review_id": None,
             "review_state": None,
+            "url": None,
+            "author_name": None,
         }
 
         assert result == expected
@@ -639,6 +652,8 @@ class TestComment:
             "thread_id": "RT_123",
             "review_id": None,
             "review_state": None,
+            "url": None,
+            "author_name": None,
         }
 
         assert result == expected
