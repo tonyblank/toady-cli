@@ -6,20 +6,18 @@ from typing import Any, Dict, List, Tuple
 
 import click
 
+from toady.command_utils import validate_pr_number
 from toady.exceptions import (
+    GitHubAPIError,
+    GitHubAuthenticationError,
+    GitHubRateLimitError,
     ResolveServiceError,
     ThreadNotFoundError,
     ThreadPermissionError,
 )
 from toady.fetch_service import FetchService, FetchServiceError
-from toady.github_service import (
-    GitHubAPIError,
-    GitHubAuthenticationError,
-    GitHubRateLimitError,
-)
 from toady.node_id_validation import validate_thread_id
 from toady.resolve_service import ResolveService
-from toady.utils import MAX_PR_NUMBER
 
 
 def _fetch_and_filter_threads(
@@ -400,23 +398,16 @@ def _validate_resolve_parameters(
 
     # Validate PR number if provided
     if pr_number is not None:
-        if pr_number <= 0:
-            raise click.BadParameter("PR number must be positive", param_hint="--pr")
-        if pr_number > MAX_PR_NUMBER:
-            raise click.BadParameter(
-                "PR number appears unreasonably large (maximum: 999,999)",
-                param_hint="--pr",
-            )
+        validate_pr_number(pr_number)
 
     # Validate --pr requirement when using --all
     if bulk_resolve and pr_number is None:
         raise click.BadParameter("--pr is required when using --all", param_hint="--pr")
 
     # Validate limit parameter
-    if limit <= 0:
-        raise click.BadParameter("Limit must be positive", param_hint="--limit")
-    if limit > 1000:
-        raise click.BadParameter("Limit cannot exceed 1000", param_hint="--limit")
+    from toady.command_utils import validate_limit
+
+    validate_limit(limit, max_limit=1000)
 
 
 def _validate_and_prepare_thread_id(thread_id: str) -> str:

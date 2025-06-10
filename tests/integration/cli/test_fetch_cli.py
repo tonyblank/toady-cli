@@ -179,10 +179,10 @@ class TestFetchCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ Authentication failed:" in result.output
-        assert "Authentication failed" in result.output
-        assert "💡 Try running: gh auth login" in result.output
+        assert result.exit_code == 41  # GITHUB_AUTH_ERROR
+        assert "❌ GitHub authentication failed" in result.output
+        assert "Run 'gh auth login' to authenticate" in result.output
+        assert "🔧 To fix this issue:" in result.output
 
     @patch("toady.commands.fetch.FetchService")
     def test_fetch_authentication_error_json(
@@ -220,9 +220,9 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
+        assert result.exit_code == 46  # GITHUB_TIMEOUT
         assert "❌ Request timed out" in result.output
-        assert "Try again with a smaller --limit" in result.output
+        assert "Try again with a longer timeout" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
@@ -246,9 +246,9 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ Rate limit exceeded" in result.output
-        assert "Consider using a smaller --limit" in result.output
+        assert result.exit_code == 42  # GITHUB_RATE_LIMIT
+        assert "❌ GitHub API rate limit exceeded" in result.output
+        assert "Wait for the rate limit to reset" in result.output
         assert "gh api rate_limit" in result.output
 
         # Test JSON mode
@@ -273,9 +273,8 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "999999", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ Pull request not found" in result.output
-        assert "PR #999999 may not exist" in result.output
+        assert result.exit_code == 40  # GITHUB_ERROR
+        assert "❌ 404 Not Found - PR not found" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "999999"])
@@ -299,9 +298,8 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ Permission denied" in result.output
-        assert "read access to this repository" in result.output
+        assert result.exit_code == 40  # GITHUB_ERROR
+        assert "❌ 403 Forbidden - permission denied" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
@@ -325,9 +323,8 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ GitHub API error" in result.output
-        assert "Check GitHub status:" in result.output
+        assert result.exit_code == 40  # GITHUB_ERROR
+        assert "❌ 500 Internal Server Error" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
@@ -351,9 +348,8 @@ class TestFetchCLI:
 
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
-        assert result.exit_code == 1
-        assert "❌ Failed to fetch threads" in result.output
-        assert "Service error" in result.output
+        assert result.exit_code == 70  # FETCH_ERROR
+        assert "❌ Service error" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "123"])
@@ -376,7 +372,7 @@ class TestFetchCLI:
         # Test pretty mode
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 1
-        assert "❌ Unexpected error" in result.output
+        assert "❌ An unexpected error occurred" in result.output
         assert "internal error" in result.output
 
         # Test JSON mode
