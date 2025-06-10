@@ -1,5 +1,7 @@
 """Fetch command implementation."""
 
+from typing import Optional
+
 import click
 
 from toady.command_utils import (
@@ -14,9 +16,10 @@ from toady.formatters import format_fetch_output
 @click.option(
     "--pr",
     "pr_number",
-    required=True,
+    required=False,
     type=int,
-    help="Pull request number to fetch review threads from",
+    help="Pull request number to fetch review threads from. If not provided, "
+    "will show interactive PR selection.",
     metavar="NUMBER",
 )
 @click.option(
@@ -38,9 +41,16 @@ from toady.formatters import format_fetch_output
 )
 @click.pass_context
 def fetch(
-    ctx: click.Context, pr_number: int, pretty: bool, resolved: bool, limit: int
+    ctx: click.Context,
+    pr_number: Optional[int],
+    pretty: bool,
+    resolved: bool,
+    limit: int,
 ) -> None:
     """Fetch review threads from a GitHub pull request.
+
+    If --pr is provided, fetches threads from that specific pull request.
+    If --pr is omitted, displays an interactive menu to select from open PRs.
 
     By default, only unresolved review threads are fetched. Use --resolved
     to include resolved threads as well.
@@ -52,34 +62,49 @@ def fetch(
         toady fetch --pr 123 --pretty
 
         toady fetch --pr 123 --resolved --limit 50
+
+        toady fetch  # Interactive PR selection
+
+        toady fetch --pretty  # Interactive selection with pretty output
     """
     # Validate input parameters
-    validate_pr_number(pr_number)
+    if pr_number is not None:
+        validate_pr_number(pr_number)
     validate_limit(limit, max_limit=1000)
 
     # Prepare thread type description for user feedback
     thread_type = "all threads" if resolved else "unresolved threads"
 
     # Execute fetch operation with comprehensive error handling
+    selected_pr_number = pr_number  # Initialize with provided value for error handling
     try:
-        # Create fetch service and retrieve threads
+        # Create fetch service and retrieve threads using integrated PR selection
         fetch_service = FetchService()
-        threads = fetch_service.fetch_review_threads_from_current_repo(
-            pr_number=pr_number,
-            include_resolved=resolved,
-            limit=limit,
+        threads, selected_pr_number = (
+            fetch_service.fetch_review_threads_with_pr_selection(
+                pr_number=pr_number,
+                include_resolved=resolved,
+                threads_limit=limit,
+            )
         )
+
+        # Handle case where user cancelled PR selection or no PR available
+        if not threads and selected_pr_number is None:
+            ctx.exit(0)
 
         # Use formatters to display output
         format_fetch_output(
             threads=threads,
             pretty=pretty,
             show_progress=True,
-            pr_number=pr_number,
+            pr_number=selected_pr_number,
             thread_type=thread_type,
             limit=limit,
         )
 
+    except click.exceptions.Exit:
+        # Re-raise Exit exceptions (normal exit behavior)
+        raise
     except Exception as e:
         # Import here to avoid circular imports
         from toady.error_handling import ErrorMessageFormatter
@@ -123,4 +148,4 @@ def fetch(
                 else:
                     error_type = "api_error"
 
-            emit_error(ctx, pr_number, error_type, str(e), pretty)
+            emit_error(ctx, selected_pr_number or 0, error_type, str(e), pretty)
