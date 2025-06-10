@@ -598,3 +598,323 @@ class Comment:
             f"Comment(id={self.comment_id}, author={self.author}, "
             f"thread={self.thread_id}, parent={self.parent_id})"
         )
+
+
+@dataclass
+class PullRequest:
+    """Represents a GitHub pull request with basic metadata.
+
+    Attributes:
+        number: Pull request number
+        title: Pull request title
+        author: Username of the PR author
+        head_ref: Name of the head branch
+        base_ref: Name of the base branch
+        is_draft: Whether the PR is a draft
+        created_at: When the PR was created
+        updated_at: When the PR was last updated
+        url: GitHub URL for the PR
+        review_thread_count: Number of review threads
+        node_id: GitHub node ID for the PR (optional)
+    """
+
+    number: int
+    title: str
+    author: str
+    head_ref: str
+    base_ref: str
+    is_draft: bool
+    created_at: datetime
+    updated_at: datetime
+    url: str
+    review_thread_count: int
+    node_id: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate fields after initialization.
+
+        Raises:
+            ValidationError: If any field validation fails
+        """
+        try:
+            # Validate number
+            if not isinstance(self.number, int):
+                raise create_validation_error(
+                    field_name="number",
+                    invalid_value=type(self.number).__name__,
+                    expected_format="positive integer",
+                    message="number must be an integer",
+                )
+            if self.number <= 0:
+                raise create_validation_error(
+                    field_name="number",
+                    invalid_value=str(self.number),
+                    expected_format="positive integer",
+                    message="number must be positive",
+                )
+
+            # Validate title
+            if not isinstance(self.title, str):
+                raise create_validation_error(
+                    field_name="title",
+                    invalid_value=type(self.title).__name__,
+                    expected_format="non-empty string",
+                    message="title must be a string",
+                )
+            if not self.title.strip():
+                raise create_validation_error(
+                    field_name="title",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="title cannot be empty",
+                )
+
+            # Validate author
+            if not isinstance(self.author, str):
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value=type(self.author).__name__,
+                    expected_format="non-empty string",
+                    message="author must be a string",
+                )
+            if not self.author.strip():
+                raise create_validation_error(
+                    field_name="author",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="author cannot be empty",
+                )
+
+            # Validate head_ref
+            if not isinstance(self.head_ref, str):
+                raise create_validation_error(
+                    field_name="head_ref",
+                    invalid_value=type(self.head_ref).__name__,
+                    expected_format="non-empty string",
+                    message="head_ref must be a string",
+                )
+            if not self.head_ref.strip():
+                raise create_validation_error(
+                    field_name="head_ref",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="head_ref cannot be empty",
+                )
+
+            # Validate base_ref
+            if not isinstance(self.base_ref, str):
+                raise create_validation_error(
+                    field_name="base_ref",
+                    invalid_value=type(self.base_ref).__name__,
+                    expected_format="non-empty string",
+                    message="base_ref must be a string",
+                )
+            if not self.base_ref.strip():
+                raise create_validation_error(
+                    field_name="base_ref",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="base_ref cannot be empty",
+                )
+
+            # Validate is_draft
+            if not isinstance(self.is_draft, bool):
+                raise create_validation_error(
+                    field_name="is_draft",
+                    invalid_value=type(self.is_draft).__name__,
+                    expected_format="boolean",
+                    message="is_draft must be a boolean",
+                )
+
+            # Validate url
+            if not isinstance(self.url, str):
+                raise create_validation_error(
+                    field_name="url",
+                    invalid_value=type(self.url).__name__,
+                    expected_format="non-empty string",
+                    message="url must be a string",
+                )
+            if not self.url.strip():
+                raise create_validation_error(
+                    field_name="url",
+                    invalid_value="empty string",
+                    expected_format="non-empty string",
+                    message="url cannot be empty",
+                )
+
+            # Validate review_thread_count
+            if not isinstance(self.review_thread_count, int):
+                raise create_validation_error(
+                    field_name="review_thread_count",
+                    invalid_value=type(self.review_thread_count).__name__,
+                    expected_format="non-negative integer",
+                    message="review_thread_count must be an integer",
+                )
+            if self.review_thread_count < 0:
+                raise create_validation_error(
+                    field_name="review_thread_count",
+                    invalid_value=str(self.review_thread_count),
+                    expected_format="non-negative integer",
+                    message="review_thread_count cannot be negative",
+                )
+
+            # Validate dates
+            if not isinstance(self.created_at, datetime):
+                raise create_validation_error(
+                    field_name="created_at",
+                    invalid_value=type(self.created_at).__name__,
+                    expected_format="datetime object",
+                    message="created_at must be a datetime object",
+                )
+            if not isinstance(self.updated_at, datetime):
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=type(self.updated_at).__name__,
+                    expected_format="datetime object",
+                    message="updated_at must be a datetime object",
+                )
+            if self.updated_at < self.created_at:
+                raise create_validation_error(
+                    field_name="updated_at",
+                    invalid_value=self.updated_at.isoformat(),
+                    expected_format=f"datetime >= {self.created_at.isoformat()}",
+                    message="updated_at cannot be before created_at",
+                )
+
+        except ValidationError:
+            # Re-raise ValidationErrors as-is
+            raise
+        except Exception as e:
+            # Wrap any unexpected errors
+            raise create_validation_error(
+                field_name="PullRequest",
+                invalid_value="validation failure",
+                expected_format="valid PullRequest object",
+                message=f"Unexpected error during PullRequest validation: {str(e)}",
+            ) from e
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the PullRequest to a dictionary for serialization.
+
+        Returns:
+            Dictionary representation of the PullRequest
+        """
+        return {
+            "number": self.number,
+            "title": self.title,
+            "author": self.author,
+            "head_ref": self.head_ref,
+            "base_ref": self.base_ref,
+            "is_draft": self.is_draft,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "url": self.url,
+            "review_thread_count": self.review_thread_count,
+            "node_id": self.node_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PullRequest":
+        """Create a PullRequest from a dictionary.
+
+        Args:
+            data: Dictionary containing PullRequest fields
+
+        Returns:
+            PullRequest instance
+
+        Raises:
+            ValidationError: If required fields are missing or invalid
+        """
+        # Check required fields
+        required_fields = {
+            "number",
+            "title",
+            "author",
+            "head_ref",
+            "base_ref",
+            "is_draft",
+            "created_at",
+            "updated_at",
+            "url",
+            "review_thread_count",
+        }
+        missing_fields = required_fields - set(data.keys())
+        if missing_fields:
+            raise create_validation_error(
+                field_name="from_dict",
+                invalid_value=f"missing: {', '.join(missing_fields)}",
+                expected_format="dictionary with all required fields",
+                message=f"Missing required field: {', '.join(missing_fields)}",
+            )
+
+        # Parse dates
+        try:
+            created_at = cls._parse_datetime(data["created_at"])
+        except (ValueError, ValidationError) as err:
+            raise create_validation_error(
+                field_name="created_at",
+                invalid_value=data["created_at"],
+                expected_format="ISO datetime string",
+                message=f"Invalid date format for created_at: {data['created_at']}",
+            ) from err
+
+        try:
+            updated_at = cls._parse_datetime(data["updated_at"])
+        except (ValueError, ValidationError) as err:
+            raise create_validation_error(
+                field_name="updated_at",
+                invalid_value=data["updated_at"],
+                expected_format="ISO datetime string",
+                message=f"Invalid date format for updated_at: {data['updated_at']}",
+            ) from err
+
+        # Create instance
+        return cls(
+            number=data["number"],
+            title=data["title"],
+            author=data["author"],
+            head_ref=data["head_ref"],
+            base_ref=data["base_ref"],
+            is_draft=data["is_draft"],
+            created_at=created_at,
+            updated_at=updated_at,
+            url=data["url"],
+            review_thread_count=data["review_thread_count"],
+            node_id=data.get("node_id"),
+        )
+
+    @staticmethod
+    def _parse_datetime(date_str: str) -> datetime:
+        """Parse datetime string in various ISO formats.
+
+        Args:
+            date_str: Date string in ISO format
+
+        Returns:
+            datetime object
+
+        Raises:
+            ValidationError: If date string cannot be parsed
+        """
+        try:
+            return parse_datetime(date_str)
+        except Exception as e:
+            # parse_datetime now raises ValidationError, but handle any edge cases
+            if hasattr(e, "error_code"):
+                # Already a ValidationError
+                raise
+            raise create_validation_error(
+                field_name="date_str",
+                invalid_value=date_str,
+                expected_format="ISO datetime string",
+                message=f"Failed to parse datetime: {str(e)}",
+            ) from e
+
+    def __str__(self) -> str:
+        """Return a human-readable string representation."""
+        draft_text = " (draft)" if self.is_draft else ""
+        return (
+            f"PR #{self.number}: {self.title} by {self.author} "
+            f"({self.head_ref} -> {self.base_ref}){draft_text}"
+        )

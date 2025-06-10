@@ -303,3 +303,125 @@ def create_paginated_query_variables(
         variables["after"] = after_cursor
 
     return variables
+
+
+class PullRequestQueryBuilder:
+    """Builder for GraphQL queries to fetch open pull requests from GitHub."""
+
+    def __init__(self) -> None:
+        """Initialize the query builder."""
+        self._limit = 100
+        self._states = ["OPEN"]
+        self._include_drafts = False
+
+    def limit(self, count: int) -> "PullRequestQueryBuilder":
+        """Set the maximum number of pull requests to fetch.
+
+        Args:
+            count: Maximum number of PRs (1-100)
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            ValueError: If count is not between 1 and 100
+        """
+        if not 1 <= count <= 100:
+            raise ValueError("Limit must be between 1 and 100")
+        self._limit = count
+        return self
+
+    def include_drafts(self, include: bool = True) -> "PullRequestQueryBuilder":
+        """Include draft pull requests in the query results.
+
+        Args:
+            include: Whether to include draft PRs
+
+        Returns:
+            Self for method chaining
+        """
+        self._include_drafts = include
+        return self
+
+    def build_query(self) -> str:
+        """Build the GraphQL query string.
+
+        Returns:
+            Complete GraphQL query string
+        """
+        query = f"""
+        query($owner: String!, $repo: String!) {{
+          repository(owner: $owner, name: $repo) {{
+            pullRequests(
+              states: OPEN,
+              first: {self._limit},
+              orderBy: {{field: UPDATED_AT, direction: DESC}}
+            ) {{
+              pageInfo {{
+                hasNextPage
+                endCursor
+              }}
+              totalCount
+              nodes {{
+                id
+                number
+                title
+                author {{
+                  login
+                  ... on User {{
+                    name
+                  }}
+                }}
+                headRefName
+                baseRefName
+                isDraft
+                createdAt
+                updatedAt
+                url
+                reviewThreads(first: 1) {{
+                  totalCount
+                }}
+              }}
+            }}
+          }}
+        }}
+        """
+        return query.strip()
+
+    def build_variables(self, owner: str, repo: str) -> Dict[str, Any]:
+        """Build the GraphQL query variables.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+
+        Returns:
+            Dictionary of query variables
+        """
+        return {"owner": owner, "repo": repo}
+
+    def should_filter_drafts(self) -> bool:
+        """Check if draft PRs should be filtered out.
+
+        Returns:
+            True if draft PRs should be filtered from results
+        """
+        return not self._include_drafts
+
+
+def build_open_prs_query(
+    include_drafts: bool = False, limit: int = 100
+) -> PullRequestQueryBuilder:
+    """Create a configured PullRequestQueryBuilder for open PRs.
+
+    Args:
+        include_drafts: Whether to include draft PRs
+        limit: Maximum number of PRs to fetch
+
+    Returns:
+        Configured query builder
+    """
+    builder = PullRequestQueryBuilder()
+    builder.include_drafts(include_drafts)
+    builder.limit(limit)
+    return builder

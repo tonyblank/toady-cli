@@ -629,3 +629,64 @@ class GitHubService:
             raise
         except Exception as e:
             raise GitHubAPIError(f"Failed to get review ID: {e}") from e
+
+    def fetch_open_pull_requests(
+        self, owner: str, repo: str, include_drafts: bool = False, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Fetch open pull requests from a repository.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            include_drafts: Whether to include draft PRs
+            limit: Maximum number of PRs to fetch (1-100)
+
+        Returns:
+            List of pull request data dictionaries
+
+        Raises:
+            ValueError: If parameters are invalid
+            GitHubAPIError: If the GraphQL query fails
+            GitHubAuthenticationError: If authentication fails
+            GitHubTimeoutError: If the command times out
+            GitHubRateLimitError: If rate limit is exceeded
+        """
+        if not owner or not owner.strip():
+            raise ValueError("Owner cannot be empty")
+        if not repo or not repo.strip():
+            raise ValueError("Repository name cannot be empty")
+        if not 1 <= limit <= 100:
+            raise ValueError("Limit must be between 1 and 100")
+
+        # Import here to avoid circular imports
+        from .graphql_queries import build_open_prs_query
+
+        # Build the query
+        query_builder = build_open_prs_query(include_drafts=include_drafts, limit=limit)
+        query = query_builder.build_query()
+        variables = query_builder.build_variables(owner, repo)
+
+        # Execute the query
+        response = self.execute_graphql_query(query, variables)
+
+        # Parse the response
+        try:
+            repository_data = response.get("data", {}).get("repository")
+            if not repository_data:
+                raise GitHubAPIError("Repository not found or no access")
+
+            pull_requests_data = repository_data.get("pullRequests", {})
+            pr_nodes: List[Dict[str, Any]] = pull_requests_data.get("nodes", [])
+
+            # Filter out drafts if not included
+            if query_builder.should_filter_drafts():
+                pr_nodes = [pr for pr in pr_nodes if not pr.get("isDraft", False)]
+
+            return pr_nodes
+
+        except KeyError as e:
+            raise GitHubAPIError(
+                f"Unexpected GraphQL response format: missing {e}"
+            ) from e
+        except Exception as e:
+            raise GitHubAPIError(f"Failed to parse pull requests response: {e}") from e

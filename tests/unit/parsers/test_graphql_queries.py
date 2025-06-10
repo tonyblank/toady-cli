@@ -3,8 +3,10 @@
 import pytest
 
 from toady.graphql_queries import (
+    PullRequestQueryBuilder,
     ReviewThreadQueryBuilder,
     _validate_cursor,
+    build_open_prs_query,
     build_review_threads_query,
     create_paginated_query,
     create_paginated_query_variables,
@@ -447,3 +449,146 @@ class TestSecurityImprovements:
 
         with pytest.raises(ValueError, match="Invalid cursor format"):
             create_paginated_query_variables("owner", "repo", 123, invalid_cursor)
+
+
+class TestPullRequestQueryBuilder:
+    """Test the PullRequestQueryBuilder class."""
+
+    def test_default_initialization(self) -> None:
+        """Test default builder initialization."""
+        builder = PullRequestQueryBuilder()
+
+        assert builder.should_filter_drafts()  # include_drafts=False by default
+        assert builder._limit == 100
+        assert builder._states == ["OPEN"]
+
+    def test_include_drafts_setting(self) -> None:
+        """Test setting include_drafts flag."""
+        builder = PullRequestQueryBuilder()
+
+        # Default should filter drafts
+        assert builder.should_filter_drafts()
+
+        # Enable including drafts
+        result = builder.include_drafts(True)
+        assert result is builder  # Should return self for chaining
+        assert not builder.should_filter_drafts()
+
+        # Disable including drafts
+        builder.include_drafts(False)
+        assert builder.should_filter_drafts()
+
+    def test_limit_setting(self) -> None:
+        """Test setting PR limit."""
+        builder = PullRequestQueryBuilder()
+
+        # Valid limit
+        result = builder.limit(50)
+        assert result is builder  # Should return self for chaining
+        assert builder._limit == 50
+
+    def test_limit_validation(self) -> None:
+        """Test limit validation."""
+        builder = PullRequestQueryBuilder()
+
+        # Invalid limits should raise ValueError
+        with pytest.raises(ValueError, match="Limit must be between 1 and 100"):
+            builder.limit(0)
+
+        with pytest.raises(ValueError, match="Limit must be between 1 and 100"):
+            builder.limit(101)
+
+        with pytest.raises(ValueError, match="Limit must be between 1 and 100"):
+            builder.limit(-1)
+
+        # Valid limits should work
+        builder.limit(1)
+        assert builder._limit == 1
+
+        builder.limit(100)
+        assert builder._limit == 100
+
+    def test_build_query_structure(self) -> None:
+        """Test that built query has correct structure."""
+        builder = PullRequestQueryBuilder()
+        query = builder.build_query()
+
+        # Check that query contains expected GraphQL structure
+        assert "query($owner: String!, $repo: String!)" in query
+        assert "repository(owner: $owner, name: $repo)" in query
+        assert "states: OPEN" in query
+        assert "orderBy: {field: UPDATED_AT, direction: DESC}" in query
+        assert "first: 100" in query  # default limit
+        assert "pageInfo" in query
+        assert "totalCount" in query
+        assert "nodes" in query
+        assert "number" in query
+        assert "title" in query
+        assert "author" in query
+        assert "headRefName" in query
+        assert "baseRefName" in query
+        assert "isDraft" in query
+        assert "createdAt" in query
+        assert "updatedAt" in query
+        assert "url" in query
+        assert "reviewThreads(first: 1)" in query
+
+    def test_build_query_with_custom_limit(self) -> None:
+        """Test query building with custom limit."""
+        builder = PullRequestQueryBuilder()
+        builder.limit(25)
+        query = builder.build_query()
+
+        assert "first: 25" in query
+
+    def test_build_variables(self) -> None:
+        """Test building GraphQL variables."""
+        builder = PullRequestQueryBuilder()
+        variables = builder.build_variables("testowner", "testrepo")
+
+        expected = {
+            "owner": "testowner",
+            "repo": "testrepo",
+        }
+
+        assert variables == expected
+
+    def test_method_chaining(self) -> None:
+        """Test that methods can be chained."""
+        builder = PullRequestQueryBuilder()
+
+        # All methods should return self for chaining
+        result = builder.include_drafts(True).limit(25)
+
+        assert result is builder
+        assert not builder.should_filter_drafts()
+        assert builder._limit == 25
+
+
+class TestBuildOpenPRsQuery:
+    """Test the build_open_prs_query convenience function."""
+
+    def test_default_configuration(self) -> None:
+        """Test default query configuration."""
+        builder = build_open_prs_query()
+
+        assert builder.should_filter_drafts()  # include_drafts=False by default
+        assert builder._limit == 100
+
+    def test_custom_configuration(self) -> None:
+        """Test custom query configuration."""
+        builder = build_open_prs_query(include_drafts=True, limit=50)
+
+        assert not builder.should_filter_drafts()
+        assert builder._limit == 50
+
+    def test_limit_validation_in_convenience_function(self) -> None:
+        """Test that limit validation is applied in convenience function."""
+        # This should work
+        builder = build_open_prs_query(limit=50)
+        assert builder._limit == 50
+
+        # This should fail when we try to set an invalid limit
+        builder = build_open_prs_query()
+        with pytest.raises(ValueError, match="Limit must be between 1 and 100"):
+            builder.limit(0)
