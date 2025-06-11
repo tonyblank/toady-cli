@@ -13,8 +13,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .github_service import GitHubService
-from .graphql_parser import GraphQLField, GraphQLParser
+from ..parsers.graphql_parser import GraphQLField, GraphQLParser
+from ..services.github_service import GitHubService
 
 logger = logging.getLogger(__name__)
 

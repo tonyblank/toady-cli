@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from .exceptions import ValidationError, create_validation_error
+from ..exceptions import ValidationError, create_validation_error
+from ..utils import MAX_PR_NUMBER
 from .node_id_validation import (
     create_comment_validator,
     create_thread_validator,
     create_universal_validator,
 )
-from .utils import MAX_PR_NUMBER
 
 # Constants for validation
 MIN_REPLY_BODY_LENGTH = 3

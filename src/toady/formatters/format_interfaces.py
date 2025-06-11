@@ -8,7 +8,7 @@ pretty-print, tables, etc.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from .models import Comment, ReviewThread
+from ..models import Comment, ReviewThread
 
 
 class IFormatter(ABC):

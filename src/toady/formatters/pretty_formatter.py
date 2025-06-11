@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional, Union
 
 import click
 
+from ..models import Comment, ReviewThread
 from .format_interfaces import BaseFormatter, FormatterError, FormatterOptions
-from .models import Comment, ReviewThread
 
 
 class PrettyFormatter(BaseFormatter):

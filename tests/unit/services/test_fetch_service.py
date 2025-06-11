@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from toady.fetch_service import FetchService, FetchServiceError
-from toady.github_service import (
+from toady.services.fetch_service import FetchService, FetchServiceError
+from toady.services.github_service import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubService,

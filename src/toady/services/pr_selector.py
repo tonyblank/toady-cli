@@ -4,8 +4,8 @@ from typing import List, Optional
 
 import click
 
-from .formatters import PrettyFormatter
-from .models import PullRequest
+from ..formatters import PrettyFormatter
+from ..models import PullRequest
 
 
 class PRSelector:

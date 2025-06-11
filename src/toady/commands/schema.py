@@ -14,7 +14,10 @@ from toady.exceptions import (
     ToadyError,
     create_validation_error,
 )
-from toady.schema_validator import GitHubSchemaValidator, SchemaValidationError
+from toady.validators.schema_validator import (
+    GitHubSchemaValidator,
+    SchemaValidationError,
+)
 
 
 @click.group(invoke_without_command=True)

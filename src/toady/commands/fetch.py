@@ -8,13 +8,13 @@ from toady.command_utils import (
     validate_limit,
     validate_pr_number,
 )
-from toady.fetch_service import FetchService
-from toady.format_selection import (
+from toady.formatters.format_selection import (
     create_format_option,
     create_legacy_pretty_option,
     format_threads_output,
     resolve_format_from_options,
 )
+from toady.services.fetch_service import FetchService
 
 
 @click.command()

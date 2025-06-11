@@ -10,9 +10,9 @@ from typing import List, Optional
 
 import click
 
+from ..models import Comment, ReviewThread
 from .format_interfaces import FormatterFactory
 from .json_formatter import JSONFormatter as NewJSONFormatter
-from .models import Comment, ReviewThread
 
 
 class OutputFormatter:

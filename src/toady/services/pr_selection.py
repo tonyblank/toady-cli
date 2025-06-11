@@ -4,8 +4,8 @@ from typing import List, NoReturn, Optional, Union
 
 import click
 
-from .exceptions import create_validation_error
-from .models import PullRequest
+from ..exceptions import create_validation_error
+from ..models import PullRequest
 
 
 class PRSelectionError(Exception):
