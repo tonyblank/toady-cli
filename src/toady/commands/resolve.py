@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 
@@ -16,6 +16,11 @@ from toady.exceptions import (
     ThreadPermissionError,
 )
 from toady.fetch_service import FetchService, FetchServiceError
+from toady.format_selection import (
+    create_format_option,
+    create_legacy_pretty_option,
+    resolve_format_from_options,
+)
 from toady.node_id_validation import validate_thread_id
 from toady.resolve_service import ResolveService
 
@@ -599,11 +604,8 @@ def _handle_single_resolve(
     is_flag=True,
     help="Skip confirmation prompt for bulk operations",
 )
-@click.option(
-    "--pretty",
-    is_flag=True,
-    help="Output in human-readable format instead of JSON",
-)
+@create_format_option()
+@create_legacy_pretty_option()
 @click.option(
     "--limit",
     type=int,
@@ -619,6 +621,7 @@ def resolve(
     pr_number: int,
     undo: bool,
     yes: bool,
+    format: Optional[str],
     pretty: bool,
     limit: int,
 ) -> None:
@@ -646,17 +649,28 @@ def resolve(
 
         toady resolve --all --pr 123 --limit 500
     """
+    # Resolve format from options
+    try:
+        output_format = resolve_format_from_options(format, pretty)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(1)
+
+    # Convert output_format back to pretty flag for backward compatibility
+    # with existing functions
+    pretty_mode = output_format == "pretty"
+
     # Validate all parameters
     _validate_resolve_parameters(bulk_resolve, thread_id, pr_number, limit)
 
     # Handle bulk resolution mode
     if bulk_resolve:
         try:
-            _handle_bulk_resolve(ctx, pr_number, undo, yes, pretty, limit)
+            _handle_bulk_resolve(ctx, pr_number, undo, yes, pretty_mode, limit)
         except SystemExit:
             # Re-raise SystemExit to avoid being caught by outer exception handlers
             raise
         return
 
     # Handle single thread resolution mode
-    _handle_single_resolve(ctx, thread_id, undo, pretty)
+    _handle_single_resolve(ctx, thread_id, undo, pretty_mode)
