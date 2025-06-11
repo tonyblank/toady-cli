@@ -578,31 +578,36 @@ def _handle_single_resolve(
 @click.option(
     "--thread-id",
     type=str,
-    help="GitHub thread ID (numeric ID or node ID starting with PRT_/PRRT_/RT_)",
+    help="GitHub thread ID to resolve. Accepts thread node IDs (PRT_/PRRT_/RT_) "
+    "or numeric IDs. Get from `toady fetch` output. Cannot be used with --all.",
     metavar="ID",
 )
 @click.option(
     "--all",
     "bulk_resolve",
     is_flag=True,
-    help="Resolve all unresolved threads in the specified pull request",
+    help="Resolve all unresolved threads in the PR. Requires --pr option. "
+    "Cannot be used with --thread-id. Use --yes to skip confirmation.",
 )
 @click.option(
     "--pr",
     "pr_number",
     type=int,
-    help="Pull request number (required when using --all)",
+    help="Pull request number for bulk operations. Required when using --all. "
+    "Must be a positive integer representing an existing open PR.",
     metavar="NUMBER",
 )
 @click.option(
     "--undo",
     is_flag=True,
-    help="Unresolve the thread instead of resolving it",
+    help="Unresolve threads instead of resolving them. Changes resolved threads "
+    "back to unresolved status. Works with both single and bulk operations.",
 )
 @click.option(
     "--yes",
     is_flag=True,
-    help="Skip confirmation prompt for bulk operations",
+    help="Skip confirmation prompt for bulk operations. Use for automated scripts. "
+    "Has no effect on single thread operations which never prompt.",
 )
 @create_format_option()
 @create_legacy_pretty_option()
@@ -625,29 +630,89 @@ def resolve(
     pretty: bool,
     limit: int,
 ) -> None:
-    """Mark a review thread as resolved or unresolved.
+    """Mark review threads as resolved or unresolved.
 
-    Resolve or unresolve review threads using either numeric IDs or
-    GitHub node IDs for threads (PRT_), review threads (PRRT_), or legacy threads (RT_).
+    Changes the resolution status of GitHub review threads, indicating whether
+    the discussion has been addressed. Essential for completing code reviews.
 
-    Use --all flag to resolve all unresolved threads in a pull request at once.
-    This requires --pr to specify the pull request number.
+    OPERATION MODES:
+        • Single thread: Use --thread-id to resolve/unresolve one thread
+        • Bulk operation: Use --all --pr to process all threads in a PR
+        • Unresolve: Add --undo flag to unresolve instead of resolve
 
-    Examples:
+    THREAD ID TYPES:
+        • Thread IDs: PRT_, PRRT_, RT_ (from `toady fetch` output)
+        • Numeric IDs: 123456789 (legacy GitHub thread IDs)
+        • Get IDs from: `toady fetch --pr <number> | jq '.[].thread_id'`
 
-        toady resolve --thread-id 123456789
+    OUTPUT STRUCTURE (JSON):
+        Single thread:
+        {
+          "thread_id": "PRRT_kwDOO3WQIc5RvXMO",
+          "action": "resolve",
+          "success": true,
+          "is_resolved": true,
+          "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456"
+        }
 
-        toady resolve --thread-id PRT_kwDOABcD12MAAAABcDE3fg --undo
+        Bulk operation:
+        {
+          "pr_number": 123,
+          "action": "resolve",
+          "threads_processed": 5,
+          "threads_succeeded": 4,
+          "threads_failed": 1,
+          "success": true,
+          "failed_threads": ["RT_kwDOABcD12MAAAABcDE3fg"]
+        }
 
-        toady resolve --thread-id PRRT_kwDOO3WQIc5RvXMO
+    AGENT USAGE PATTERNS:
+        # Resolve specific thread
+        toady resolve --thread-id "PRRT_kwDOO3WQIc5RvXMO"
 
-        toady resolve --thread-id RT_kwDOABcD12MAAAABcDE3fg --pretty
+        # Bulk resolve with error handling
+        toady resolve --all --pr 123 --yes || echo "Some threads failed"
 
-        toady resolve --all --pr 123
+        # Pipeline: fetch then resolve all
+        toady fetch --pr 123 | jq -r '.[].thread_id' | while read id; do
+          toady resolve --thread-id "$id"
+        done
 
-        toady resolve --all --pr 123 --yes --pretty
+    VALIDATION & SAFETY:
+        • Single operations: No confirmation required
+        • Bulk operations: Confirmation prompt unless --yes flag used
+        • Thread ID validation: Must match supported format patterns
+        • Permissions: Requires write access to repository
 
-        toady resolve --all --pr 123 --limit 500
+    EXAMPLES:
+        Resolve single thread:
+            toady resolve --thread-id "123456789"
+
+        Resolve with thread node ID:
+            toady resolve --thread-id "PRRT_kwDOO3WQIc5RvXMO"
+
+        Unresolve thread:
+            toady resolve --thread-id "PRT_kwDOABcD12MAAAABcDE3fg" --undo
+
+        Resolve all threads in PR:
+            toady resolve --all --pr 123
+
+        Bulk resolve without confirmation:
+            toady resolve --all --pr 123 --yes
+
+        Human-readable output:
+            toady resolve --thread-id "RT_kwDOABcD12MAAAABcDE3fg" --format pretty
+
+        Limited bulk operation:
+            toady resolve --all --pr 123 --limit 50
+
+    ERROR CODES:
+        • thread_not_found: Thread ID doesn't exist or no access
+        • authentication_failed: GitHub CLI not authenticated
+        • permission_denied: No write access to repository
+        • pr_not_found: Pull request doesn't exist (for --all)
+        • validation_error: Invalid thread ID format
+        • bulk_operation_partial: Some threads failed in bulk operation
     """
     # Resolve format from options
     try:

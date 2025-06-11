@@ -59,7 +59,7 @@ def _show_id_help(ctx: click.Context) -> None:
    • "Thread ID:" for thread-level replies (recommended)
    • "Comment ID:" for comment-specific replies
 
-3. Copy the ID and use it with --reply-to-id
+3. Copy the ID and use it with --id
 
 💡 BEST PRACTICES:
 
@@ -71,13 +71,13 @@ def _show_id_help(ctx: click.Context) -> None:
 📚 EXAMPLES:
 
 Reply to a thread:
-  toady reply --reply-to-id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the review!"
+  toady reply --id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the review!"
 
 Reply to a specific comment:
-  toady reply --reply-to-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+  toady reply --id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
 
 Reply with legacy numeric ID:
-  toady reply --reply-to-id 123456789 --body "Fixed!"
+  toady reply --id 123456789 --body "Fixed!"
 
 🆘 TROUBLESHOOTING:
 
@@ -110,9 +110,7 @@ def validate_reply_target_id(reply_to_id: str) -> str:
     """
     reply_to_id = reply_to_id.strip()
     if not reply_to_id:
-        raise click.BadParameter(
-            "Reply target ID cannot be empty", param_hint="--reply-to-id"
-        )
+        raise click.BadParameter("Reply target ID cannot be empty", param_hint="--id")
 
     try:
         # Accept both comment IDs and thread IDs for the reply command
@@ -128,9 +126,9 @@ def validate_reply_target_id(reply_to_id: str) -> str:
                 "\n💡 Use the thread ID instead:\n"
                 "   • Run: toady fetch --pr <PR_NUMBER> --pretty\n"
                 "   • Look for the thread ID (starts with PRRT_, PRT_, or RT_)\n"
-                "   • Use that thread ID with --reply-to-id\n"
+                "   • Use that thread ID with --id\n"
                 "\n📖 For more help with ID types, use: toady reply --help-ids",
-                param_hint="--reply-to-id",
+                param_hint="--id",
             )
 
         return reply_to_id
@@ -156,7 +154,7 @@ def validate_reply_target_id(reply_to_id: str) -> str:
                 f"{error_msg}\n\n📖 For help with ID formats: toady reply --help-ids"
             )
 
-        raise click.BadParameter(enhanced_msg, param_hint="--reply-to-id") from e
+        raise click.BadParameter(enhanced_msg, param_hint="--id") from e
 
 
 def _validate_reply_args(reply_to_id: str, body: str) -> Tuple[str, str]:
@@ -250,12 +248,12 @@ def _print_pretty_reply(reply_info: Dict[str, Any], verbose: bool) -> None:
 
 
 def _build_json_reply(
-    reply_to_id: str, reply_info: Dict[str, Any], verbose: bool
+    id: str, reply_info: Dict[str, Any], verbose: bool
 ) -> Dict[str, Any]:
     """Build JSON response for reply command.
 
     Args:
-        reply_to_id: The original reply target ID
+        id: The original reply target ID
         reply_info: Dictionary with reply information
         verbose: Whether verbose mode was requested
 
@@ -264,7 +262,7 @@ def _build_json_reply(
     """
     # Return JSON response with all available reply information
     result = {
-        "reply_to_id": reply_to_id,
+        "id": id,
         "success": True,
         "reply_posted": True,
         "reply_id": reply_info.get("reply_id", ""),
@@ -393,7 +391,7 @@ def _handle_reply_error(
                     click.echo(hint, err=True)
             else:
                 error_result = {
-                    "reply_to_id": reply_to_id,
+                    "id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": handler["error_code"],
@@ -419,7 +417,7 @@ def _handle_reply_error(
                 )
             else:
                 error_result = {
-                    "reply_to_id": reply_to_id,
+                    "id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": "permission_denied",
@@ -436,7 +434,7 @@ def _handle_reply_error(
                 )
             else:
                 error_result = {
-                    "reply_to_id": reply_to_id,
+                    "id": reply_to_id,
                     "success": False,
                     "reply_posted": False,
                     "error": "api_error",
@@ -465,18 +463,20 @@ def _handle_reply_error(
 
 @click.command()
 @click.option(
-    "--reply-to-id",
+    "--id",
     type=str,
     help=(
-        "ID to reply to: thread ID (PRRT_/PRT_/RT_) or comment ID (numeric, IC_/RP_). "
-        "Use thread IDs for submitted reviews. Use --help-ids for detailed guidance."
+        "Target ID to reply to: thread ID (PRRT_/PRT_/RT_) recommended, comment ID "
+        "(numeric, IC_/RP_) alternative. Get IDs from `toady fetch` output. "
+        "Use --help-ids for complete ID type documentation."
     ),
     metavar="ID",
 )
 @click.option(
     "--body",
     type=str,
-    help="Reply message body (1-65536 characters)",
+    help="Reply message body. Must be 3-65536 characters after trimming whitespace. "
+    "Supports Markdown formatting. Avoid placeholder text like '...' or '???'.",
     metavar="TEXT",
 )
 @create_format_option()
@@ -485,7 +485,8 @@ def _handle_reply_error(
     "--verbose",
     "-v",
     is_flag=True,
-    help="Show additional details about the reply and context",
+    help="Include additional context in output: PR title, parent comment author, "
+    "thread details. Increases API calls but provides richer response data.",
 )
 @click.option(
     "--help-ids",
@@ -495,7 +496,7 @@ def _handle_reply_error(
 @click.pass_context
 def reply(
     ctx: click.Context,
-    reply_to_id: str,
+    id: str,
     body: str,
     format: Optional[str],
     pretty: bool,
@@ -504,30 +505,71 @@ def reply(
 ) -> None:
     """Post a reply to a specific review comment or thread.
 
-    Reply to comments or threads using:
-    • Thread IDs (PRRT_, PRT_, RT_) - recommended for most cases
-    • Comment IDs (IC_, RP_) - for individual comments
-    • Numeric IDs (e.g., 123456789) - legacy format
+    Creates a new comment in response to an existing review thread or comment.
+    Supports various ID formats and provides structured response data.
 
-    IMPORTANT: For submitted reviews, you MUST use thread IDs (PRRT_, PRT_, RT_).
-    Individual comment IDs (PRRC_) within submitted reviews cannot be replied to
-    directly - use the thread ID instead.
+    ID TYPES SUPPORTED:
+        • Thread IDs: PRRT_, PRT_, RT_ (recommended - most reliable)
+        • Comment IDs: IC_, RP_ (for individual comments)
+        • Numeric IDs: 123456789 (legacy GitHub comment IDs)
 
-    Use --verbose/-v flag to show additional context including the PR title,
-    parent comment author, and thread details.
+    IMPORTANT RESTRICTIONS:
+        • PRRC_ IDs (individual review comments) cannot be replied to directly
+        • For submitted reviews, always use thread IDs (PRRT_, PRT_, RT_)
+        • Use thread IDs from `toady fetch` output for best compatibility
 
-    Use --help-ids to get detailed help about ID types and how to find them.
+    OUTPUT STRUCTURE (JSON):
+        {
+          "id": "PRRT_kwDOO3WQIc5Rv3_r",     # Original target ID
+          "success": true,
+          "reply_posted": true,
+          "reply_id": "IC_kwDOABcD12MAAAABcDE3fg",  # New reply ID
+          "reply_url": "https://github.com/owner/repo/pull/123#discussion_r987654321",
+          "created_at": "2023-01-01T12:00:00Z",
+          "author": "your-username"
+        }
 
-    Examples:
+    AGENT USAGE PATTERNS:
+        # Standard reply to thread
+        toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Fixed in commit abc123"
 
-        toady reply --reply-to-id 123456789 --body "Fixed in latest commit"
+        # Automated responses
+        cat responses.txt | while read line; do
+          toady reply --id "$thread_id" --body "$line"
+        done
 
-        toady reply --reply-to-id PRRT_kwDOO3WQIc5Rv3_r --body "Fixed!"
+        # Bulk replies with error handling
+        toady reply --id "$id" --body "$response" || echo "Failed: $id"
 
-        toady reply --reply-to-id IC_kwDOABcD12MAAAABcDE3fg --body "Good catch!"
+    VALIDATION:
+        • Body: 3-65536 characters, non-empty after trimming
+        • ID: Must match supported format patterns
+        • Authentication: Requires GitHub CLI (`gh`) authentication
+        • Permissions: Must have write access to repository
 
-        toady reply --reply-to-id PRT_kwDOABcD12MAAAABcDE3fg \\
-            --body "Updated" --pretty -v
+    EXAMPLES:
+        Basic reply:
+            toady reply --id "123456789" --body "Fixed in latest commit"
+
+        Reply to thread (recommended):
+            toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Thanks for the review!"
+
+        Reply with verbose output:
+            toady reply --id "IC_kwDOABcD12MAAAABcDE3fg" --body "Good catch!" --verbose
+
+        Human-readable output:
+            toady reply --id "PRT_kwDOABcD12MAAAABcDE3fg" \\
+                --body "Updated" --format pretty
+
+        Get help with ID types:
+            toady reply --help-ids
+
+    ERROR CODES:
+        • comment_not_found: Target comment/thread doesn't exist
+        • authentication_failed: GitHub CLI not authenticated
+        • permission_denied: No write access to repository
+        • validation_error: Invalid ID format or body content
+        • rate_limit_exceeded: GitHub API rate limit hit
     """
     # Show ID help if requested
     if help_ids:
@@ -535,8 +577,8 @@ def reply(
         return
 
     # Check for required arguments
-    if not reply_to_id:
-        raise click.UsageError("Missing option '--reply-to-id'.")
+    if not id:
+        raise click.UsageError("Missing option '--id'.")
     if not body:
         raise click.UsageError("Missing option '--body'.")
 
@@ -548,7 +590,7 @@ def reply(
         ctx.exit(1)
 
     # Validate arguments using helper function
-    reply_to_id, body = _validate_reply_args(reply_to_id, body)
+    reply_to_id, body = _validate_reply_args(id, body)
 
     # Show warnings if needed
     _show_warnings(body, output_format == "pretty")

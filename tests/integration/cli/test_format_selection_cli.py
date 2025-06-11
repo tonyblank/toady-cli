@@ -96,7 +96,7 @@ class TestReplyCommandFormatSelection:
         runner = CliRunner()
         result = runner.invoke(
             reply,
-            ["--reply-to-id", "123456789", "--body", "Test reply", "--format", "json"],
+            ["--id", "123456789", "--body", "Test reply", "--format", "json"],
         )
 
         assert result.exit_code == 0
@@ -122,7 +122,7 @@ class TestReplyCommandFormatSelection:
         result = runner.invoke(
             reply,
             [
-                "--reply-to-id",
+                "--id",
                 "123456789",
                 "--body",
                 "Test reply",
@@ -248,7 +248,7 @@ class TestFormatOptionValidation:
         runner = CliRunner()
         result = runner.invoke(
             reply,
-            ["--reply-to-id", "123456789", "--body", "Test", "--format", "invalid"],
+            ["--id", "123456789", "--body", "Test", "--format", "invalid"],
         )
 
         # Should fail with validation error
