@@ -172,7 +172,7 @@ class BulkReplyResolveService:
             # Execute operations
             if dry_run:
                 return self._perform_dry_run(operations)
-            elif atomic:
+            if atomic:
                 if transaction_id is None:
                     raise BulkOperationError(
                         message="Transaction ID not initialized for atomic op",
