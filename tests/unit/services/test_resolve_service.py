@@ -784,7 +784,7 @@ class TestResolveServiceURLConsistency:
 
     def test_graphql_mutation_includes_pr_info_fields(self) -> None:
         """Test that GraphQL mutations include PR info fields for URL construction."""
-        from toady.github_service import (
+        from toady.services.github_service import (
             RESOLVE_THREAD_MUTATION,
             UNRESOLVE_THREAD_MUTATION,
         )

@@ -293,7 +293,7 @@ class TestOutputFormatter:
 class TestFormatFetchOutput:
     """Test the format_fetch_output function."""
 
-    @patch("toady.formatters.click.echo")
+    @patch("toady.formatters.formatters.click.echo")
     def test_format_fetch_output_json_mode(self, mock_echo) -> None:
         """Test format_fetch_output in JSON mode."""
         threads = []
@@ -312,7 +312,7 @@ class TestFormatFetchOutput:
         call_args = mock_echo.call_args[0][0]
         assert call_args == "[]"
 
-    @patch("toady.formatters.click.echo")
+    @patch("toady.formatters.formatters.click.echo")
     def test_format_fetch_output_pretty_mode_with_progress(self, mock_echo) -> None:
         """Test format_fetch_output in pretty mode with progress."""
         threads = []
@@ -335,7 +335,7 @@ class TestFormatFetchOutput:
         assert "No review threads found." in calls[1]
         assert "📝 Found 0 unresolved threads" in calls[2]
 
-    @patch("toady.formatters.click.echo")
+    @patch("toady.formatters.formatters.click.echo")
     def test_format_fetch_output_pretty_mode_no_progress(self, mock_echo) -> None:
         """Test format_fetch_output in pretty mode without progress."""
         threads = []
@@ -347,7 +347,7 @@ class TestFormatFetchOutput:
         call_args = mock_echo.call_args[0][0]
         assert call_args == "No review threads found."
 
-    @patch("toady.formatters.click.echo")
+    @patch("toady.formatters.formatters.click.echo")
     def test_format_fetch_output_with_threads(self, mock_echo) -> None:
         """Test format_fetch_output with actual threads."""
         thread = ReviewThread(

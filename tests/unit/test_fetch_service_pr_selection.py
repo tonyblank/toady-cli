@@ -411,8 +411,8 @@ class TestFetchServicePRSelectionIntegration:
             pr_number=42, include_resolved=False, limit=100
         )
 
-    @patch("toady.pr_selector.click.prompt")
-    @patch("toady.pr_selector.click.echo")
+    @patch("toady.services.pr_selector.click.prompt")
+    @patch("toady.services.pr_selector.click.echo")
     def test_end_to_end_multiple_prs_workflow(self, mock_echo, mock_prompt) -> None:
         """Test complete workflow with multiple PRs and user selection."""
         mock_prompt.return_value = "1"
