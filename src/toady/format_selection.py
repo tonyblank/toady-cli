@@ -23,76 +23,36 @@ def _ensure_formatters_registered() -> None:
     This function explicitly registers formatters to handle cases where
     module import order might cause registration issues.
     """
-    # Check what's currently registered
     current_formatters = FormatterFactory.list_formatters()
 
-    # Always ensure JSON formatter is available
+    # Register JSON formatter if not present
     if "json" not in current_formatters:
-        # Try multiple approaches to register a JSON formatter
-        json_registered = False
+        try:
+            from .json_formatter import JSONFormatter
 
-        # Approach 1: Try to import and register the new JSON formatter
-        if not json_registered:
-            try:
-                from .json_formatter import JSONFormatter
-
-                FormatterFactory.register("json", JSONFormatter)
-                json_registered = True
-            except Exception as e:
-                import sys
-
-                print(f"DEBUG: JSONFormatter import failed: {e}", file=sys.stderr)
-
-        # Approach 2: Use the legacy formatter from this module
-        if not json_registered:
-            try:
-                # Import the legacy formatter classes from formatters module
-                from . import formatters
-
-                if hasattr(formatters, "JSONFormatter"):
-                    FormatterFactory.register("json", formatters.JSONFormatter)
-                    json_registered = True
-            except Exception as e:
-                import sys
-
-                print(f"DEBUG: Legacy JSONFormatter failed: {e}", file=sys.stderr)
-
-        # Approach 3: Create a minimal fallback formatter
-        if not json_registered:
+            FormatterFactory.register("json", JSONFormatter)
+        except Exception:
+            # Fallback to simple JSON formatter
             import json
 
-            class MinimalJSONFormatter:
+            class SimpleJSONFormatter:
                 @staticmethod
                 def format_threads(threads: Any) -> str:
-                    try:
-                        thread_dicts = [thread.to_dict() for thread in threads]
-                        return json.dumps(thread_dicts, indent=2)
-                    except Exception:
-                        return json.dumps([], indent=2)
+                    thread_dicts = [thread.to_dict() for thread in threads]
+                    return json.dumps(thread_dicts, indent=2)
 
                 @staticmethod
                 def format_comments(comments: Any) -> str:
-                    try:
-                        comment_dicts = [comment.to_dict() for comment in comments]
-                        return json.dumps(comment_dicts, indent=2)
-                    except Exception:
-                        return json.dumps([], indent=2)
+                    comment_dicts = [comment.to_dict() for comment in comments]
+                    return json.dumps(comment_dicts, indent=2)
 
                 @staticmethod
                 def format_object(obj: Any) -> str:
-                    try:
-                        if hasattr(obj, "to_dict"):
-                            return json.dumps(obj.to_dict(), indent=2)
-                        return json.dumps(obj, indent=2)
-                    except Exception:
-                        return json.dumps(str(obj), indent=2)
+                    return json.dumps(obj, indent=2)
 
                 @staticmethod
                 def format_array(items: Any) -> str:
-                    try:
-                        return json.dumps(items, indent=2)
-                    except Exception:
-                        return json.dumps([], indent=2)
+                    return json.dumps(items, indent=2)
 
                 @staticmethod
                 def format_primitive(value: Any) -> str:
@@ -120,18 +80,15 @@ def _ensure_formatters_registered() -> None:
                         warning_data["details"] = details
                     return json.dumps(warning_data, indent=2)
 
-            FormatterFactory.register("json", MinimalJSONFormatter)
-            json_registered = True
+            FormatterFactory.register("json", SimpleJSONFormatter)
 
     # Register pretty formatter if not present
     if "pretty" not in current_formatters:
-        # Import and register pretty formatter with error handling since it's optional
         try:
             from .pretty_formatter import PrettyFormatter
 
             FormatterFactory.register("pretty", PrettyFormatter)
         except ImportError:
-            # Pretty formatter is optional
             pass
 
 
