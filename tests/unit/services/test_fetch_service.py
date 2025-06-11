@@ -12,6 +12,8 @@ from toady.services.github_service import (
 )
 
 
+@pytest.mark.service
+@pytest.mark.unit
 class TestFetchService:
     """Test the FetchService class."""
 
@@ -332,6 +334,8 @@ class TestFetchService:
         mock_github_service.execute_graphql_query.assert_called_once()
 
 
+@pytest.mark.service
+@pytest.mark.unit
 class TestFetchServiceExceptions:
     """Test fetch service exception hierarchy."""
 
@@ -346,6 +350,8 @@ class TestFetchServiceExceptions:
         assert str(exc_info.value) == "Test error"
 
 
+@pytest.mark.service
+@pytest.mark.integration
 class TestFetchServiceIntegration:
     """Integration tests for fetch service with edge cases."""
 
@@ -462,6 +468,8 @@ class TestFetchServiceIntegration:
         assert len(thread.comments) == 1
 
 
+@pytest.mark.service
+@pytest.mark.unit
 class TestFetchServicePullRequests:
     """Test pull request fetching functionality."""
 
