@@ -588,7 +588,7 @@ class TestPrettyFormatterIntegration:
 
     def test_formatter_with_factory_integration(self):
         """Test that formatter works with FormatterFactory."""
-        from toady.format_interfaces import FormatterFactory
+        from toady.formatters.format_interfaces import FormatterFactory
 
         # Ensure pretty formatter is registered
         if not FormatterFactory.is_registered("pretty"):

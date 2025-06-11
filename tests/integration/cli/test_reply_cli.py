@@ -52,7 +52,7 @@ class TestReplyCLI:
         assert '"reply_posted": true' in result.output
         assert '"reply_id": "987654321"' in result.output
 
-        from toady.reply_service import ReplyRequest
+        from toady.services.reply_service import ReplyRequest
 
         expected_request = ReplyRequest(comment_id="123456789", reply_body="Test reply")
         mock_service.post_reply.assert_called_once_with(
@@ -87,7 +87,7 @@ class TestReplyCLI:
         assert result.exit_code == 0
         assert '"reply_to_id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
 
-        from toady.reply_service import ReplyRequest
+        from toady.services.reply_service import ReplyRequest
 
         expected_request = ReplyRequest(
             comment_id="IC_kwDOABcD12MAAAABcDE3fg", reply_body="Test reply"
@@ -305,7 +305,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with comment not found error in pretty mode."""
-        from toady.reply_service import CommentNotFoundError
+        from toady.services.reply_service import CommentNotFoundError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = CommentNotFoundError(
@@ -324,7 +324,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with comment not found error in JSON mode."""
-        from toady.reply_service import CommentNotFoundError
+        from toady.services.reply_service import CommentNotFoundError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = CommentNotFoundError(
@@ -393,7 +393,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with API error in pretty mode."""
-        from toady.reply_service import ReplyServiceError
+        from toady.services.reply_service import ReplyServiceError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = ReplyServiceError("API request failed")
@@ -411,7 +411,7 @@ class TestReplyCLI:
         self, mock_service_class: Mock, runner: CliRunner
     ) -> None:
         """Test reply with API error in JSON mode."""
-        from toady.reply_service import ReplyServiceError
+        from toady.services.reply_service import ReplyServiceError
 
         mock_service = Mock()
         mock_service.post_reply.side_effect = ReplyServiceError("API request failed")

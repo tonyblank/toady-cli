@@ -232,7 +232,7 @@ class TestSchemaValidationIntegration:
         # Mock the GitHub service to fail
         import unittest.mock
 
-        from toady.github_service import GitHubAuthenticationError
+        from toady.services.github_service import GitHubAuthenticationError
 
         validator._github_service.run_gh_command = unittest.mock.Mock(
             side_effect=GitHubAuthenticationError("Authentication failed")
