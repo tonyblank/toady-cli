@@ -6,7 +6,7 @@ with the new formatter interface system.
 
 import json
 import textwrap
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import click
 
@@ -350,7 +350,69 @@ def format_fetch_output(
 
 
 # Register formatters with the factory
-FormatterFactory.register("json", NewJSONFormatter)
+try:
+    FormatterFactory.register("json", NewJSONFormatter)
+except Exception:
+    # Fallback - register legacy JSON formatter if new one fails
+    class LegacyJSONFormatter:
+        @staticmethod
+        def format_threads(threads: List[ReviewThread]) -> str:
+            return JSONFormatter.format_threads(threads)
+
+        @staticmethod
+        def format_comments(comments: List[Comment]) -> str:
+            import json
+
+            comment_dicts = [comment.to_dict() for comment in comments]
+            return json.dumps(comment_dicts, indent=2)
+
+        @staticmethod
+        def format_object(obj: Any) -> str:
+            import json
+
+            return json.dumps(obj, indent=2)
+
+        @staticmethod
+        def format_array(items: List[Any]) -> str:
+            import json
+
+            return json.dumps(items, indent=2)
+
+        @staticmethod
+        def format_primitive(value: Union[str, int, float, bool, None]) -> str:
+            import json
+
+            return json.dumps(value, indent=2)
+
+        @staticmethod
+        def format_error(error: Dict[str, Any]) -> str:
+            import json
+
+            return json.dumps(error, indent=2)
+
+        @staticmethod
+        def format_success_message(
+            message: str, details: Optional[Dict[str, Any]] = None
+        ) -> str:
+            import json
+
+            success_data = {"success": True, "message": message}
+            if details:
+                success_data["details"] = details
+            return json.dumps(success_data, indent=2)
+
+        @staticmethod
+        def format_warning_message(
+            message: str, details: Optional[Dict[str, Any]] = None
+        ) -> str:
+            import json
+
+            warning_data = {"warning": True, "message": message}
+            if details:
+                warning_data["details"] = details
+            return json.dumps(warning_data, indent=2)
+
+    FormatterFactory.register("json", LegacyJSONFormatter)
 
 # Register the new PrettyFormatter (import moved to avoid circular imports)
 try:
