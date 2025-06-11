@@ -418,14 +418,20 @@ class TransactionManager:
         else:
             # For best effort, try rollback but don't fail if it doesn't work
             try:
-                rollback_success = self.rollback_transaction()
+                operations_to_rollback = list(
+                    reversed(self._current_transaction.operations)
+                )
+                rollback_success = self._perform_rollback(operations_to_rollback)
             except Exception as e:
                 self.logger.warning(f"Best effort rollback failed: {e}")
                 rollback_success = False
 
+        # For abort, always mark as FAILED regardless of rollback success
+        # Abort indicates the transaction was terminated due to an error
         self._current_transaction.status = TransactionStatus.FAILED
         self._current_transaction.error_message = error_message
-        self._current_transaction.end_time = datetime.now()
+        if self._current_transaction.end_time is None:
+            self._current_transaction.end_time = datetime.now()
 
         # Move to history
         self._transaction_history.append(self._current_transaction)

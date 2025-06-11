@@ -296,7 +296,7 @@ class TestBulkReplyResolveServiceWithTransactions:
 
         # Verify transaction was aborted
         mock_transaction_manager.abort_transaction.assert_called_once()
-        
+
         # Verify atomic failure is reported
         assert summary.atomic_failure is True
         assert summary.failed_operations == len(sample_threads)

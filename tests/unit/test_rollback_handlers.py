@@ -75,10 +75,10 @@ class TestReplyRollbackHandler:
     ):
         """Test that rollback with reply ID logs additional info."""
         result = reply_handler.rollback(reply_operation)
-        
+
         # Check that rollback fails as expected
         assert result is False
-        
+
         # Check that warning message is logged (basic check)
         assert "Cannot rollback reply operation" in caplog.text
 
@@ -220,7 +220,7 @@ class TestResolveRollbackHandler:
 
         # Verify the rollback was successful
         assert result is True
-        
+
         # Verify the service was called
         mock_resolve_service.unresolve_thread.assert_called_once_with("thread_456")
 

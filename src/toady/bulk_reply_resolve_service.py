@@ -101,15 +101,14 @@ class BulkReplyResolveService:
             reply_service=self.reply_service,
             resolve_service=self.resolve_service,
         )
-        self.transaction_manager.register_rollback_handler(
-            OperationType.REPLY_POST, rollback_handler
-        )
-        self.transaction_manager.register_rollback_handler(
-            OperationType.THREAD_RESOLVE, rollback_handler
-        )
-        self.transaction_manager.register_rollback_handler(
-            OperationType.THREAD_UNRESOLVE, rollback_handler
-        )
+        for op_type in [
+            OperationType.REPLY_POST,
+            OperationType.THREAD_RESOLVE,
+            OperationType.THREAD_UNRESOLVE,
+        ]:
+            self.transaction_manager.register_rollback_handler(
+                op_type, rollback_handler
+            )
 
     def bulk_reply_and_resolve(
         self,
@@ -174,12 +173,20 @@ class BulkReplyResolveService:
             if dry_run:
                 return self._perform_dry_run(operations)
             elif atomic:
-                assert transaction_id is not None  # Should be set for non-dry-run
+                if transaction_id is None:
+                    raise BulkOperationError(
+                        message="Transaction ID not initialized for atomic op",
+                        context={"atomic": atomic, "dry_run": dry_run},
+                    )
                 return self._perform_atomic_operations_with_transaction(
                     operations, transaction_id
                 )
             else:
-                assert transaction_id is not None  # Should be set for non-dry-run
+                if transaction_id is None:
+                    raise BulkOperationError(
+                        message="Transaction ID not initialized for non-atomic op",
+                        context={"atomic": atomic, "dry_run": dry_run},
+                    )
                 return self._perform_non_atomic_operations_with_transaction(
                     operations, transaction_id
                 )
