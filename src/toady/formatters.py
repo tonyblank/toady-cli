@@ -355,9 +355,10 @@ try:
 except Exception as e:
     # Debug: log the actual error that occurred
     import sys
+
     print(f"DEBUG: JSON formatter registration failed: {e}", file=sys.stderr)
     print(f"DEBUG: Exception type: {type(e)}", file=sys.stderr)
-    
+
     # Fallback - register legacy JSON formatter if new one fails
     class LegacyJSONFormatter:
         @staticmethod
