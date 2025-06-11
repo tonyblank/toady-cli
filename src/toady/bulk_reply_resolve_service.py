@@ -365,11 +365,27 @@ class BulkReplyResolveService:
                             transaction_id
                         )
 
+                        # Mark previous successful operations as failed due to atomic
+                        # constraint. This ensures results list matches summary counts
+                        failed_results = []
+                        for prev_result in successful_results:
+                            failed_result = BulkOperationResult(
+                                operation_id=prev_result.operation_id,
+                                thread_id=prev_result.thread_id,
+                                success=False,  # All operations fail in atomic mode
+                                reply_result=prev_result.reply_result,
+                                resolve_result=prev_result.resolve_result,
+                                error="Rolled back due to atomic failure",
+                                rollback_attempted=True,
+                                rollback_success=True,  # Rollback performed by abort
+                            )
+                            failed_results.append(failed_result)
+
                         return BulkOperationSummary(
                             total_operations=len(operations),
                             successful_operations=0,
                             failed_operations=len(operations),
-                            results=successful_results + [result],
+                            results=failed_results + [result],
                             atomic_failure=True,
                             rollback_performed=True,
                             transaction_id=transaction_id,

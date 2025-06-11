@@ -426,9 +426,10 @@ class TransactionManager:
                 self.logger.warning(f"Best effort rollback failed: {e}")
                 rollback_success = False
 
-        # For abort, always mark as FAILED regardless of rollback success
-        # Abort indicates the transaction was terminated due to an error
-        self._current_transaction.status = TransactionStatus.FAILED
+        # Mark as FAILED only if we are still ACTIVE; preserve ROLLED_BACK when
+        # rollback succeeded.
+        if self._current_transaction.status == TransactionStatus.ACTIVE:
+            self._current_transaction.status = TransactionStatus.FAILED
         self._current_transaction.error_message = error_message
         if self._current_transaction.end_time is None:
             self._current_transaction.end_time = datetime.now()

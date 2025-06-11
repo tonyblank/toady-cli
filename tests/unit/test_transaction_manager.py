@@ -277,12 +277,12 @@ class TestTransactionManager:
         success = transaction_manager.abort_transaction("Test abort")
         assert success is True
 
-        # Verify transaction is in history with failed status
+        # Verify transaction is in history with rolled back status (rollback succeeded)
         history = transaction_manager.get_transaction_history()
         assert len(history) == 1
 
         aborted_tx = history[0]
-        assert aborted_tx.status == TransactionStatus.FAILED
+        assert aborted_tx.status == TransactionStatus.ROLLED_BACK
         assert aborted_tx.error_message == "Test abort"
 
     def test_rollback_to_checkpoint_success(
