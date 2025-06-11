@@ -417,9 +417,15 @@ class BulkReplyResolveService:
                         error=str(e),
                     )
 
-                    self.transaction_manager.abort_transaction(
+                    # Abort and capture actual rollback outcome
+                    rollback_ok = self.transaction_manager.abort_transaction(
                         f"Exception in operation {operation.operation_id}: {str(e)}"
                     )
+
+                    # Make earlier successes honest about rollback
+                    for res in successful_results:
+                        res.rollback_attempted = True
+                        res.rollback_success = rollback_ok
 
                     audit_report = self.transaction_manager.generate_audit_report(
                         transaction_id
@@ -431,7 +437,7 @@ class BulkReplyResolveService:
                         failed_operations=len(operations),
                         results=successful_results + [failed_result],
                         atomic_failure=True,
-                        rollback_performed=True,
+                        rollback_performed=rollback_ok,
                         transaction_id=transaction_id,
                         transaction_status=(
                             audit_report.get("status")
