@@ -352,5 +352,11 @@ def format_fetch_output(
 # Register formatters with the factory
 FormatterFactory.register("json", NewJSONFormatter)
 
-# TODO: Register PrettyFormatter when it implements the new interface in subtask 9.2
-# FormatterFactory.register('pretty', NewPrettyFormatter)
+# Register the new PrettyFormatter (import moved to avoid circular imports)
+try:
+    from .pretty_formatter import PrettyFormatter as NewPrettyFormatter
+
+    FormatterFactory.register("pretty", NewPrettyFormatter)
+except ImportError:
+    # PrettyFormatter not available - this is expected during initial module loading
+    pass
