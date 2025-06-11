@@ -280,7 +280,7 @@ class TransactionManager:
             timestamp=datetime.now(),
             operation_count=len(self._current_transaction.operations),
             description=description,
-            data=data.copy() if data else {},
+            data=copy.deepcopy(data) if data else {},
         )
 
         self._current_transaction.checkpoints.append(checkpoint)
@@ -427,10 +427,12 @@ class TransactionManager:
                 self.logger.warning(f"Best effort rollback failed: {e}")
                 rollback_success = False
 
-        # Mark as FAILED only if we are still ACTIVE; preserve ROLLED_BACK when
-        # rollback succeeded.
+        # If we're still ACTIVE after rollback attempts, decide the final fate
         if self._current_transaction.status == TransactionStatus.ACTIVE:
-            self._current_transaction.status = TransactionStatus.FAILED
+            if rollback_success:
+                self._current_transaction.status = TransactionStatus.ROLLED_BACK
+            else:
+                self._current_transaction.status = TransactionStatus.FAILED
         self._current_transaction.error_message = error_message
         if self._current_transaction.end_time is None:
             self._current_transaction.end_time = datetime.now()

@@ -401,7 +401,7 @@ class BulkReplyResolveService:
                             failed_operations=len(operations),
                             results=all_failed_results,
                             atomic_failure=True,
-                            rollback_performed=True,
+                            rollback_performed=rollback_ok,
                             transaction_id=transaction_id,
                             transaction_status=audit_report["status"],
                             checkpoints_created=checkpoints_created,
