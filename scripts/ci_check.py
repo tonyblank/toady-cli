@@ -196,19 +196,29 @@ class CIRunner:
         """Run comprehensive test suite."""
         self.print_step("TEST", "Running comprehensive test suite")
 
+        # Use exact same command as CI pipeline
         success, output, duration = self.run_command(
-            ["python3", "scripts/test_config.py", "full"],
+            [
+                "pytest",
+                "-v",
+                "--cov=toady",
+                "--cov-report=xml:coverage.xml",
+                "--cov-report=term-missing",
+            ],
             "Test suite execution",
             timeout=600,  # 10 minutes for full test suite
             check_output=True,
         )
 
-        # Parse coverage from output
+        # Parse coverage from output (pytest format)
         coverage_info = "Coverage information not available"
-        if "Total coverage:" in output:
+        if "TOTAL" in output:
             for line in output.split("\n"):
-                if "Total coverage:" in line:
-                    coverage_info = line.strip()
+                if "TOTAL" in line and "%" in line:
+                    # Extract coverage percentage from pytest output
+                    parts = line.split()
+                    if len(parts) >= 4 and parts[-1].endswith("%"):
+                        coverage_info = f"Total coverage: {parts[-1]}"
                     break
 
         self.check_results["testing"] = {

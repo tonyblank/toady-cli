@@ -1,7 +1,7 @@
 """Reply command implementation."""
 
 import json
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import click
 
@@ -10,6 +10,12 @@ from toady.exceptions import (
     GitHubAuthenticationError,
     GitHubRateLimitError,
     GitHubTimeoutError,
+)
+from toady.format_selection import (
+    create_format_option,
+    create_legacy_pretty_option,
+    format_object_output,
+    resolve_format_from_options,
 )
 from toady.node_id_validation import create_universal_validator
 from toady.reply_service import (
@@ -473,11 +479,8 @@ def _handle_reply_error(
     help="Reply message body (1-65536 characters)",
     metavar="TEXT",
 )
-@click.option(
-    "--pretty",
-    is_flag=True,
-    help="Output in human-readable format instead of JSON",
-)
+@create_format_option()
+@create_legacy_pretty_option()
 @click.option(
     "--verbose",
     "-v",
@@ -494,6 +497,7 @@ def reply(
     ctx: click.Context,
     reply_to_id: str,
     body: str,
+    format: Optional[str],
     pretty: bool,
     verbose: bool,
     help_ids: bool,
@@ -536,14 +540,21 @@ def reply(
     if not body:
         raise click.UsageError("Missing option '--body'.")
 
+    # Resolve format from options
+    try:
+        output_format = resolve_format_from_options(format, pretty)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(1)
+
     # Validate arguments using helper function
     reply_to_id, body = _validate_reply_args(reply_to_id, body)
 
     # Show warnings if needed
-    _show_warnings(body, pretty)
+    _show_warnings(body, output_format == "pretty")
 
     # Show progress messages
-    _show_progress(reply_to_id, body, pretty)
+    _show_progress(reply_to_id, body, output_format == "pretty")
 
     # Post the reply using the reply service
     reply_service = ReplyService()
@@ -552,11 +563,11 @@ def reply(
         # Only fetch context if verbose mode is requested (reduces API calls)
         reply_info = reply_service.post_reply(request, fetch_context=verbose)
 
-        if pretty:
+        if output_format == "pretty":
             _print_pretty_reply(reply_info, verbose)
         else:
             result = _build_json_reply(reply_to_id, reply_info, verbose)
-            click.echo(json.dumps(result))
+            format_object_output(result, output_format)
 
     except Exception as e:
-        _handle_reply_error(ctx, e, reply_to_id, pretty)
+        _handle_reply_error(ctx, e, reply_to_id, output_format == "pretty")

@@ -42,6 +42,7 @@ test:
 	@echo "🧪 Running comprehensive test suite with 80% coverage requirement..."
 	python3 scripts/test_config.py full
 
+
 test-fast:
 	@echo "⚡ Running fast unit tests..."
 	python3 scripts/test_config.py fast

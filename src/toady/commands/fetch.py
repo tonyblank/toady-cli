@@ -9,7 +9,12 @@ from toady.command_utils import (
     validate_pr_number,
 )
 from toady.fetch_service import FetchService
-from toady.formatters import format_fetch_output
+from toady.format_selection import (
+    create_format_option,
+    create_legacy_pretty_option,
+    format_threads_output,
+    resolve_format_from_options,
+)
 
 
 @click.command()
@@ -22,11 +27,8 @@ from toady.formatters import format_fetch_output
     "will show interactive PR selection.",
     metavar="NUMBER",
 )
-@click.option(
-    "--pretty",
-    is_flag=True,
-    help="Output in human-readable format instead of JSON",
-)
+@create_format_option()
+@create_legacy_pretty_option()
 @click.option(
     "--resolved",
     is_flag=True,
@@ -43,6 +45,7 @@ from toady.formatters import format_fetch_output
 def fetch(
     ctx: click.Context,
     pr_number: Optional[int],
+    format: Optional[str],
     pretty: bool,
     resolved: bool,
     limit: int,
@@ -59,18 +62,27 @@ def fetch(
 
         toady fetch --pr 123
 
-        toady fetch --pr 123 --pretty
+        toady fetch --pr 123 --format pretty
 
         toady fetch --pr 123 --resolved --limit 50
 
         toady fetch  # Interactive PR selection
 
-        toady fetch --pretty  # Interactive selection with pretty output
+        toady fetch --format pretty  # Interactive selection with pretty output
+
+        toady fetch --pretty  # Backward compatibility (deprecated)
     """
     # Validate input parameters
     if pr_number is not None:
         validate_pr_number(pr_number)
     validate_limit(limit, max_limit=1000)
+
+    # Resolve format from options
+    try:
+        output_format = resolve_format_from_options(format, pretty)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(1)
 
     # Prepare thread type description for user feedback
     thread_type = "all threads" if resolved else "unresolved threads"
@@ -92,10 +104,10 @@ def fetch(
         if not threads and selected_pr_number is None:
             ctx.exit(0)
 
-        # Use formatters to display output
-        format_fetch_output(
+        # Use new format selection system to display output
+        format_threads_output(
             threads=threads,
-            pretty=pretty,
+            format_name=output_format,
             show_progress=True,
             pr_number=selected_pr_number,
             thread_type=thread_type,
@@ -117,14 +129,14 @@ def fetch(
         )
         from toady.utils import emit_error
 
-        # Unified error handling approach - use new system for both modes
-        if pretty:
+        # Unified error handling approach - use new format system
+        if output_format == "pretty":
             message = ErrorMessageFormatter.format_error(e)
             click.echo(message, err=True)
             exit_code = ErrorMessageFormatter.get_exit_code(e)
             ctx.exit(exit_code)
         else:
-            # JSON mode: use centralized error mapping for consistency
+            # JSON/other formats: use centralized error mapping for consistency
             error_mapping = {
                 GitHubAuthenticationError: "authentication_failed",
                 GitHubTimeoutError: "timeout",
@@ -148,4 +160,10 @@ def fetch(
                 else:
                     error_type = "api_error"
 
-            emit_error(ctx, selected_pr_number or 0, error_type, str(e), pretty)
+            emit_error(
+                ctx,
+                selected_pr_number or 0,
+                error_type,
+                str(e),
+                output_format == "pretty",
+            )

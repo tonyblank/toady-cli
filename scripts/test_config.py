@@ -68,6 +68,7 @@ class TestConfig:
         print("🧪 Running full test suite...")
         cmd = [
             "pytest",
+            "tests/",  # Explicitly specify test directory
             "--cov=toady",
             "--cov-branch",
             "--cov-report=term-missing:skip-covered",
@@ -78,6 +79,7 @@ class TestConfig:
             "--durations=10",
             "--tb=short",
             "-v",
+            "--continue-on-collection-errors",  # Don't stop on collection errors
         ]
         return subprocess.call(cmd)
 
