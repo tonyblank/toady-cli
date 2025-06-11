@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from .exceptions import (
+from ..exceptions import (
     GitHubAPIError,
     ResolveServiceError,
     ThreadNotFoundError,
@@ -12,12 +12,12 @@ from .exceptions import (
     create_github_error,
     create_validation_error,
 )
+from ..validators.node_id_validation import validate_thread_id
 from .github_service import (
     RESOLVE_THREAD_MUTATION,
     UNRESOLVE_THREAD_MUTATION,
     GitHubService,
 )
-from .node_id_validation import validate_thread_id
 
 
 class ResolveService:

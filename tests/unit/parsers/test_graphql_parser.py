@@ -2,7 +2,7 @@
 
 import pytest
 
-from toady.graphql_parser import (
+from toady.parsers.graphql_parser import (
     GraphQLParser,
 )
 

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .exceptions import ValidationError, create_validation_error
-from .utils import parse_datetime
+from ..exceptions import ValidationError, create_validation_error
+from ..utils import parse_datetime
 
 
 def _parse_datetime(date_str: str) -> datetime:

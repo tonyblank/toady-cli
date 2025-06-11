@@ -4,13 +4,13 @@ import json
 from datetime import datetime
 from unittest.mock import patch
 
-from toady.formatters import (
+from toady.formatters.formatters import (
     JSONFormatter,
     OutputFormatter,
     PrettyFormatter,
     format_fetch_output,
 )
-from toady.models import Comment, ReviewThread
+from toady.models.models import Comment, ReviewThread
 
 
 class TestJSONFormatter:

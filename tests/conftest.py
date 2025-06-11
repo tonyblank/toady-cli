@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 from click.testing import CliRunner
 
-from toady.models import Comment, ReviewThread
+from toady.models.models import Comment, ReviewThread
 
 
 def pytest_configure(config):

@@ -5,15 +5,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from toady.format_interfaces import FormatterError, FormatterOptions
-from toady.models import Comment, ReviewThread
-from toady.pretty_formatter import (
+from toady.formatters.format_interfaces import FormatterError, FormatterOptions
+from toady.formatters.pretty_formatter import (
     PrettyFormatter,
     default_pretty_formatter,
     format_comments_pretty,
     format_object_pretty,
     format_threads_pretty,
 )
+from toady.models.models import Comment, ReviewThread
 
 
 class TestPrettyFormatter:

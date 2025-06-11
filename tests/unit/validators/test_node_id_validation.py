@@ -2,7 +2,7 @@
 
 import pytest
 
-from toady.node_id_validation import (
+from toady.validators.node_id_validation import (
     GitHubEntityType,
     NodeIDValidator,
     create_comment_validator,

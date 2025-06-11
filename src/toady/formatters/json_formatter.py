@@ -8,8 +8,8 @@ and customization options.
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from ..models.models import Comment, ReviewThread
 from .format_interfaces import BaseFormatter, FormatterError, FormatterOptions
-from .models import Comment, ReviewThread
 
 
 class JSONFormatter(BaseFormatter):

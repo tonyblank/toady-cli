@@ -6,7 +6,7 @@ from typing import Any, Dict
 import pytest
 
 from toady.exceptions import ValidationError
-from toady.models import Comment, PullRequest, ReviewThread, _parse_datetime
+from toady.models.models import Comment, PullRequest, ReviewThread, _parse_datetime
 
 
 class TestReviewThread:

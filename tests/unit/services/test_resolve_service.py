@@ -11,10 +11,10 @@ from toady.exceptions import (
     ThreadPermissionError,
     ValidationError,
 )
-from toady.github_service import (
+from toady.services.github_service import (
     GitHubService,
 )
-from toady.resolve_service import (
+from toady.services.resolve_service import (
     ResolveService,
 )
 

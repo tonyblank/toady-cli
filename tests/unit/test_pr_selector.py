@@ -3,8 +3,8 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from toady.models import PullRequest
-from toady.pr_selector import PRSelectionResult, PRSelector, create_pr_selector
+from toady.models.models import PullRequest
+from toady.services.pr_selector import PRSelectionResult, PRSelector, create_pr_selector
 
 
 class TestPRSelector:

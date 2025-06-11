@@ -2,7 +2,7 @@
 
 import pytest
 
-from toady.graphql_queries import (
+from toady.parsers.graphql_queries import (
     PullRequestQueryBuilder,
     ReviewThreadQueryBuilder,
     _validate_cursor,

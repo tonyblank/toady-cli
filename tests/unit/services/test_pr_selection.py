@@ -7,8 +7,8 @@ import click
 import pytest
 
 from toady.exceptions import ValidationError
-from toady.models import PullRequest
-from toady.pr_selection import PRSelectionError, PRSelector
+from toady.models.models import PullRequest
+from toady.services.pr_selection import PRSelectionError, PRSelector
 
 
 class TestPRSelector:

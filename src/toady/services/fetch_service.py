@@ -2,13 +2,13 @@
 
 from typing import List, Optional, Tuple
 
-from .github_service import GitHubService, GitHubServiceError
-from .graphql_queries import (
+from ..models.models import PullRequest, ReviewThread
+from ..parsers.graphql_queries import (
     build_open_prs_query,
     build_review_threads_query,
 )
-from .models import PullRequest, ReviewThread
-from .parsers import GraphQLResponseParser
+from ..parsers.parsers import GraphQLResponseParser
+from .github_service import GitHubService, GitHubServiceError
 from .pr_selector import PRSelectionResult, PRSelector
 
 

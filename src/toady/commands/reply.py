@@ -11,18 +11,18 @@ from toady.exceptions import (
     GitHubRateLimitError,
     GitHubTimeoutError,
 )
-from toady.format_selection import (
+from toady.formatters.format_selection import (
     create_format_option,
     create_legacy_pretty_option,
     format_object_output,
     resolve_format_from_options,
 )
-from toady.node_id_validation import create_universal_validator
-from toady.reply_service import (
+from toady.services.reply_service import (
     CommentNotFoundError,
     ReplyRequest,
     ReplyService,
 )
+from toady.validators.node_id_validation import create_universal_validator
 
 
 def _show_id_help(ctx: click.Context) -> None:

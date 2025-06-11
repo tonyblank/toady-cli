@@ -8,7 +8,7 @@ from toady.cli import cli
 from toady.exceptions import (
     NetworkError,
 )
-from toady.schema_validator import SchemaValidationError
+from toady.validators.schema_validator import SchemaValidationError
 
 
 class TestSchemaCLI:

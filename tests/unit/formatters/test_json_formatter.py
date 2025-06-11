@@ -6,8 +6,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from toady.format_interfaces import FormatterError, FormatterOptions
-from toady.json_formatter import (
+from toady.formatters.format_interfaces import FormatterError, FormatterOptions
+from toady.formatters.json_formatter import (
     JSONFormatter,
     default_json_formatter,
     format_comments_json,

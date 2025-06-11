@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from toady.fetch_service import FetchService, FetchServiceError
-from toady.github_service import GitHubAPIError, GitHubAuthenticationError
-from toady.models import PullRequest, ReviewThread
-from toady.pr_selector import PRSelectionResult
+from toady.models.models import PullRequest, ReviewThread
+from toady.services.fetch_service import FetchService, FetchServiceError
+from toady.services.github_service import GitHubAPIError, GitHubAuthenticationError
+from toady.services.pr_selector import PRSelectionResult
 
 
 class TestFetchServicePRSelection:

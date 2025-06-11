@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from toady.format_selection import (
+from toady.formatters.format_selection import (
     FormatSelectionError,
     create_formatter,
     get_default_format,

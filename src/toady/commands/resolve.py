@@ -15,14 +15,14 @@ from toady.exceptions import (
     ThreadNotFoundError,
     ThreadPermissionError,
 )
-from toady.fetch_service import FetchService, FetchServiceError
-from toady.format_selection import (
+from toady.formatters.format_selection import (
     create_format_option,
     create_legacy_pretty_option,
     resolve_format_from_options,
 )
-from toady.node_id_validation import validate_thread_id
-from toady.resolve_service import ResolveService
+from toady.services.fetch_service import FetchService, FetchServiceError
+from toady.services.resolve_service import ResolveService
+from toady.validators.node_id_validation import validate_thread_id
 
 
 def _fetch_and_filter_threads(

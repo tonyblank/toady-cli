@@ -24,10 +24,14 @@ from unittest.mock import patch
 
 import pytest
 
-from toady.format_interfaces import FormatterError, FormatterFactory, FormatterOptions
-from toady.json_formatter import JSONFormatter
-from toady.models import Comment, ReviewThread
-from toady.pretty_formatter import PrettyFormatter
+from toady.formatters.format_interfaces import (
+    FormatterError,
+    FormatterFactory,
+    FormatterOptions,
+)
+from toady.formatters.json_formatter import JSONFormatter
+from toady.formatters.pretty_formatter import PrettyFormatter
+from toady.models.models import Comment, ReviewThread
 
 
 class TestPrimitiveDataTypes:

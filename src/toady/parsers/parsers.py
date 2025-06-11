@@ -2,13 +2,13 @@
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from .exceptions import (
+from ..exceptions import (
     ValidationError,
     create_github_error,
     create_validation_error,
 )
-from .models import Comment, PullRequest, ReviewThread
-from .utils import parse_datetime
+from ..models.models import Comment, PullRequest, ReviewThread
+from ..utils import parse_datetime
 
 
 class GraphQLResponseParser:
