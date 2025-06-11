@@ -10,7 +10,6 @@ help:
 	@echo ""
 	@echo "🧪 Testing:"
 	@echo "  make test            Run all tests with coverage (80% threshold)"
-	@echo "  make test-ci         Run tests exactly like CI pipeline (no fail-fast)"
 	@echo "  make test-fast       Run fast unit tests only"
 	@echo "  make test-integration Run integration tests only"
 	@echo "  make test-performance Run performance benchmarks"
@@ -43,9 +42,6 @@ test:
 	@echo "🧪 Running comprehensive test suite with 80% coverage requirement..."
 	python3 scripts/test_config.py full
 
-test-ci:
-	@echo "🔄 Running tests exactly like CI pipeline (no fail-fast, all tests)..."
-	pytest tests/ --cov=toady --cov-branch --cov-report=term-missing:skip-covered --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-fail-under=80 --durations=10 --tb=short -v --continue-on-collection-errors
 
 test-fast:
 	@echo "⚡ Running fast unit tests..."
