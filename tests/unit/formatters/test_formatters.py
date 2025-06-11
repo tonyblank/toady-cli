@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
+
 from toady.formatters.formatters import (
     JSONFormatter,
     OutputFormatter,
@@ -13,6 +15,8 @@ from toady.formatters.formatters import (
 from toady.models.models import Comment, ReviewThread
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestJSONFormatter:
     """Test the JSONFormatter class."""
 
@@ -99,6 +103,8 @@ class TestJSONFormatter:
             assert field in thread_data, f"Missing field: {field}"
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestPrettyFormatter:
     """Test the PrettyFormatter class."""
 
@@ -248,6 +254,8 @@ class TestPrettyFormatter:
         assert "🔄 Updated: 2024-01-15 10:30:00" in result
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestOutputFormatter:
     """Test the OutputFormatter class."""
 
@@ -290,6 +298,8 @@ class TestOutputFormatter:
         assert "📝 ID: RT_456" in result
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestFormatFetchOutput:
     """Test the format_fetch_output function."""
 
@@ -378,6 +388,8 @@ class TestFormatFetchOutput:
         assert "📝 Found 1 unresolved threads" in calls[2]
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestFormatterIntegration:
     """Integration tests for formatter functionality."""
 

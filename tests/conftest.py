@@ -12,11 +12,10 @@ from toady.models.models import Comment, ReviewThread
 
 
 def pytest_configure(config):
-    """Configure pytest markers."""
-    config.addinivalue_line(
-        "markers",
-        "integration: marks tests as integration tests (may require authentication)",
-    )
+    """Configure pytest with additional settings and optimizations."""
+    # Performance optimizations
+    if not hasattr(config.option, "tb"):
+        config.option.tb = "short"
 
 
 @pytest.fixture
@@ -358,3 +357,51 @@ def mock_resolve_service():
     }
 
     return service
+
+
+# Utility fixtures for test data generation
+@pytest.fixture
+def test_data_generator():
+    """Generator for creating varied test data sets."""
+
+    def _generate_test_threads(count=5, status="UNRESOLVED"):
+        """Generate a list of test threads."""
+        threads = []
+        for i in range(count):
+            thread = ReviewThread(
+                thread_id=f"RT_test_{i}",
+                title=f"Test thread {i}",
+                created_at=datetime(2024, 1, 15, 10, i, 0),
+                updated_at=datetime(2024, 1, 15, 10, i, 0),
+                status=status if isinstance(status, str) else status[i % len(status)],
+                author=f"test_user_{i}",
+                comments=[],
+            )
+            threads.append(thread)
+        return threads
+
+    _generate_test_threads.generate_test_comments = lambda count=3: [
+        Comment(
+            comment_id=f"IC_test_{i}",
+            content=f"Test comment {i}",
+            author=f"comment_user_{i}",
+            created_at=datetime(2024, 1, 15, 10, i, 0),
+            updated_at=datetime(2024, 1, 15, 10, i, 0),
+            parent_id=None,
+            thread_id="RT_test_parent",
+        )
+        for i in range(count)
+    ]
+
+    return _generate_test_threads
+
+
+@pytest.fixture(scope="session")
+def performance_baseline():
+    """Baseline performance expectations for testing."""
+    return {
+        "max_format_time": 5.0,  # seconds
+        "max_parse_time": 2.0,  # seconds
+        "max_memory_mb": 100,  # MB
+        "max_api_response_time": 10.0,  # seconds
+    }

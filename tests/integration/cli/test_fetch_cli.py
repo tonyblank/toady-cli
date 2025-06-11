@@ -3,11 +3,14 @@
 import json
 from unittest.mock import Mock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from toady.cli import cli
 
 
+@pytest.mark.integration
+@pytest.mark.cli
 class TestFetchCLI:
     """Test the fetch command CLI integration."""
 
