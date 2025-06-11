@@ -380,7 +380,9 @@ class BulkReplyResolveService:
                             )
                             all_failed_results.append(failed_result)
 
-                        # Add the current failed operation
+                        # Patch the failed op so its rollback flags match reality
+                        result.rollback_attempted = True
+                        result.rollback_success = rollback_ok
                         all_failed_results.append(result)
 
                         # Create failed results for unattempted operations
@@ -426,6 +428,10 @@ class BulkReplyResolveService:
                     for res in successful_results:
                         res.rollback_attempted = True
                         res.rollback_success = rollback_ok
+
+                    # Also mark the failed operation itself as rolled back
+                    failed_result.rollback_attempted = True
+                    failed_result.rollback_success = rollback_ok
 
                     audit_report = self.transaction_manager.generate_audit_report(
                         transaction_id
