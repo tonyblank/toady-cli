@@ -184,6 +184,9 @@ def validate_format(format_name: str) -> str:
     Raises:
         FormatSelectionError: If format is not available.
     """
+    # Ensure formatters are registered before validation
+    _ensure_formatters_registered()
+
     available_formats = FormatterFactory.list_formatters()
 
     if format_name not in available_formats:
@@ -234,6 +237,9 @@ def create_formatter(format_name: str, **options: Any) -> Any:
     Raises:
         FormatSelectionError: If formatter creation fails.
     """
+    # Ensure formatters are registered before creation
+    _ensure_formatters_registered()
+
     try:
         return FormatterFactory.create(format_name, **options)
     except FormatterError as e:
