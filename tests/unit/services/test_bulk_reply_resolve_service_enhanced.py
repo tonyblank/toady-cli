@@ -281,6 +281,10 @@ class TestBulkReplyResolveServiceWithTransactions:
 
         mock_transaction_manager.begin_transaction.return_value = "tx_123"
         mock_transaction_manager.abort_transaction.return_value = True
+        mock_transaction_manager.generate_audit_report.return_value = {
+            "transaction_id": "tx_123",
+            "status": "failed",
+        }
 
         # Mock unexpected error during operation execution
         bulk_service.reply_service.post_reply.side_effect = RuntimeError(

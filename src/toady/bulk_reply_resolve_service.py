@@ -365,9 +365,10 @@ class BulkReplyResolveService:
                             transaction_id
                         )
 
+                        # Create failed results for all operations for consistency
+                        all_failed_results = []
+
                         # Mark previous successful operations as failed due to atomic
-                        # constraint. This ensures results list matches summary counts
-                        failed_results = []
                         for prev_result in successful_results:
                             failed_result = BulkOperationResult(
                                 operation_id=prev_result.operation_id,
@@ -379,17 +380,32 @@ class BulkReplyResolveService:
                                 rollback_attempted=True,
                                 rollback_success=True,  # Rollback performed by abort
                             )
-                            failed_results.append(failed_result)
+                            all_failed_results.append(failed_result)
+
+                        # Add the current failed operation
+                        all_failed_results.append(result)
+
+                        # Create failed results for unattempted operations
+                        for j in range(i + 1, len(operations)):
+                            unattempted_result = BulkOperationResult(
+                                operation_id=operations[j].operation_id,
+                                thread_id=operations[j].thread_id,
+                                success=False,
+                                error="Not attempted due to atomic failure",
+                                rollback_attempted=False,
+                                rollback_success=False,
+                            )
+                            all_failed_results.append(unattempted_result)
 
                         return BulkOperationSummary(
                             total_operations=len(operations),
                             successful_operations=0,
                             failed_operations=len(operations),
-                            results=failed_results + [result],
+                            results=all_failed_results,
                             atomic_failure=True,
                             rollback_performed=True,
                             transaction_id=transaction_id,
-                            transaction_status=TransactionStatus.FAILED.value,
+                            transaction_status=audit_report["status"],
                             checkpoints_created=checkpoints_created,
                             audit_report=audit_report,
                         )
