@@ -5,12 +5,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from toady.github_service import (
+from toady.services.github_service import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubService,
 )
-from toady.reply_service import (
+from toady.services.reply_service import (
     CommentNotFoundError,
     ReplyRequest,
     ReplyService,

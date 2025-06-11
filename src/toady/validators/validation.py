@@ -464,7 +464,7 @@ def validate_datetime_string(date_str: str, field_name: str = "Date") -> datetim
         )
 
     try:
-        from .utils import parse_datetime
+        from ..utils import parse_datetime
 
         return parse_datetime(date_str)
     except (ValueError, ValidationError) as e:

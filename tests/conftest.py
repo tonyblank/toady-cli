@@ -293,7 +293,7 @@ def graphql_response_factory():
 @pytest.fixture
 def mock_github_service():
     """Pre-configured GitHub service mock."""
-    from toady.github_service import GitHubService
+    from toady.services.github_service import GitHubService
 
     service = Mock(spec=GitHubService)
     service.is_authenticated.return_value = True
@@ -311,7 +311,7 @@ def mock_github_service():
 @pytest.fixture
 def mock_fetch_service(mock_github_responses):
     """Pre-configured fetch service mock."""
-    from toady.fetch_service import FetchService
+    from toady.services.fetch_service import FetchService
 
     service = Mock(spec=FetchService)
     service.fetch_review_threads_from_current_repo.return_value = []
@@ -322,7 +322,7 @@ def mock_fetch_service(mock_github_responses):
 @pytest.fixture
 def mock_reply_service():
     """Pre-configured reply service mock."""
-    from toady.reply_service import ReplyService
+    from toady.services.reply_service import ReplyService
 
     service = Mock(spec=ReplyService)
     service.post_reply.return_value = {
@@ -339,7 +339,7 @@ def mock_reply_service():
 @pytest.fixture
 def mock_resolve_service():
     """Pre-configured resolve service mock."""
-    from toady.resolve_service import ResolveService
+    from toady.services.resolve_service import ResolveService
 
     service = Mock(spec=ResolveService)
     service.resolve_thread.return_value = {

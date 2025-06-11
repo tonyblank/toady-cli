@@ -6,7 +6,7 @@ from typing import Any, Dict
 import pytest
 
 from toady.exceptions import GitHubAPIError, ValidationError
-from toady.parsers import GraphQLResponseParser, ResponseValidator
+from toady.parsers.parsers import GraphQLResponseParser, ResponseValidator
 
 
 class TestGraphQLResponseParser:

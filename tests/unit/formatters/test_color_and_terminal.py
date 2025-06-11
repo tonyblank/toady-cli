@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
+from toady.formatters.pretty_formatter import PrettyFormatter
 from toady.models import Comment, ReviewThread
-from toady.pretty_formatter import PrettyFormatter
 
 
 class TestColorSupport:

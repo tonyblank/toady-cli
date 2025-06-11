@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from toady.format_selection import (
+from toady.formatters.format_selection import (
     FormatSelectionError,
     create_formatter,
     get_default_format,
@@ -88,7 +88,9 @@ class TestResolveFormatFromOptions:
 
     def test_no_pretty_flag_uses_default(self):
         """Test no pretty flag uses default format."""
-        with patch("toady.format_selection.get_default_format", return_value="json"):
+        with patch(
+            "toady.formatters.format_selection.get_default_format", return_value="json"
+        ):
             result = resolve_format_from_options(None, False)
             assert result == "json"
 

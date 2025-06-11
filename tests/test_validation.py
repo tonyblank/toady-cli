@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 
 from toady.exceptions import ValidationError
-from toady.validation import (
+from toady.validators.validation import (
     ResolveOptions,
     check_reply_content_warnings,
     validate_boolean_flag,

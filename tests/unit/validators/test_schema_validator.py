@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from toady.schema_validator import (
+from toady.validators.schema_validator import (
     GitHubSchemaValidator,
     SchemaValidationError,
 )

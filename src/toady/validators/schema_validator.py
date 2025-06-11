@@ -504,7 +504,7 @@ class GitHubSchemaValidator:
         Returns:
             Dictionary mapping mutation names to validation errors
         """
-        from .github_service import (
+        from ..services.github_service import (
             REPLY_COMMENT_MUTATION,
             REPLY_THREAD_MUTATION,
             RESOLVE_THREAD_MUTATION,
@@ -540,7 +540,7 @@ class GitHubSchemaValidator:
         Returns:
             Dictionary mapping query names to validation errors
         """
-        from .graphql_queries import ReviewThreadQueryBuilder
+        from ..parsers.graphql_queries import ReviewThreadQueryBuilder
 
         errors = {}
 

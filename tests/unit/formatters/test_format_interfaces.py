@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from toady.format_interfaces import (
+from toady.formatters.format_interfaces import (
     BaseFormatter,
     FormatterError,
     FormatterFactory,

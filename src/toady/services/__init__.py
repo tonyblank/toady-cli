@@ -15,7 +15,7 @@ from .reply_service import (
     ReplyService,
     ReplyServiceError,
 )
-from .resolve_service import ResolveService, ResolveServiceError
+from .resolve_service import ResolveService
 
 __all__ = [
     # Core services
@@ -26,7 +26,6 @@ __all__ = [
     "ReplyService",
     "ReplyServiceError",
     "ResolveService",
-    "ResolveServiceError",
     # PR selection
     "PRSelectionResult",
     "PRSelector",

@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from toady.github_service import (
+from toady.services.github_service import (
     GitHubAPIError,
     GitHubAuthenticationError,
     GitHubCLINotFoundError,

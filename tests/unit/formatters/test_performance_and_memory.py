@@ -11,10 +11,10 @@ from datetime import datetime
 
 import pytest
 
-from toady.format_interfaces import FormatterError
-from toady.json_formatter import JSONFormatter
+from toady.formatters.format_interfaces import FormatterError
+from toady.formatters.json_formatter import JSONFormatter
+from toady.formatters.pretty_formatter import PrettyFormatter
 from toady.models import Comment, ReviewThread
-from toady.pretty_formatter import PrettyFormatter
 
 # Skip performance tests if running in CI or if psutil is not available
 try:

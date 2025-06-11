@@ -10,7 +10,10 @@ from pathlib import Path
 
 import pytest
 
-from toady.schema_validator import GitHubSchemaValidator, SchemaValidationError
+from toady.validators.schema_validator import (
+    GitHubSchemaValidator,
+    SchemaValidationError,
+)
 
 
 class TestSchemaValidationIntegration:
@@ -63,7 +66,7 @@ class TestSchemaValidationIntegration:
         if not self._check_gh_auth():
             pytest.skip("gh CLI not authenticated - skipping integration test")
 
-        from toady.graphql_queries import ReviewThreadQueryBuilder
+        from toady.parsers.graphql_queries import ReviewThreadQueryBuilder
 
         # Build our actual query
         builder = ReviewThreadQueryBuilder()
@@ -84,7 +87,7 @@ class TestSchemaValidationIntegration:
         if not self._check_gh_auth():
             pytest.skip("gh CLI not authenticated - skipping integration test")
 
-        from toady.github_service import (
+        from toady.services.github_service import (
             RESOLVE_THREAD_MUTATION,
             UNRESOLVE_THREAD_MUTATION,
         )
@@ -229,7 +232,7 @@ class TestSchemaValidationIntegration:
         # Mock the GitHub service to fail
         import unittest.mock
 
-        from toady.github_service import GitHubAuthenticationError
+        from toady.services.github_service import GitHubAuthenticationError
 
         validator._github_service.run_gh_command = unittest.mock.Mock(
             side_effect=GitHubAuthenticationError("Authentication failed")
