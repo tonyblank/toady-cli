@@ -5,6 +5,7 @@ interface, offering colorized output with table formatting and visual enhancemen
 for better readability in terminal environments.
 """
 
+import re
 import textwrap
 from typing import Any, Dict, List, Optional, Union
 
@@ -341,6 +342,48 @@ class PrettyFormatter(BaseFormatter):
 
         return click.style(text, fg=color, bold=bold)
 
+    def _strip_ansi_codes(self, text: str) -> str:
+        """Strip ANSI escape codes from text.
+
+        Args:
+            text: Text that may contain ANSI escape codes.
+
+        Returns:
+            Text with ANSI codes removed.
+        """
+        # ANSI escape sequence pattern
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        return ansi_escape.sub("", text)
+
+    def _display_width(self, text: str) -> int:
+        """Get the display width of text, excluding ANSI escape codes.
+
+        Args:
+            text: Text that may contain ANSI escape codes.
+
+        Returns:
+            Display width of the text.
+        """
+        return len(self._strip_ansi_codes(text))
+
+    def _pad_to_width(self, text: str, width: int, fill_char: str = " ") -> str:
+        """Pad text to a specific display width, accounting for ANSI codes.
+
+        Args:
+            text: Text to pad (may contain ANSI codes).
+            width: Target display width.
+            fill_char: Character to use for padding.
+
+        Returns:
+            Padded text with correct display width.
+        """
+        current_width = self._display_width(text)
+        if current_width >= width:
+            return text
+
+        padding_needed = width - current_width
+        return text + (fill_char * padding_needed)
+
     def _get_status_color(self, status: str) -> str:
         """Get color for thread status.
 
@@ -536,13 +579,15 @@ class PrettyFormatter(BaseFormatter):
 
         headers = sorted(all_keys)
 
-        # Calculate column widths
+        # Calculate column widths based on display width (excluding ANSI codes)
         col_widths = {}
         for header in headers:
             col_widths[header] = len(header)
             for item in items:
                 value = str(item.get(header, ""))
-                col_widths[header] = max(col_widths[header], len(value))
+                # Use display width in case value contains ANSI codes
+                display_width = self._display_width(value)
+                col_widths[header] = max(col_widths[header], display_width)
 
         # Limit column widths
         max_col_width = max(10, (self.table_width - len(headers) * 3) // len(headers))
@@ -554,10 +599,10 @@ class PrettyFormatter(BaseFormatter):
         # Header row
         header_parts = []
         for header in headers:
-            header_text = self._style(
-                header[: col_widths[header]], "bright_blue", bold=True
-            )
-            header_parts.append(header_text.ljust(col_widths[header]))
+            truncated_header = header[: col_widths[header]]
+            header_text = self._style(truncated_header, "bright_blue", bold=True)
+            padded_header = self._pad_to_width(header_text, col_widths[header])
+            header_parts.append(padded_header)
         lines.append(" | ".join(header_parts))
 
         # Separator
@@ -583,7 +628,8 @@ class PrettyFormatter(BaseFormatter):
                 else:
                     styled_value = value
 
-                row_parts.append(styled_value.ljust(col_widths[header]))
+                padded_value = self._pad_to_width(styled_value, col_widths[header])
+                row_parts.append(padded_value)
             lines.append(" | ".join(row_parts))
 
         return "\n".join(lines)

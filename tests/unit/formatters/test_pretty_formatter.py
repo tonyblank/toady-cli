@@ -602,3 +602,67 @@ class TestPrettyFormatterIntegration:
         # Should be registered
         assert FormatterFactory.is_registered("pretty")
         assert "pretty" in FormatterFactory.list_formatters()
+
+    def test_ansi_code_handling(self):
+        """Test ANSI code stripping and display width calculation."""
+        formatter = PrettyFormatter(use_colors=True)
+
+        # Test with actual ANSI codes
+        styled_text = "\x1b[32mHello\x1b[0m"  # Green "Hello"
+
+        # Test stripping ANSI codes
+        stripped = formatter._strip_ansi_codes(styled_text)
+        assert stripped == "Hello"
+
+        # Test display width calculation
+        width = formatter._display_width(styled_text)
+        assert width == 5  # "Hello" is 5 characters
+
+        # Test padding
+        padded = formatter._pad_to_width(styled_text, 10)
+        assert formatter._display_width(padded) == 10
+        assert padded.endswith("     ")  # Should have 5 spaces at the end
+
+    def test_pad_to_width_edge_cases(self):
+        """Test padding edge cases."""
+        formatter = PrettyFormatter(use_colors=False)
+
+        # Text already at target width
+        text = "Hello"
+        result = formatter._pad_to_width(text, 5)
+        assert result == "Hello"
+
+        # Text longer than target width
+        long_text = "Hello World"
+        result = formatter._pad_to_width(long_text, 5)
+        assert result == "Hello World"  # Should not be truncated
+
+        # Empty text
+        result = formatter._pad_to_width("", 5)
+        assert result == "     "
+
+    def test_table_alignment_with_colors(self):
+        """Test that table alignment works correctly with colored text."""
+        formatter = PrettyFormatter(use_colors=True)
+
+        # Create items with different length values
+        items = [
+            {"short": "a", "long": "this is a long value"},
+            {"short": "bb", "long": "x"},
+        ]
+
+        result = formatter._format_table(items)
+        lines = result.split("\n")
+
+        # All data rows should have the same visual width
+        # (excluding ANSI codes)
+        data_lines = [
+            line for line in lines if "|" in line and not line.startswith("-")
+        ]
+        if len(data_lines) >= 2:
+            # Strip ANSI codes and check alignment
+            stripped_lines = [formatter._strip_ansi_codes(line) for line in data_lines]
+            # All lines should have similar length when ANSI codes are removed
+            lengths = [len(line) for line in stripped_lines]
+            # Allow small variance due to content differences
+            assert max(lengths) - min(lengths) <= 3
