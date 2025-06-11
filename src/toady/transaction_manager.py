@@ -600,3 +600,11 @@ class TransactionManager:
             op_type = op.operation_type.value
             counts[op_type] = counts.get(op_type, 0) + 1
         return counts
+
+    def get_rollback_handler_count(self) -> int:
+        """Get the number of registered rollback handlers.
+
+        Returns:
+            The number of rollback handlers currently registered.
+        """
+        return len(self._rollback_handlers)

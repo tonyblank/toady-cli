@@ -435,7 +435,11 @@ class BulkReplyResolveService:
                         atomic_failure=True,
                         rollback_performed=True,
                         transaction_id=transaction_id,
-                        transaction_status=TransactionStatus.FAILED.value,
+                        transaction_status=(
+                            audit_report.get("status")
+                            if audit_report is not None
+                            else TransactionStatus.FAILED.value
+                        ),
                         checkpoints_created=checkpoints_created,
                         audit_report=audit_report,
                     )

@@ -356,12 +356,12 @@ class TestBulkReplyResolveServiceWithTransactions:
         """Test checkpoint creation at specified intervals."""
         # Create service with checkpoint interval of 2
         service = BulkReplyResolveService(
+            fetch_service=Mock(),
+            reply_service=Mock(),
+            resolve_service=Mock(),
             transaction_manager=mock_transaction_manager,
             checkpoint_interval=2,
         )
-        service.fetch_service = Mock()
-        service.reply_service = Mock()
-        service.resolve_service = Mock()
 
         # Create 5 threads to trigger checkpoints
         threads = []
@@ -503,7 +503,7 @@ class TestTransactionIntegration:
 
         # Verify rollback handlers are registered
         tm = service.transaction_manager
-        assert len(tm._rollback_handlers) == 3
+        assert tm.get_rollback_handler_count() == 3
 
     def test_transaction_manager_rollback_strategy_configuration(self):
         """Test transaction manager configuration with different rollback strategies."""
