@@ -5,6 +5,7 @@ ANSI escape code handling, and terminal-specific edge cases.
 """
 
 import os
+import time
 from datetime import datetime
 from unittest.mock import patch
 
@@ -436,7 +437,6 @@ class TestColorPerformance:
 
     def test_color_vs_no_color_performance(self):
         """Test performance difference between colored and non-colored output."""
-        import time
 
         # Create test data
         threads = []
@@ -517,8 +517,6 @@ class TestColorPerformance:
         )
 
         # Should handle large content with colors
-        import time
-
         start_time = time.time()
         result = formatter.format_threads([thread])
         format_time = time.time() - start_time
