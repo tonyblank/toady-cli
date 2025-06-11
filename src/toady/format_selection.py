@@ -15,6 +15,29 @@ from . import formatters  # noqa: F401
 from .format_interfaces import FormatterError, FormatterFactory
 from .formatters import format_fetch_output
 
+
+# Force registration to ensure formatters are available
+def _ensure_formatters_registered() -> None:
+    """Ensure formatters are properly registered.
+
+    This function explicitly registers formatters to handle cases where
+    module import order might cause registration issues.
+    """
+    try:
+        from .json_formatter import JSONFormatter
+        from .pretty_formatter import PrettyFormatter
+
+        # Register both formatters explicitly
+        FormatterFactory.register("json", JSONFormatter)
+        FormatterFactory.register("pretty", PrettyFormatter)
+    except ImportError:
+        # If import fails, formatters may already be registered or unavailable
+        pass
+
+
+# Call registration on module import
+_ensure_formatters_registered()
+
 # TypeVar for decorator functions
 F = TypeVar("F", bound=Callable[..., Any])
 
