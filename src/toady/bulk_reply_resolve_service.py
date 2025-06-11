@@ -338,9 +338,7 @@ class BulkReplyResolveService:
             successful_results: List[BulkOperationResult] = []
             for i, operation in enumerate(operations):
                 try:
-                    result = self._execute_single_operation_with_transaction(
-                        operation, transaction_id
-                    )
+                    result = self._execute_single_operation_with_transaction(operation)
                     if result.success:
                         successful_results.append(result)
 
@@ -499,9 +497,7 @@ class BulkReplyResolveService:
 
             for i, operation in enumerate(operations):
                 try:
-                    result = self._execute_single_operation_with_transaction(
-                        operation, transaction_id
-                    )
+                    result = self._execute_single_operation_with_transaction(operation)
                     results.append(result)
                     if result.success:
                         successful_count += 1
@@ -564,7 +560,7 @@ class BulkReplyResolveService:
             ) from e
 
     def _execute_single_operation_with_transaction(
-        self, operation: BulkOperation, _transaction_id: str
+        self, operation: BulkOperation
     ) -> BulkOperationResult:
         """Execute a single operation with transaction recording."""
         try:

@@ -318,9 +318,7 @@ class TestBulkReplyResolveServiceWithTransactions:
         bulk_service.reply_service.post_reply.return_value = {"reply_id": "reply_789"}
         bulk_service.resolve_service.resolve_thread.return_value = {"success": True}
 
-        result = bulk_service._execute_single_operation_with_transaction(
-            operation, "tx_123"
-        )
+        result = bulk_service._execute_single_operation_with_transaction(operation)
 
         assert result.success is True
         assert result.reply_result == {"reply_id": "reply_789"}
@@ -340,9 +338,7 @@ class TestBulkReplyResolveServiceWithTransactions:
         # Mock service failure
         bulk_service.reply_service.post_reply.side_effect = Exception("Reply failed")
 
-        result = bulk_service._execute_single_operation_with_transaction(
-            operation, "tx_123"
-        )
+        result = bulk_service._execute_single_operation_with_transaction(operation)
 
         assert result.success is False
         assert result.error == "Reply failed"

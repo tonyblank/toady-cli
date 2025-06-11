@@ -239,7 +239,9 @@ class TestTransactionManager:
         # Verify transaction state
         current_tx = transaction_manager.get_current_transaction()
         assert current_tx.status == TransactionStatus.ROLLED_BACK
-        assert current_tx.end_time is not None
+        assert (
+            current_tx.end_time is None
+        )  # Non-terminal operation doesn't set end_time
 
     def test_rollback_transaction_handler_failure(self, transaction_manager):
         """Test rollback when handler fails."""

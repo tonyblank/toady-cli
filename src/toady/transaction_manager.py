@@ -360,7 +360,7 @@ class TransactionManager:
         self._current_transaction.status = (
             TransactionStatus.ROLLED_BACK if success else TransactionStatus.FAILED
         )
-        self._current_transaction.end_time = datetime.now()
+        # Leave end_time unset; terminal actions will stamp it
 
         self.logger.info(
             f"Transaction {self._current_transaction.transaction_id} rollback: "
@@ -436,6 +436,10 @@ class TransactionManager:
 
         # Move to history
         self._transaction_history.append(self._current_transaction)
+        if len(self._transaction_history) > self.max_operation_history:
+            self._transaction_history = self._transaction_history[
+                -self.max_operation_history :
+            ]
         transaction_id = self._current_transaction.transaction_id
         self._current_transaction = None
 
