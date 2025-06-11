@@ -129,7 +129,7 @@ class TestFetchCLI:
         result = runner.invoke(cli, ["fetch", "--help"])
         assert result.exit_code == 0
         assert "Fetch review threads from a GitHub pull request" in result.output
-        assert "Examples:" in result.output
+        assert "EXAMPLES:" in result.output
 
     def test_fetch_pr_parameter_type_validation(self, runner: CliRunner) -> None:
         """Test that --pr parameter only accepts integers."""

@@ -23,8 +23,8 @@ from toady.services.fetch_service import FetchService
     "pr_number",
     required=False,
     type=int,
-    help="Pull request number to fetch review threads from. If not provided, "
-    "will show interactive PR selection.",
+    help="Pull request number to fetch review threads from. Omit for interactive "
+    "PR selection. Must be a positive integer representing an existing PR.",
     metavar="NUMBER",
 )
 @create_format_option()
@@ -32,13 +32,15 @@ from toady.services.fetch_service import FetchService
 @click.option(
     "--resolved",
     is_flag=True,
-    help="Include resolved threads in addition to unresolved ones",
+    help="Include resolved threads in addition to unresolved ones. Default behavior "
+    "returns only unresolved threads that need responses.",
 )
 @click.option(
     "--limit",
     type=int,
     default=100,
-    help="Maximum number of threads to fetch (default: 100)",
+    help="Maximum number of threads to fetch (default: 100, max: 1000). "
+    "Use to control API usage and response size for large PRs.",
     metavar="COUNT",
 )
 @click.pass_context
@@ -52,25 +54,69 @@ def fetch(
 ) -> None:
     """Fetch review threads from a GitHub pull request.
 
-    If --pr is provided, fetches threads from that specific pull request.
-    If --pr is omitted, displays an interactive menu to select from open PRs.
+    Retrieves review threads (comments that require responses) from GitHub PRs.
+    Returns structured data containing thread IDs, comment content, authors, and
+    metadata.
 
-    By default, only unresolved review threads are fetched. Use --resolved
-    to include resolved threads as well.
+    BEHAVIOR:
+        • Without --pr: Shows interactive PR selection menu
+        • With --pr: Fetches from specified pull request number
+        • Default: Only unresolved threads (threads needing responses)
+        • With --resolved: Includes both resolved and unresolved threads
 
-    Examples:
+    OUTPUT STRUCTURE (JSON):
+        [
+          {
+            "thread_id": "PRRT_kwDOO3WQIc5Rv3_r",     # Use for replies/resolve
+            "comment_id": "IC_kwDOABcD12MAAAABcDE3fg", # Alternative ID
+            "body": "Please fix this issue",
+            "author": "reviewer-username",
+            "created_at": "2023-01-01T12:00:00Z",
+            "is_resolved": false,
+            "pr_number": 123,
+            "file_path": "src/main.py",
+            "line_number": 42
+          }
+        ]
 
+    AGENT USAGE PATTERNS:
+        # Get unresolved threads for processing
         toady fetch --pr 123
 
-        toady fetch --pr 123 --format pretty
+        # Get all thread IDs for bulk operations
+        toady fetch --pr 123 | jq '.[].thread_id'
 
-        toady fetch --pr 123 --resolved --limit 50
+        # Find threads by author
+        toady fetch --pr 123 | jq '.[] | select(.author == "reviewer")'
 
-        toady fetch  # Interactive PR selection
+    INTERACTIVE USAGE:
+        toady fetch --format pretty  # Human-readable output with colors
 
-        toady fetch --format pretty  # Interactive selection with pretty output
+    EXAMPLES:
+        Basic fetch (JSON output):
+            toady fetch --pr 123
 
-        toady fetch --pretty  # Backward compatibility (deprecated)
+        Human-readable output:
+            toady fetch --pr 123 --format pretty
+
+        Include resolved threads:
+            toady fetch --pr 123 --resolved
+
+        Limit results:
+            toady fetch --pr 123 --limit 50
+
+        Interactive PR selection:
+            toady fetch
+
+        Pipeline with other tools:
+            toady fetch --pr 123 | jq '.[].thread_id' | \\
+                xargs -I {} toady resolve --thread-id {}
+
+    ERROR CODES:
+        • authentication_required: GitHub CLI not authenticated
+        • pr_not_found: Pull request doesn't exist or no access
+        • no_threads_found: PR has no review threads
+        • api_rate_limit: GitHub API rate limit exceeded
     """
     # Validate input parameters
     if pr_number is not None:

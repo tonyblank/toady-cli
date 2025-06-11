@@ -19,15 +19,15 @@ class TestReplyCLI:
 
     def test_reply_requires_body(self, runner: CliRunner) -> None:
         """Test that reply requires --body option."""
-        result = runner.invoke(cli, ["reply", "--reply-to-id", "123"])
+        result = runner.invoke(cli, ["reply", "--id", "123"])
         assert result.exit_code != 0
         assert "Missing option '--body'" in result.output
 
-    def test_reply_requires_reply_to_id(self, runner: CliRunner) -> None:
-        """Test that reply requires --reply-to-id option."""
+    def test_reply_requires_id(self, runner: CliRunner) -> None:
+        """Test that reply requires --id option."""
         result = runner.invoke(cli, ["reply", "--body", "test"])
         assert result.exit_code != 0
-        assert "Missing option '--reply-to-id'" in result.output
+        assert "Missing option '--id'" in result.output
 
     @patch("toady.commands.reply.ReplyService")
     def test_reply_with_valid_numeric_id(
@@ -45,10 +45,10 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "Test reply"]
+            cli, ["reply", "--id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 0
-        assert '"reply_to_id": "123456789"' in result.output
+        assert '"id": "123456789"' in result.output
         assert '"reply_posted": true' in result.output
         assert '"reply_id": "987654321"' in result.output
 
@@ -78,14 +78,14 @@ class TestReplyCLI:
             cli,
             [
                 "reply",
-                "--reply-to-id",
+                "--id",
                 "IC_kwDOABcD12MAAAABcDE3fg",
                 "--body",
                 "Test reply",
             ],
         )
         assert result.exit_code == 0
-        assert '"reply_to_id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
+        assert '"id": "IC_kwDOABcD12MAAAABcDE3fg"' in result.output
 
         from toady.services.reply_service import ReplyRequest
 
@@ -115,7 +115,7 @@ class TestReplyCLI:
             cli,
             [
                 "reply",
-                "--reply-to-id",
+                "--id",
                 "123456789",
                 "--body",
                 "Test reply",
@@ -127,56 +127,46 @@ class TestReplyCLI:
         assert "✅ Reply posted successfully" in result.output
         assert "🔗 View reply at: https://github.com/owner/repo/pull/1" in result.output
 
-    def test_reply_empty_reply_to_id(self, runner: CliRunner) -> None:
-        """Test reply with empty reply-to-id."""
-        result = runner.invoke(cli, ["reply", "--reply-to-id", " ", "--body", "test"])
+    def test_reply_empty_id(self, runner: CliRunner) -> None:
+        """Test reply with empty id."""
+        result = runner.invoke(cli, ["reply", "--id", " ", "--body", "test"])
         assert result.exit_code != 0
         assert "Reply target ID cannot be empty" in result.output
 
-    def test_reply_whitespace_reply_to_id(self, runner: CliRunner) -> None:
-        """Test reply with whitespace-only reply-to-id."""
-        result = runner.invoke(cli, ["reply", "--reply-to-id", "   ", "--body", "test"])
+    def test_reply_whitespace_id(self, runner: CliRunner) -> None:
+        """Test reply with whitespace-only id."""
+        result = runner.invoke(cli, ["reply", "--id", "   ", "--body", "test"])
         assert result.exit_code != 0
         assert "Reply target ID cannot be empty" in result.output
 
-    def test_reply_invalid_reply_to_id_format(self, runner: CliRunner) -> None:
-        """Test reply with invalid reply-to-id format."""
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "invalid123", "--body", "test"]
-        )
+    def test_reply_invalid_id_format(self, runner: CliRunner) -> None:
+        """Test reply with invalid id format."""
+        result = runner.invoke(cli, ["reply", "--id", "invalid123", "--body", "test"])
         assert result.exit_code != 0
         assert "Reply target ID must start with one of" in result.output
 
     def test_reply_invalid_node_id_too_short(self, runner: CliRunner) -> None:
         """Test reply with too short node ID."""
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "IC_abc", "--body", "test"]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "IC_abc", "--body", "test"])
         assert result.exit_code != 0
         assert "appears too short to be valid" in result.output
 
     def test_reply_empty_body(self, runner: CliRunner) -> None:
         """Test reply with empty body."""
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", " "]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", " "])
         assert result.exit_code != 0
         assert "Reply body cannot be empty" in result.output
 
     def test_reply_whitespace_only_body(self, runner: CliRunner) -> None:
         """Test reply with whitespace-only body."""
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "   "]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", "   "])
         assert result.exit_code != 0
         assert "Reply body cannot be empty" in result.output
 
     def test_reply_body_too_long(self, runner: CliRunner) -> None:
         """Test reply with body exceeding maximum length."""
         long_body = "x" * 65537  # One character over the limit
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", long_body]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", long_body])
         assert result.exit_code != 0
         assert "Reply body cannot exceed 65,536 characters" in result.output
 
@@ -196,9 +186,7 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         max_body = "x" * 65536  # Exactly at the limit
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", max_body]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", max_body])
         assert result.exit_code == 0
 
     @patch("toady.commands.reply.ReplyService")
@@ -219,7 +207,7 @@ class TestReplyCLI:
             cli,
             [
                 "reply",
-                "--reply-to-id",
+                "--id",
                 "123456789",
                 "--body",
                 "@user thanks!",
@@ -246,7 +234,7 @@ class TestReplyCLI:
         }
         mock_service_class.return_value = mock_service
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "@user thanks!"]
+            cli, ["reply", "--id", "123456789", "--body", "@user thanks!"]
         )
         assert result.exit_code == 0
         assert "⚠️" not in result.output
@@ -267,18 +255,18 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "Test reply"]
+            cli, ["reply", "--id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 0
 
         output = json.loads(result.output)
-        assert "reply_to_id" in output
+        assert "id" in output
         assert "reply_posted" in output
         assert "reply_url" in output
         assert "reply_id" in output
         assert "created_at" in output
         assert "author" in output
-        assert output["reply_to_id"] == "123456789"
+        assert output["id"] == "123456789"
         assert output["reply_posted"] is True
         assert output["reply_id"] == "987654321"
         assert output["author"] == "testuser"
@@ -289,8 +277,8 @@ class TestReplyCLI:
         result = runner.invoke(cli, ["reply", "--help"])
         assert result.exit_code == 0
         assert "Post a reply to a specific review comment" in result.output
-        assert "Examples:" in result.output
-        assert "--reply-to-id" in result.output
+        assert "EXAMPLES:" in result.output
+        assert "--id" in result.output
         assert "--body" in result.output
 
     def test_reply_parameter_metavars(self, runner: CliRunner) -> None:
@@ -314,7 +302,7 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "999", "--body", "Test reply", "--pretty"]
+            cli, ["reply", "--id", "999", "--body", "Test reply", "--pretty"]
         )
         assert result.exit_code == 1
         assert "❌ Comment not found: Comment 999 not found in PR #1" in result.output
@@ -332,9 +320,7 @@ class TestReplyCLI:
         )
         mock_service_class.return_value = mock_service
 
-        result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "999", "--body", "Test reply"]
-        )
+        result = runner.invoke(cli, ["reply", "--id", "999", "--body", "Test reply"])
         assert result.exit_code == 1
 
         output = json.loads(result.output)
@@ -357,7 +343,7 @@ class TestReplyCLI:
 
         result = runner.invoke(
             cli,
-            ["reply", "--reply-to-id", "123456789", "--body", "Test reply", "--pretty"],
+            ["reply", "--id", "123456789", "--body", "Test reply", "--pretty"],
         )
         assert result.exit_code == 1
         assert (
@@ -379,7 +365,7 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "Test reply"]
+            cli, ["reply", "--id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 1
 
@@ -401,7 +387,7 @@ class TestReplyCLI:
 
         result = runner.invoke(
             cli,
-            ["reply", "--reply-to-id", "123456789", "--body", "Test reply", "--pretty"],
+            ["reply", "--id", "123456789", "--body", "Test reply", "--pretty"],
         )
         assert result.exit_code == 1
         assert "❌ Failed to post reply: API request failed" in result.output
@@ -418,7 +404,7 @@ class TestReplyCLI:
         mock_service_class.return_value = mock_service
 
         result = runner.invoke(
-            cli, ["reply", "--reply-to-id", "123456789", "--body", "Test reply"]
+            cli, ["reply", "--id", "123456789", "--body", "Test reply"]
         )
         assert result.exit_code == 1
 
@@ -427,8 +413,8 @@ class TestReplyCLI:
         assert output["error"] == "api_error"
         assert "API request failed" in output["error_message"]
 
-    def test_reply_enhanced_reply_to_id_validation(self, runner: CliRunner) -> None:
-        """Test enhanced reply-to-id validation edge cases."""
+    def test_reply_enhanced_id_validation(self, runner: CliRunner) -> None:
+        """Test enhanced id validation edge cases."""
         # Test numeric ID validation
         test_cases = [
             ("0", "Reply target ID must be a positive integer"),
@@ -442,12 +428,10 @@ class TestReplyCLI:
             ("IC_kwDO@#$%", "contains invalid characters"),
         ]
 
-        for reply_to_id, expected_error in test_cases:
-            result = runner.invoke(
-                cli, ["reply", "--reply-to-id", reply_to_id, "--body", "test"]
-            )
-            assert result.exit_code == 2, f"Should fail for reply-to-id: {reply_to_id}"
-            assert expected_error in result.output, f"Expected error for {reply_to_id}"
+        for id, expected_error in test_cases:
+            result = runner.invoke(cli, ["reply", "--id", id, "--body", "test"])
+            assert result.exit_code == 2, f"Should fail for id: {id}"
+            assert expected_error in result.output, f"Expected error for {id}"
 
     def test_reply_enhanced_body_validation(self, runner: CliRunner) -> None:
         """Test enhanced body validation."""
@@ -470,9 +454,7 @@ class TestReplyCLI:
         ]
 
         for body, expected_error in test_cases:
-            result = runner.invoke(
-                cli, ["reply", "--reply-to-id", "123456789", "--body", body]
-            )
+            result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", body])
             assert result.exit_code == 2, f"Should fail for body: {repr(body)}"
             assert expected_error in result.output, f"Expected error for {repr(body)}"
 
@@ -500,7 +482,7 @@ class TestReplyCLI:
             cli,
             [
                 "reply",
-                "--reply-to-id",
+                "--id",
                 "123456789",
                 "--body",
                 "This is a test reply that demonstrates the verbose feature",
@@ -543,7 +525,7 @@ class TestReplyCLI:
             cli,
             [
                 "reply",
-                "--reply-to-id",
+                "--id",
                 "123456789",
                 "--body",
                 "Test reply",
@@ -583,7 +565,7 @@ class TestReplyCLI:
         """Test enhanced error handling for PRRC_ IDs."""
         result = runner.invoke(
             cli,
-            ["reply", "--reply-to-id", "PRRC_kwDOABcD12MAAAABcDE3fg", "--body", "test"],
+            ["reply", "--id", "PRRC_kwDOABcD12MAAAABcDE3fg", "--body", "test"],
         )
         assert result.exit_code == 2
         assert "Individual comment IDs from submitted reviews (PRRC_)" in result.output

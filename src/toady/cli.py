@@ -24,6 +24,66 @@ def cli(ctx: click.Context, debug: bool) -> None:
     """Toady - GitHub PR review management tool.
 
     Efficiently manage GitHub pull request code reviews from the command line.
+    Integrates with GitHub CLI (`gh`) to fetch, reply to, and resolve review threads.
+
+    PREREQUISITES:
+        • GitHub CLI (`gh`) must be installed and authenticated
+        • Run `gh auth login` if not already authenticated
+        • Ensure you have access to the target repository
+
+    CORE WORKFLOW:
+        1. Fetch review threads: `toady fetch --pr 123`
+        2. Reply to comments: `toady reply --id <thread_id> --body "Fixed!"`
+        3. Resolve threads: `toady resolve --thread-id <thread_id>`
+
+    AGENT-FRIENDLY USAGE:
+        • All commands output JSON by default for easy parsing
+        • Use `--format pretty` for human-readable output
+        • Thread and comment IDs are consistently formatted
+        • Error responses include structured error codes
+
+    COMMON PATTERNS:
+        Interactive workflow:
+            toady fetch              # Select PR interactively
+            toady reply --id <id> --body "Response"
+            toady resolve --thread-id <id>
+
+        Automated workflow:
+            toady fetch --pr 123 --format json | jq '.[] | .thread_id'
+            toady reply --id <id> --body "Automated response"
+            toady resolve --all --pr 123 --yes
+
+    For detailed command help: toady <command> --help
+    For examples and patterns: see examples.md in project repository
+
+    TROUBLESHOOTING:
+
+    Authentication Issues:
+        • Run: gh auth login
+        • Verify: gh auth status
+        • Ensure repo scope: gh auth login --scopes repo
+
+    Common Errors:
+        • "authentication_required": GitHub CLI not logged in
+        • "pr_not_found": PR doesn't exist or no repository access
+        • "rate_limit_exceeded": Too many API calls, wait and retry
+        • "thread_not_found": Invalid thread ID or thread was deleted
+
+    Debug Mode:
+        • Set TOADY_DEBUG=1 or use --debug flag for detailed error info
+        • Use --format pretty for human-readable output during testing
+
+    ID Issues:
+        • Always use thread IDs from `toady fetch` output
+        • Use `toady reply --help-ids` for complete ID documentation
+        • Thread IDs (PRRT_, PRT_, RT_) are more reliable than comment IDs
+
+    Rate Limiting:
+        • Use --limit option to reduce API calls
+        • Add delays between operations in scripts
+        • Check limits: gh api rate_limit
+
+    For comprehensive examples: see examples.md
     """
     ctx.ensure_object(dict)
     ctx.obj["debug"] = debug

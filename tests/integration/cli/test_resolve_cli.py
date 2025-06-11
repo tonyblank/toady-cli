@@ -367,8 +367,8 @@ class TestResolveCLI:
         """Test resolve command help content."""
         result = runner.invoke(cli, ["resolve", "--help"])
         assert result.exit_code == 0
-        assert "Mark a review thread as resolved or unresolved" in result.output
-        assert "Examples:" in result.output
+        assert "Mark review threads as resolved or unresolved" in result.output
+        assert "EXAMPLES:" in result.output
         assert "--thread-id" in result.output
         assert "--undo" in result.output
 
