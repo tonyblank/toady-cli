@@ -33,7 +33,12 @@ def _ensure_formatters_registered() -> None:
             from .json_formatter import JSONFormatter
 
             FormatterFactory.register("json", JSONFormatter)
-        except Exception:
+        except Exception as e:
+            # Debug: log the actual error that occurred
+            import sys
+            print(f"DEBUG: JSON formatter import failed: {e}", file=sys.stderr)
+            print(f"DEBUG: Exception type: {type(e)}", file=sys.stderr)
+            
             # Fallback to legacy JSON formatter using basic json module
             import json
 
