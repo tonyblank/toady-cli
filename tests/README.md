@@ -169,12 +169,12 @@ from toady.models.models import ReviewThread
 @pytest.mark.unit
 class TestReviewThread:
     """Test the ReviewThread model."""
-    
+
     def test_creation(self, thread_factory):
         """Test thread creation."""
         thread = thread_factory(status="RESOLVED")
         assert thread.status == "RESOLVED"
-    
+
     @pytest.mark.parametrize("status", ["RESOLVED", "UNRESOLVED"])
     def test_status_values(self, thread_factory, status):
         """Test different status values."""

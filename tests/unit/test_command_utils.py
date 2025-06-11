@@ -13,6 +13,7 @@ from toady.command_utils import (
 from toady.exceptions import ToadyError, ValidationError
 
 
+@pytest.mark.unit
 class TestValidatePrNumber:
     """Test PR number validation."""
 
@@ -49,6 +50,7 @@ class TestValidatePrNumber:
         assert exc_info.value.param_hint == "--pr"
 
 
+@pytest.mark.unit
 class TestValidateLimit:
     """Test limit validation."""
 
@@ -97,6 +99,7 @@ class TestValidateLimit:
         assert exc_info.value.param_hint == "--limit"
 
 
+@pytest.mark.unit
 class TestHandleCommandErrors:
     """Test command error handling decorator."""
 
