@@ -109,11 +109,11 @@ echo "Processing PR #$PR_NUMBER..."
 # Fetch threads and process with error handling
 toady fetch --pr "$PR_NUMBER" | jq -r '.[] | select(.is_resolved == false) | .thread_id' | while read -r thread_id; do
     echo "Processing thread: $thread_id"
-    
+
     # Reply with error handling
     if toady reply --id "$thread_id" --body "$RESPONSE_MESSAGE"; then
         echo "  ✅ Reply posted successfully"
-        
+
         # Resolve with error handling
         if toady resolve --thread-id "$thread_id"; then
             echo "  ✅ Thread resolved successfully"
@@ -142,14 +142,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup GitHub CLI
         run: |
           gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-      
+
       - name: Install Toady
         run: pip install toady-cli
-      
+
       - name: Process Review Comments
         run: |
           # Auto-acknowledge review comments
@@ -259,7 +259,7 @@ fi
 handle_error() {
     local command=$1
     local error_output=$2
-    
+
     if echo "$error_output" | grep -q "authentication_failed"; then
         echo "❌ Authentication failed. Run: gh auth login"
         exit 1
@@ -280,10 +280,10 @@ handle_error() {
 fetch_with_retry() {
     local max_attempts=3
     local attempt=1
-    
+
     while [[ $attempt -le $max_attempts ]]; do
         echo "Attempt $attempt: Fetching threads..."
-        
+
         local output
         if output=$(toady fetch --pr "$PR_NUMBER" 2>&1); then
             echo "$output"
@@ -300,7 +300,7 @@ fetch_with_retry() {
             fi
         fi
     done
-    
+
     echo "❌ Failed to fetch after $max_attempts attempts"
     exit 1
 }
@@ -311,19 +311,19 @@ THREADS=$(fetch_with_retry)
 
 echo "$THREADS" | jq -r '.[] | select(.is_resolved == false) | .thread_id' | while read -r thread_id; do
     echo "Processing thread: $thread_id"
-    
+
     # Reply with error handling
     if ! toady reply --id "$thread_id" --body "Acknowledged and working on this feedback."; then
         echo "  ⚠️ Failed to reply to $thread_id, continuing..."
         continue
     fi
-    
+
     # Resolve with error handling
     if ! toady resolve --thread-id "$thread_id"; then
         echo "  ⚠️ Failed to resolve $thread_id, continuing..."
         continue
     fi
-    
+
     echo "  ✅ Successfully processed $thread_id"
 done
 
@@ -471,7 +471,7 @@ toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "test" --format pretty
 
 For more help:
 - `toady --help` - Main help
-- `toady <command> --help` - Command-specific help  
+- `toady <command> --help` - Command-specific help
 - `toady reply --help-ids` - Detailed ID type documentation
 
 ## Contributing
