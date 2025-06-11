@@ -6,7 +6,7 @@ with the new formatter interface system.
 
 import json
 import textwrap
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional
 
 import click
 
