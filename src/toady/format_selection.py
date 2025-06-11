@@ -9,6 +9,9 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
 
 import click
 
+# Ensure formatters are registered by importing the module
+# This triggers the FormatterFactory.register() calls at module level
+from . import formatters  # noqa: F401
 from .format_interfaces import FormatterError, FormatterFactory
 from .formatters import format_fetch_output
 
@@ -197,8 +200,13 @@ def format_object_output(obj: Any, format_name: str) -> None:
         import json
 
         click.echo(json.dumps(obj, indent=2))
+    elif format_name == "pretty":
+        # Handle pretty format consistently with format_threads_output
+        formatter = create_formatter(format_name)
+        output = formatter.format_object(obj)
+        click.echo(output)
     else:
-        # Use formatter interface
+        # Use formatter interface for other formats
         formatter = create_formatter(format_name)
         output = formatter.format_object(obj)
         click.echo(output)
