@@ -76,9 +76,9 @@ class TestTransactionManager:
             OperationType.REPLY_POST, mock_rollback_handler
         )
 
-        assert OperationType.REPLY_POST in transaction_manager._rollback_handlers
+        assert transaction_manager.get_rollback_handler_count() == 1
         assert (
-            transaction_manager._rollback_handlers[OperationType.REPLY_POST]
+            transaction_manager.get_rollback_handler(OperationType.REPLY_POST)
             is mock_rollback_handler
         )
 

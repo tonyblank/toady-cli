@@ -1,5 +1,6 @@
 """Transaction management system for bulk operations with rollback capabilities."""
 
+import copy
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -231,8 +232,8 @@ class TransactionManager:
             operation_type=operation_type,
             timestamp=datetime.now(),
             thread_id=thread_id,
-            data=data.copy(),
-            rollback_data=rollback_data.copy() if rollback_data else None,
+            data=copy.deepcopy(data),
+            rollback_data=copy.deepcopy(rollback_data) if rollback_data else None,
         )
 
         self._current_transaction.operations.append(operation)
@@ -612,3 +613,16 @@ class TransactionManager:
             The number of rollback handlers currently registered.
         """
         return len(self._rollback_handlers)
+
+    def get_rollback_handler(
+        self, operation_type: OperationType
+    ) -> Optional[RollbackHandler]:
+        """Get the rollback handler for a specific operation type.
+
+        Args:
+            operation_type: The operation type to get the handler for.
+
+        Returns:
+            The rollback handler for the operation type, or None if not registered.
+        """
+        return self._rollback_handlers.get(operation_type)

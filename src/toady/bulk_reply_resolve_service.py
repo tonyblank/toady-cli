@@ -354,7 +354,7 @@ class BulkReplyResolveService:
                             checkpoints_created += 1
                     else:
                         # Atomic failure - abort transaction
-                        self.transaction_manager.abort_transaction(
+                        rollback_ok = self.transaction_manager.abort_transaction(
                             f"Operation {operation.operation_id} failed: {result.error}"
                         )
 
@@ -376,7 +376,7 @@ class BulkReplyResolveService:
                                 resolve_result=prev_result.resolve_result,
                                 error="Rolled back due to atomic failure",
                                 rollback_attempted=True,
-                                rollback_success=True,  # Rollback performed by abort
+                                rollback_success=rollback_ok,
                             )
                             all_failed_results.append(failed_result)
 
