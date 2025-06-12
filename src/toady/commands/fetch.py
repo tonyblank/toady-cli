@@ -137,7 +137,7 @@ def fetch(
     selected_pr_number = pr_number  # Initialize with provided value for error handling
     try:
         # Create fetch service and retrieve threads using integrated PR selection
-        fetch_service = FetchService()
+        fetch_service = FetchService(output_format=output_format)
         threads, selected_pr_number = (
             fetch_service.fetch_review_threads_with_pr_selection(
                 pr_number=pr_number,

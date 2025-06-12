@@ -39,7 +39,15 @@ jobs:
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
 
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.TOADY_INTEGRATION_TOKEN || secrets.GITHUB_TOKEN }}
+      TOADY_TEST_REPO: tonyblank/toady-integration-tests
+      TOADY_TEST_ORG: tonyblank
+      TOADY_TEST_PR_NUMBER: 1
+      TOADY_API_TIMEOUT: 30
+      TOADY_RATE_LIMIT_BUFFER: 100
+      TOADY_SKIP_SLOW_TESTS: false
+      TOADY_MAX_RETRY_ATTEMPTS: 3
+      TOADY_RETRY_DELAY: 1.0
 
     steps:
       - uses: actions/checkout@v4

@@ -21,15 +21,20 @@ class FetchServiceError(Exception):
 class FetchService:
     """Service for fetching review threads from GitHub pull requests."""
 
-    def __init__(self, github_service: Optional[GitHubService] = None) -> None:
+    def __init__(
+        self,
+        github_service: Optional[GitHubService] = None,
+        output_format: str = "pretty",
+    ) -> None:
         """Initialize the fetch service.
 
         Args:
             github_service: Optional GitHubService instance. If None, creates a new one.
+            output_format: Output format for PR selection messages ("json" or "pretty").
         """
         self.github_service = github_service or GitHubService()
         self.parser = GraphQLResponseParser()
-        self.pr_selector = PRSelector()
+        self.pr_selector = PRSelector(output_format=output_format)
 
     def fetch_review_threads(
         self,

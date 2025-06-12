@@ -201,13 +201,11 @@ class CIRunner:
             [
                 "pytest",
                 "-v",
-                "-m",
-                "not integration",
                 "--cov=toady",
                 "--cov-report=xml:coverage.xml",
                 "--cov-report=term-missing",
             ],
-            "Test suite execution",
+            "Test suite execution (1132 tests - this may take several minutes)",
             timeout=600,  # 10 minutes for full test suite
             check_output=True,
         )

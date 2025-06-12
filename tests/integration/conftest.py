@@ -25,6 +25,15 @@ def integration_test_config() -> Dict[str, Any]:
     Returns:
         Dictionary containing integration test configuration parameters.
     """
+    # Load .env file for local development (CI uses environment variables directly)
+    try:
+        from dotenv import load_dotenv
+
+        # Loads .env from current directory, doesn't override existing env vars
+        load_dotenv()
+    except ImportError:
+        pass  # dotenv not available, skip gracefully
+
     return {
         "test_repo": os.getenv("TOADY_TEST_REPO", "toady-test/integration-testing"),
         "test_org": os.getenv("TOADY_TEST_ORG", "toady-test"),
@@ -147,11 +156,33 @@ def test_repository_info(integration_test_config: Dict[str, Any]) -> Dict[str, A
     Returns:
         Dictionary containing test repository information.
     """
+    import subprocess
+
     repo = integration_test_config["test_repo"]
     parts = repo.split("/")
 
     if len(parts) != 2:
         pytest.skip(f"Invalid test repository format: {repo}")
+
+    # Check if the test repository exists and is accessible
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"repos/{repo}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            pytest.skip(
+                f"Test repository {repo} is not accessible or does not exist. "
+                f"Set TOADY_TEST_REPO environment variable to a valid repository "
+                f"for integration tests."
+            )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pytest.skip(
+            f"Cannot verify test repository {repo} accessibility - "
+            f"GitHub CLI not available or timed out"
+        )
 
     return {
         "owner": parts[0],

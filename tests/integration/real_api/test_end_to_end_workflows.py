@@ -330,11 +330,12 @@ class TestEndToEndWorkflows:
         # Should either work with available PRs or skip gracefully
         if result.exit_code == 0:
             # Verify we got valid thread data
+            # For JSON format, check stdout only (stderr contains interactive messages)
             try:
-                threads_data = json.loads(result.output)
+                threads_data = json.loads(result.stdout)
                 assert isinstance(threads_data, list)
             except json.JSONDecodeError:
-                pytest.fail(f"Invalid JSON response: {result.output}")
+                pytest.fail(f"Invalid JSON response in stdout: {result.stdout}")
         else:
             # Interactive mode might fail if no PRs available - that's okay
             assert (
