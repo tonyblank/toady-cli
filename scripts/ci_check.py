@@ -201,6 +201,8 @@ class CIRunner:
             [
                 "pytest",
                 "-v",
+                "-m",
+                "not integration",
                 "--cov=toady",
                 "--cov-report=xml:coverage.xml",
                 "--cov-report=term-missing",

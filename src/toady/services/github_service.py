@@ -510,7 +510,7 @@ class GitHubService:
 
         if strategy == "thread_reply":
             # Use thread reply mutation for node IDs
-            from .node_id_validation import create_thread_validator
+            from ..validators.node_id_validation import create_thread_validator
 
             validator = create_thread_validator()
             validator.validate_id(comment_id, "Thread ID")
@@ -519,7 +519,7 @@ class GitHubService:
             return self.execute_graphql_query(REPLY_THREAD_MUTATION, variables)
         else:
             # Use comment reply mutation for numeric/node IDs needing review context
-            from .node_id_validation import validate_comment_id
+            from ..validators.node_id_validation import validate_comment_id
 
             validate_comment_id(comment_id)
 
@@ -556,7 +556,7 @@ class GitHubService:
         thread_id = thread_id.strip()
 
         # Validate thread ID
-        from .node_id_validation import validate_thread_id
+        from ..validators.node_id_validation import validate_thread_id
 
         validate_thread_id(thread_id)
 

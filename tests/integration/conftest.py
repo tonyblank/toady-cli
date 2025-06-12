@@ -51,6 +51,8 @@ def github_api_health_check(integration_test_config: Dict[str, Any]) -> bool:
     Raises:
         pytest.skip: If GitHub API is not accessible or authentication fails.
     """
+    import json
+
     try:
         # Check if gh CLI is available
         result = subprocess.run(
@@ -81,8 +83,6 @@ def github_api_health_check(integration_test_config: Dict[str, Any]) -> bool:
         )
         if rate_limit_result.returncode != 0:
             pytest.skip("Unable to check GitHub API rate limits")
-
-        import json
 
         rate_data = json.loads(rate_limit_result.stdout)
         remaining = rate_data.get("rate", {}).get("remaining", 0)

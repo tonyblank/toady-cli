@@ -863,7 +863,7 @@ def validate_dict_keys(
 
 
 # Convenience function for validating reply content warnings
-def check_reply_content_warnings(body: str) -> List[str]:
+def validate_reply_content_warnings(body: str) -> List[str]:
     """Check for potential issues in reply content and return warnings.
 
     Args:
