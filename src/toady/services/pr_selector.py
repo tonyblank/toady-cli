@@ -203,16 +203,20 @@ class PRSelector:
 
     def display_no_prs_message(self) -> None:
         """Display message when no open PRs are found."""
-        # In JSON mode, send to stderr to avoid polluting JSON output
-        click.echo(err=self.is_json_mode)
+        # In JSON mode, completely suppress output to avoid compatibility issues
+        if self.is_json_mode:
+            return
+
+        # Pretty mode - show the message
+        click.echo()
         message = "📝 No open pull requests found in this repository."
-        click.echo(click.style(message, fg="yellow", bold=True), err=self.is_json_mode)
+        click.echo(click.style(message, fg="yellow", bold=True))
 
         suggestion = (
             "To fetch review threads, please specify a PR number using --pr option."
         )
-        click.echo(click.style(suggestion, fg="cyan"), err=self.is_json_mode)
-        click.echo(err=self.is_json_mode)
+        click.echo(click.style(suggestion, fg="cyan"))
+        click.echo()
 
     def display_auto_selected_pr(self, pr: PullRequest) -> None:
         """Display message when automatically selecting single PR.
@@ -220,17 +224,21 @@ class PRSelector:
         Args:
             pr: The automatically selected pull request
         """
-        # In JSON mode, send to stderr to avoid polluting JSON output
-        click.echo(err=self.is_json_mode)
+        # In JSON mode, completely suppress output to avoid compatibility issues
+        if self.is_json_mode:
+            return
+
+        # Pretty mode - show the selection message
+        click.echo()
         header = "🎯 Auto-selected the only open pull request:"
-        click.echo(click.style(header, fg="green", bold=True), err=self.is_json_mode)
+        click.echo(click.style(header, fg="green", bold=True))
 
         pr_info = f"#{pr.number}: {pr.title}"
-        click.echo(click.style(pr_info, fg="white", bold=True), err=self.is_json_mode)
+        click.echo(click.style(pr_info, fg="white", bold=True))
 
         author_branch = f"by {pr.author} • {pr.head_ref} → {pr.base_ref}"
-        click.echo(click.style(author_branch, fg="blue"), err=self.is_json_mode)
-        click.echo(err=self.is_json_mode)
+        click.echo(click.style(author_branch, fg="blue"))
+        click.echo()
 
 
 class PRSelectionResult:

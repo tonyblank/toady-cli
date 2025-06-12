@@ -32,6 +32,14 @@ class FetchService:
             github_service: Optional GitHubService instance. If None, creates a new one.
             output_format: Output format for PR selection messages ("json" or "pretty").
         """
+        allowed = {"json", "pretty"}
+        output_format = output_format.lower()
+        if output_format not in allowed:
+            raise ValueError(
+                f"Unsupported output_format '{output_format}'. "
+                f"Allowed: {', '.join(sorted(allowed))}"
+            )
+
         self.github_service = github_service or GitHubService()
         self.parser = GraphQLResponseParser()
         self.pr_selector = PRSelector(output_format=output_format)
