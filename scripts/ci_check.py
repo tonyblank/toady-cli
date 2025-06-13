@@ -233,6 +233,40 @@ class CIRunner:
 
         return success
 
+    def check_trailing_whitespace(self) -> bool:
+        """Check for trailing whitespace."""
+        self.print_step("WHITESPACE", "Checking trailing whitespace")
+
+        success, output, duration = self.run_command(
+            ["pre-commit", "run", "trailing-whitespace", "--all-files"],
+            "Trailing whitespace check",
+        )
+
+        self.check_results["trailing_whitespace"] = {
+            "passed": success,
+            "duration": duration,
+            "output": output,
+        }
+
+        return success
+
+    def check_end_of_files(self) -> bool:
+        """Check for proper end of files."""
+        self.print_step("EOF", "Checking end of files")
+
+        success, output, duration = self.run_command(
+            ["pre-commit", "run", "end-of-file-fixer", "--all-files"],
+            "End of file check",
+        )
+
+        self.check_results["end_of_files"] = {
+            "passed": success,
+            "duration": duration,
+            "output": output,
+        }
+
+        return success
+
     def run_pre_commit_hooks(self) -> bool:
         """Run pre-commit hooks."""
         self.print_step("HOOKS", "Running pre-commit hooks")
@@ -363,6 +397,8 @@ class CIRunner:
             ("Code Formatting", self.check_code_formatting),
             ("Code Linting", self.check_linting),
             ("Type Checking", self.check_type_hints),
+            ("Trailing Whitespace", self.check_trailing_whitespace),
+            ("End of Files", self.check_end_of_files),
         ]
 
         self.total_checks = len(pipeline_steps)

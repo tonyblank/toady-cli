@@ -49,15 +49,15 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
     "tomli>=2.0.0;python_version<'3.11'",
-    "python-dotenv>=1.1.0",
+    "python-dotenv>=1.0.0",
     "psutil>=5.9.0",
-    "types-click>=7.1.0",
+    "types-click>=8.1.0",
 ]
 test = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
-    "python-dotenv>=1.1.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.urls]

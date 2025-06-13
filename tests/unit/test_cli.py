@@ -420,21 +420,19 @@ class TestCLIMainBehavior:
 
         mock_cli.assert_called_once()
 
-    @patch("os.environ.get")
+    @patch.dict("os.environ", {"TOADY_DEBUG": "1"})
     @patch("toady.cli.cli")
     @patch("toady.cli.handle_error")
     def test_main_debug_environment_access(
-        self, mock_handle_error, mock_cli, mock_env_get
+        self, mock_handle_error, mock_cli
     ):
         """Test that main() correctly accesses debug environment variable."""
         test_error = ToadyError("Test error")
         mock_cli.side_effect = test_error
-        mock_env_get.return_value = "1"
 
         main()
 
-        # Should call os.environ.get twice (once for ToadyError, once for unexpected)
-        mock_env_get.assert_called_with("TOADY_DEBUG", "")
+        # Should call handle_error with show_traceback=True when TOADY_DEBUG is set
         mock_handle_error.assert_called_once_with(test_error, show_traceback=True)
 
 

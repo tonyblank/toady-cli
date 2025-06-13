@@ -1,8 +1,0 @@
-# DEPRECATED: Use pyproject.toml for dependency management
-# Install development dependencies with: pip install -e ".[dev]"
-# 
-# This file is kept for backwards compatibility but should not be used.
-# All development dependencies are now defined in pyproject.toml
-
-# Include base requirements for compatibility
--r requirements.txt

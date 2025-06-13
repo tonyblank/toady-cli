@@ -27,7 +27,7 @@ Comprehensive unit tests for the fetch command (`src/toady/commands/fetch.py`) w
 
 3. **TestFetchCommandFormatResolution** - Format option handling
    - Pretty flag resolution
-   - Format parameter resolution  
+   - Format parameter resolution
    - Combined parameter scenarios
 
 4. **TestFetchCommandServiceIntegration** - Service layer integration
