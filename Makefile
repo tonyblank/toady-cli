@@ -1,6 +1,7 @@
 .PHONY: help install install-dev test test-fast test-integration test-performance test-analysis
 .PHONY: lint format format-check type-check pre-commit check check-fast fix-check clean build
 .PHONY: sync lock update add remove deps-check shell run
+.PHONY: publish-test publish check-publish setup-publish
 
 # Single source of truth: ALL commands use uv
 export PATH := $(HOME)/.local/bin:$(PATH)
@@ -43,6 +44,12 @@ help:
 	@echo "🛠️  Development Utilities:"
 	@echo "  make shell           Open shell with project dependencies loaded"
 	@echo "  make run ARGS='...'  Run toady CLI in development mode"
+	@echo ""
+	@echo "📦 Publishing:"
+	@echo "  make setup-publish   Set up PyPI credentials (one-time setup)"
+	@echo "  make check-publish   Check package for PyPI compliance"
+	@echo "  make publish-test    Publish to TestPyPI for testing"
+	@echo "  make publish         Publish to production PyPI"
 	@echo ""
 	@echo "🧹 Maintenance:"
 	@echo "  make clean           Remove build artifacts and cache files"
@@ -180,3 +187,58 @@ clean:
 build: clean
 	@echo "📦 Building distribution packages..."
 	uv build
+
+## Publishing (PyPI Distribution)
+setup-publish:
+	@echo "🔐 Setting up PyPI publishing credentials..."
+	@echo ""
+	@echo "1. Register accounts (if you haven't already):"
+	@echo "   • TestPyPI: https://test.pypi.org/account/register/"
+	@echo "   • PyPI: https://pypi.org/account/register/"
+	@echo ""
+	@echo "2. Create API tokens:"
+	@echo "   • TestPyPI: https://test.pypi.org/manage/account/token/"
+	@echo "   • PyPI: https://pypi.org/manage/account/token/"
+	@echo ""
+	@echo "3. Configure credentials in ~/.pypirc:"
+	@echo "   [distutils]"
+	@echo "   index-servers = pypi testpypi"
+	@echo ""
+	@echo "   [pypi]"
+	@echo "   username = __token__"
+	@echo "   password = pypi-YOUR_PRODUCTION_TOKEN_HERE"
+	@echo ""
+	@echo "   [testpypi]"
+	@echo "   repository = https://test.pypi.org/legacy/"
+	@echo "   username = __token__"
+	@echo "   password = pypi-YOUR_TEST_TOKEN_HERE"
+	@echo ""
+	@echo "4. Alternatively, set environment variables:"
+	@echo "   export TWINE_USERNAME=__token__"
+	@echo "   export TWINE_PASSWORD=pypi-YOUR_TOKEN_HERE"
+
+check-publish: build
+	@echo "🔍 Checking package for PyPI compliance..."
+	uv run twine check dist/*
+	@echo "✅ Package passed PyPI compliance checks!"
+
+publish-test: check-publish
+	@echo "🧪 Publishing to TestPyPI..."
+	@echo "⚠️  This will upload version $(shell grep '^version = ' pyproject.toml | cut -d'"' -f2) to TestPyPI"
+	@read -p "Continue? (y/N) " confirm && [ "$$confirm" = "y" ] || exit 1
+	uv run twine upload --repository testpypi dist/*
+	@echo ""
+	@echo "✅ Published to TestPyPI!"
+	@echo "🔗 View at: https://test.pypi.org/project/toady-cli/"
+	@echo "📦 Test install: pip install --index-url https://test.pypi.org/simple/ toady-cli"
+
+publish: check-publish
+	@echo "🚀 Publishing to production PyPI..."
+	@echo "⚠️  WARNING: This will publish version $(shell grep '^version = ' pyproject.toml | cut -d'"' -f2) to PRODUCTION PyPI"
+	@echo "⚠️  This action CANNOT be undone!"
+	@read -p "Are you absolutely sure? (y/N) " confirm && [ "$$confirm" = "y" ] || exit 1
+	uv run twine upload dist/*
+	@echo ""
+	@echo "🎉 Published to PyPI!"
+	@echo "🔗 View at: https://pypi.org/project/toady-cli/"
+	@echo "📦 Install: pip install toady-cli"
