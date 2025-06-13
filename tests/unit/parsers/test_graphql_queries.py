@@ -330,7 +330,8 @@ class TestCursorValidation:
 
     def test_validate_cursor_with_empty_string(self) -> None:
         """Test cursor validation with empty string."""
-        assert _validate_cursor("") is False
+        with pytest.raises(ValueError, match="Cursor cannot be empty"):
+            _validate_cursor("")
 
     def test_validate_cursor_with_invalid_base64(self) -> None:
         """Test cursor validation with invalid Base64."""
