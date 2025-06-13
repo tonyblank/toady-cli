@@ -275,7 +275,7 @@ output = "coverage.xml"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311,py312,lint,type
+envlist = py39,py310,py311,py312,lint,type
 
 [testenv]
 deps =
