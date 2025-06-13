@@ -5,21 +5,22 @@ that interact with real GitHub APIs, including authentication management,
 test data setup/cleanup, and resilience testing infrastructure.
 """
 
+from collections.abc import Generator
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 import time
-from pathlib import Path
-from typing import Any, Dict, Generator
+from typing import Any
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.services.github_service import GitHubService
 
 
 @pytest.fixture(scope="session")
-def integration_test_config() -> Dict[str, Any]:
+def integration_test_config() -> dict[str, Any]:
     """Load integration test configuration from environment variables.
 
     Returns:
@@ -48,7 +49,7 @@ def integration_test_config() -> Dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
-def github_api_health_check(integration_test_config: Dict[str, Any]) -> bool:
+def github_api_health_check(integration_test_config: dict[str, Any]) -> bool:
     """Verify GitHub API accessibility and authentication before running tests.
 
     Args:
@@ -147,7 +148,7 @@ def temp_cache_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def test_repository_info(integration_test_config: Dict[str, Any]) -> Dict[str, Any]:
+def test_repository_info(integration_test_config: dict[str, Any]) -> dict[str, Any]:
     """Get information about the test repository.
 
     Args:
@@ -194,8 +195,8 @@ def test_repository_info(integration_test_config: Dict[str, Any]) -> Dict[str, A
 
 @pytest.fixture
 def verify_test_pr_exists(
-    github_service_real: GitHubService, test_repository_info: Dict[str, Any]
-) -> Dict[str, Any]:
+    github_service_real: GitHubService, test_repository_info: dict[str, Any]
+) -> dict[str, Any]:
     """Verify that the test PR exists and is accessible.
 
     Args:
@@ -259,7 +260,7 @@ def rate_limit_aware_delay():
 
 
 @pytest.fixture
-def api_retry_helper(integration_test_config: Dict[str, Any]):
+def api_retry_helper(integration_test_config: dict[str, Any]):
     """Helper for retrying API calls with exponential backoff."""
 
     def retry_api_call(func, *args, **kwargs):
@@ -371,7 +372,7 @@ def performance_monitor():
             self.start_time = None
             return duration
 
-        def get_metrics(self) -> Dict[str, float]:
+        def get_metrics(self) -> dict[str, float]:
             """Get all recorded performance metrics.
 
             Returns:
@@ -428,7 +429,7 @@ def integration_test_cleanup():
 
 
 @pytest.fixture
-def skip_if_slow(integration_test_config: Dict[str, Any]):
+def skip_if_slow(integration_test_config: dict[str, Any]):
     """Skip slow tests based on configuration."""
     if integration_test_config["skip_slow_tests"]:
         pytest.skip("Slow tests are disabled (TOADY_SKIP_SLOW_TESTS=true)")
@@ -443,8 +444,8 @@ def session_github_service(github_api_health_check: bool) -> GitHubService:
 
 @pytest.fixture(scope="session")
 def session_test_repository_access(
-    session_github_service: GitHubService, integration_test_config: Dict[str, Any]
-) -> Dict[str, Any]:
+    session_github_service: GitHubService, integration_test_config: dict[str, Any]
+) -> dict[str, Any]:
     """Verify session-level access to test repository."""
     repo = integration_test_config["test_repo"]
 

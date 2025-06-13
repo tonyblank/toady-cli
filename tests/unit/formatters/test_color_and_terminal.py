@@ -4,9 +4,9 @@ This module tests color output in different terminal environments,
 ANSI escape code handling, and terminal-specific edge cases.
 """
 
+from datetime import datetime
 import os
 import time
-from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -221,8 +221,7 @@ class TestTerminalEnvironments:
     def test_no_term_variable(self):
         """Test behavior when TERM variable is not set."""
         env_without_term = dict(os.environ)
-        if "TERM" in env_without_term:
-            del env_without_term["TERM"]
+        env_without_term.pop("TERM", None)
 
         with patch.dict(os.environ, env_without_term, clear=True):
             formatter = PrettyFormatter(use_colors=True)

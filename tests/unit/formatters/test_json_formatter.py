@@ -1,7 +1,7 @@
 """Tests for the JSON formatter implementation."""
 
-import json
 from datetime import datetime
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -640,3 +640,101 @@ class TestJSONFormatterErrorHandling:
         # Should still produce valid JSON - will be a string representation
         parsed = json.loads(result)
         assert isinstance(parsed, str)
+
+
+class TestJSONFormatterSafeSerialize:
+    """Test the safe serialization fallback paths."""
+
+    def test_format_threads_without_to_dict(self):
+        """Test formatting threads that don't have to_dict method."""
+        formatter = JSONFormatter()
+
+        # Create a mock thread without to_dict method
+        class MockThread:
+            def __init__(self):
+                self.thread_id = "RT_123"
+                self.title = "Test thread"
+                self.status = "UNRESOLVED"
+
+        mock_thread = MockThread()
+        result = formatter.format_threads([mock_thread])
+        parsed = json.loads(result)
+
+        # Should fall back to safe serialization
+        assert len(parsed) == 1
+        # Safe serialization uses __dict__ or string representation
+
+    def test_format_comments_without_to_dict(self):
+        """Test formatting comments that don't have to_dict method."""
+        formatter = JSONFormatter()
+
+        # Create a mock comment without to_dict method
+        class MockComment:
+            def __init__(self):
+                self.comment_id = "C_123"
+                self.content = "Test comment"
+                self.author = "testuser"
+
+        mock_comment = MockComment()
+        result = formatter.format_comments([mock_comment])
+        parsed = json.loads(result)
+
+        # Should fall back to safe serialization
+        assert len(parsed) == 1
+
+    def test_format_object_without_to_dict(self):
+        """Test formatting object that doesn't have to_dict method."""
+        formatter = JSONFormatter()
+
+        # Create a mock object without to_dict method
+        class MockObject:
+            def __init__(self):
+                self.id = "123"
+                self.name = "test"
+
+        mock_obj = MockObject()
+        result = formatter.format_object(mock_obj)
+        parsed = json.loads(result)
+
+        # Should successfully serialize using safe serialization
+        assert parsed is not None
+
+    def test_format_threads_serialization_error(self):
+        """Test formatting when thread serialization fails."""
+        formatter = JSONFormatter()
+
+        # Create a thread that will fail during serialization
+        class FailingThread:
+            @property
+            def thread_id(self):
+                return "RT_123"
+
+            def to_dict(self):
+                raise RuntimeError("Serialization failed")
+
+        failing_thread = FailingThread()
+
+        with pytest.raises(FormatterError) as exc_info:
+            formatter.format_threads([failing_thread])
+
+        assert "Failed to serialize thread RT_123" in str(exc_info.value)
+
+    def test_format_comments_serialization_error(self):
+        """Test formatting when comment serialization fails."""
+        formatter = JSONFormatter()
+
+        # Create a comment that will fail during serialization
+        class FailingComment:
+            @property
+            def comment_id(self):
+                return "C_123"
+
+            def to_dict(self):
+                raise RuntimeError("Serialization failed")
+
+        failing_comment = FailingComment()
+
+        with pytest.raises(FormatterError) as exc_info:
+            formatter.format_comments([failing_comment])
+
+        assert "Failed to serialize comment C_123" in str(exc_info.value)

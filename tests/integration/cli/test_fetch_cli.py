@@ -3,8 +3,8 @@
 import json
 from unittest.mock import Mock, patch
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 

@@ -214,7 +214,6 @@ class TestHandleCommandErrors:
         @handle_command_errors
         def test_function():
             """Test function docstring."""
-            pass
 
         assert test_function.__name__ == "test_function"
         assert test_function.__doc__ == "Test function docstring."

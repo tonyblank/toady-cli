@@ -4,10 +4,10 @@ This module contains performance benchmarks and memory usage tests for all forma
 to ensure they can handle large datasets efficiently without memory leaks.
 """
 
+from datetime import datetime
 import gc
 import os
 import time
-from datetime import datetime
 
 import pytest
 

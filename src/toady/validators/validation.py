@@ -4,10 +4,10 @@ This module provides centralized validation for all user inputs, command-line ar
 configuration parameters, and data types used throughout the application.
 """
 
-import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+import re
+from typing import Any, Optional, Union
 
 from ..exceptions import ValidationError, create_validation_error
 from ..utils import MAX_PR_NUMBER
@@ -477,13 +477,12 @@ def validate_datetime_string(date_str: str, field_name: str = "Date") -> datetim
                 expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
                 message=f"Invalid {field_name.lower()} format",
             ) from e
-        else:
-            raise create_validation_error(
-                field_name=field_name,
-                invalid_value=date_str,
-                expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
-                message=f"Invalid {field_name.lower()} format: {str(e)}",
-            ) from e
+        raise create_validation_error(
+            field_name=field_name,
+            invalid_value=date_str,
+            expected_format="ISO datetime string (e.g., '2024-01-01T12:00:00')",
+            message=f"Invalid {field_name.lower()} format: {e!s}",
+        ) from e
 
 
 def validate_email(email: str, field_name: str = "Email") -> str:
@@ -745,7 +744,7 @@ def validate_boolean_flag(
 
 def validate_choice(
     value: Any,
-    choices: List[Any],
+    choices: list[Any],
     field_name: str = "Value",
     case_sensitive: bool = True,
 ) -> Any:
@@ -791,11 +790,11 @@ def validate_choice(
 
 
 def validate_dict_keys(
-    data: Dict[str, Any],
-    required_keys: List[str],
-    optional_keys: Optional[List[str]] = None,
+    data: dict[str, Any],
+    required_keys: list[str],
+    optional_keys: Optional[list[str]] = None,
     field_name: str = "Data",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate that a dictionary contains required keys and no unexpected keys.
 
     Args:
@@ -863,7 +862,7 @@ def validate_dict_keys(
 
 
 # Convenience function for validating reply content warnings
-def validate_reply_content_warnings(body: str) -> List[str]:
+def validate_reply_content_warnings(body: str) -> list[str]:
     """Check for potential issues in reply content and return warnings.
 
     Args:
@@ -899,7 +898,7 @@ def validate_fetch_command_args(
     pretty: bool = False,
     resolved: bool = False,
     limit: Union[int, str] = 100,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate all arguments for the fetch command.
 
     Args:
@@ -927,7 +926,7 @@ def validate_reply_command_args(
     body: str,
     pretty: bool = False,
     verbose: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate all arguments for the reply command.
 
     Args:
@@ -969,7 +968,7 @@ def validate_resolve_command_args(
     thread_id: Optional[Union[str, int]] = None,
     pr_number: Optional[Union[int, str]] = None,
     options: Optional[ResolveOptions] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Validate all arguments for the resolve command.
 
     Args:

@@ -6,7 +6,7 @@ with the new formatter interface system.
 
 import json
 import textwrap
-from typing import List, Optional
+from typing import Optional
 
 import click
 
@@ -19,7 +19,7 @@ class OutputFormatter:
     """Base class for output formatters."""
 
     @staticmethod
-    def format_threads(threads: List[ReviewThread], pretty: bool = False) -> str:
+    def format_threads(threads: list[ReviewThread], pretty: bool = False) -> str:
         """Format a list of review threads for output.
 
         Args:
@@ -31,15 +31,14 @@ class OutputFormatter:
         """
         if pretty:
             return PrettyFormatter.format_threads(threads)
-        else:
-            return JSONFormatter.format_threads(threads)
+        return JSONFormatter.format_threads(threads)
 
 
 class JSONFormatter:
     """JSON output formatter."""
 
     @staticmethod
-    def format_threads(threads: List[ReviewThread]) -> str:
+    def format_threads(threads: list[ReviewThread]) -> str:
         """Format threads as JSON array.
 
         Args:
@@ -185,7 +184,7 @@ class PrettyFormatter:
         return "\n".join(lines)
 
     @staticmethod
-    def format_threads(threads: List[ReviewThread]) -> str:
+    def format_threads(threads: list[ReviewThread]) -> str:
         """Format threads in a human-readable format with full comment content.
 
         Args:
@@ -308,7 +307,7 @@ class PrettyFormatter:
 
 
 def format_fetch_output(
-    threads: List[ReviewThread],
+    threads: list[ReviewThread],
     pretty: bool = False,
     show_progress: bool = True,
     pr_number: Optional[int] = None,

@@ -7,10 +7,10 @@ retry logic, and error recovery in real API interactions.
 import json
 import subprocess
 import time
-from typing import Any, Dict
+from typing import Any
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 
@@ -25,7 +25,7 @@ class TestNetworkResilience:
     def test_api_timeout_handling(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
     ):
         """Test handling of API timeouts."""
@@ -54,7 +54,7 @@ class TestNetworkResilience:
     def test_network_retry_behavior(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         api_retry_helper,
         rate_limit_aware_delay,
     ):
@@ -78,7 +78,7 @@ class TestNetworkResilience:
     def test_large_response_handling(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
         skip_if_slow,
     ):
@@ -125,7 +125,7 @@ class TestNetworkResilience:
     def test_concurrent_api_usage_patterns(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
         skip_if_slow,
     ):
@@ -172,7 +172,7 @@ class TestNetworkResilience:
     def test_progressive_backoff_behavior(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
         skip_if_slow,
     ):
@@ -197,8 +197,7 @@ class TestNetworkResilience:
                 if "rate limit" in result.output.lower():
                     print(f"Hit rate limit on request {i+1}")
                     break
-                else:
-                    print(f"Request {i+1} failed for other reason: {result.output}")
+                print(f"Request {i+1} failed for other reason: {result.output}")
 
             # Small delay between requests
             rate_limit_aware_delay(0.2)
@@ -211,7 +210,7 @@ class TestNetworkResilience:
     def test_connection_recovery_after_failure(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         api_retry_helper,
     ):
         """Test recovery after connection failures."""
@@ -252,7 +251,7 @@ class TestRateLimitHandling:
 
     def test_rate_limit_status_monitoring(
         self,
-        integration_test_config: Dict[str, Any],
+        integration_test_config: dict[str, Any],
     ):
         """Test monitoring of rate limit status."""
         try:
@@ -296,8 +295,8 @@ class TestRateLimitHandling:
     def test_rate_limit_respect_in_operations(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
-        integration_test_config: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        integration_test_config: dict[str, Any],
     ):
         """Test that operations respect rate limits."""
         pr_number = verify_test_pr_exists["number"]
@@ -330,7 +329,7 @@ class TestRateLimitHandling:
     def test_rate_limit_error_handling(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Test graceful handling when rate limits are exceeded."""
         verify_test_pr_exists["number"]
@@ -373,7 +372,6 @@ class TestRateLimitHandling:
 
         # For now, this is a placeholder for future implementation
         # when we have better ways to simulate these conditions
-        pass
 
 
 @pytest.mark.integration
@@ -385,7 +383,7 @@ class TestErrorRecoveryPatterns:
     def test_transient_error_recovery(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         api_retry_helper,
     ):
         """Test recovery from transient errors."""
@@ -408,7 +406,7 @@ class TestErrorRecoveryPatterns:
     def test_partial_failure_handling(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Test handling of partial failures in operations."""
         pr_number = verify_test_pr_exists["number"]
@@ -444,7 +442,7 @@ class TestErrorRecoveryPatterns:
     def test_data_consistency_after_errors(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
     ):
         """Test that data remains consistent after error conditions."""
@@ -491,7 +489,7 @@ class TestErrorRecoveryPatterns:
     def test_graceful_degradation_patterns(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Test graceful degradation when services are limited."""
         pr_number = verify_test_pr_exists["number"]

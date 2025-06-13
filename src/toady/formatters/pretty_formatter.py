@@ -7,7 +7,7 @@ for better readability in terminal environments.
 
 import re
 import textwrap
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import click
 
@@ -40,7 +40,7 @@ class PrettyFormatter(BaseFormatter):
         self.text_width = kwargs.get("text_width", 76)
         self.indent = kwargs.get("indent", "   ")
 
-    def format_threads(self, threads: List[ReviewThread]) -> str:
+    def format_threads(self, threads: list[ReviewThread]) -> str:
         """Format a list of review threads in pretty format.
 
         Args:
@@ -131,10 +131,10 @@ class PrettyFormatter(BaseFormatter):
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format threads in pretty format: {str(e)}", original_error=e
+                f"Failed to format threads in pretty format: {e!s}", original_error=e
             ) from e
 
-    def format_comments(self, comments: List[Comment]) -> str:
+    def format_comments(self, comments: list[Comment]) -> str:
         """Format a list of comments in pretty format.
 
         Args:
@@ -168,7 +168,7 @@ class PrettyFormatter(BaseFormatter):
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format comments in pretty format: {str(e)}",
+                f"Failed to format comments in pretty format: {e!s}",
                 original_error=e,
             ) from e
 
@@ -208,17 +208,16 @@ class PrettyFormatter(BaseFormatter):
                 serialized = self._safe_serialize(obj)
                 if isinstance(serialized, dict):
                     return self._format_dict(serialized)
-                else:
-                    return str(serialized)
+                return str(serialized)
             except Exception:
                 return self._style(f"<{type(obj).__name__}>", "dim")
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format object in pretty format: {str(e)}", original_error=e
+                f"Failed to format object in pretty format: {e!s}", original_error=e
             ) from e
 
-    def format_array(self, items: List[Any]) -> str:
+    def format_array(self, items: list[Any]) -> str:
         """Format an array of items in pretty format.
 
         Args:
@@ -250,10 +249,10 @@ class PrettyFormatter(BaseFormatter):
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format array in pretty format: {str(e)}", original_error=e
+                f"Failed to format array in pretty format: {e!s}", original_error=e
             ) from e
 
-    def format_primitive(self, value: Union[str, int, float, bool, None]) -> str:
+    def format_primitive(self, value: Union[str, float, bool, None]) -> str:
         """Format a primitive value in pretty format.
 
         Args:
@@ -282,11 +281,11 @@ class PrettyFormatter(BaseFormatter):
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format primitive value in pretty format: {str(e)}",
+                f"Failed to format primitive value in pretty format: {e!s}",
                 original_error=e,
             ) from e
 
-    def format_error(self, error: Dict[str, Any]) -> str:
+    def format_error(self, error: dict[str, Any]) -> str:
         """Format an error object in pretty format.
 
         Args:
@@ -323,7 +322,7 @@ class PrettyFormatter(BaseFormatter):
 
         except Exception as e:
             raise FormatterError(
-                f"Failed to format error in pretty format: {str(e)}", original_error=e
+                f"Failed to format error in pretty format: {e!s}", original_error=e
             ) from e
 
     def _style(self, text: str, color: str, bold: bool = False) -> str:
@@ -413,10 +412,9 @@ class PrettyFormatter(BaseFormatter):
         """
         if is_outdated or status.upper() == "OUTDATED":
             return "⏰"
-        elif status.upper() == "RESOLVED":
+        if status.upper() == "RESOLVED":
             return "✅"
-        else:
-            return "❌"
+        return "❌"
 
     def _format_file_context(self, thread: ReviewThread) -> str:
         """Format file context information for a thread.
@@ -499,7 +497,7 @@ class PrettyFormatter(BaseFormatter):
 
         return "\n".join(lines)
 
-    def _wrap_comment_content(self, content: str) -> List[str]:
+    def _wrap_comment_content(self, content: str) -> list[str]:
         """Wrap comment content with proper formatting.
 
         Args:
@@ -536,7 +534,7 @@ class PrettyFormatter(BaseFormatter):
 
         return lines
 
-    def _format_dict(self, obj: Dict[str, Any]) -> str:
+    def _format_dict(self, obj: dict[str, Any]) -> str:
         """Format a dictionary in pretty format.
 
         Args:
@@ -560,7 +558,7 @@ class PrettyFormatter(BaseFormatter):
         lines.append("}")
         return "\n".join(lines)
 
-    def _format_table(self, items: List[Dict[str, Any]]) -> str:
+    def _format_table(self, items: list[dict[str, Any]]) -> str:
         """Format a list of dictionaries as a table.
 
         Args:
@@ -634,7 +632,7 @@ class PrettyFormatter(BaseFormatter):
 
         return "\n".join(lines)
 
-    def _format_summary(self, threads: List[ReviewThread]) -> str:
+    def _format_summary(self, threads: list[ReviewThread]) -> str:
         """Format summary footer for threads.
 
         Args:
@@ -675,7 +673,7 @@ class PrettyFormatter(BaseFormatter):
 default_pretty_formatter = PrettyFormatter()
 
 
-def format_threads_pretty(threads: List[ReviewThread]) -> str:
+def format_threads_pretty(threads: list[ReviewThread]) -> str:
     """Convenience function for formatting threads in pretty format.
 
     Args:
@@ -687,7 +685,7 @@ def format_threads_pretty(threads: List[ReviewThread]) -> str:
     return default_pretty_formatter.format_threads(threads)
 
 
-def format_comments_pretty(comments: List[Comment]) -> str:
+def format_comments_pretty(comments: list[Comment]) -> str:
     """Convenience function for formatting comments in pretty format.
 
     Args:

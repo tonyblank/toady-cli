@@ -4,9 +4,9 @@ This module provides basic GraphQL query parsing functionality
 to extract fields, arguments, and structure for validation.
 """
 
-import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+import re
+from typing import Any, Optional
 
 
 @dataclass
@@ -15,8 +15,8 @@ class GraphQLField:
 
     name: str
     alias: Optional[str] = None
-    arguments: Dict[str, Any] = field(default_factory=dict)
-    selections: List["GraphQLField"] = field(default_factory=list)
+    arguments: dict[str, Any] = field(default_factory=dict)
+    selections: list["GraphQLField"] = field(default_factory=list)
     parent_type: Optional[str] = None
 
 
@@ -26,8 +26,8 @@ class GraphQLOperation:
 
     type: str  # "query" or "mutation"
     name: Optional[str] = None
-    variables: Dict[str, str] = field(default_factory=dict)
-    selections: List[GraphQLField] = field(default_factory=list)
+    variables: dict[str, str] = field(default_factory=dict)
+    selections: list[GraphQLField] = field(default_factory=list)
 
 
 class GraphQLParser:
@@ -35,7 +35,7 @@ class GraphQLParser:
 
     def __init__(self) -> None:
         """Initialize the parser."""
-        self._type_stack: List[str] = []
+        self._type_stack: list[str] = []
 
     def parse(self, query: str) -> GraphQLOperation:
         """Parse a GraphQL query string.
@@ -110,7 +110,7 @@ class GraphQLParser:
             selections=selections,
         )
 
-    def _parse_variables(self, variables_str: str) -> Dict[str, str]:
+    def _parse_variables(self, variables_str: str) -> dict[str, str]:
         """Parse variable declarations."""
         variables = {}
 
@@ -128,7 +128,7 @@ class GraphQLParser:
 
     def _parse_selections(
         self, selection_str: str, parent_type: str
-    ) -> List[GraphQLField]:
+    ) -> list[GraphQLField]:
         """Parse a selection set."""
         selections = []
         current_pos = 0
@@ -155,7 +155,7 @@ class GraphQLParser:
 
     def _parse_field(
         self, selection_str: str, start_pos: int, parent_type: str
-    ) -> Tuple[Optional[GraphQLField], int]:
+    ) -> tuple[Optional[GraphQLField], int]:
         """Parse a single field from the selection set."""
         # Skip whitespace
         while start_pos < len(selection_str) and selection_str[start_pos].isspace():
@@ -218,7 +218,7 @@ class GraphQLParser:
 
     def _parse_inline_fragment(
         self, selection_str: str, start_pos: int, parent_type: str
-    ) -> Tuple[Optional[GraphQLField], int]:
+    ) -> tuple[Optional[GraphQLField], int]:
         """Parse an inline fragment (... on Type)."""
         # Pattern for inline fragment: ... on TypeName { selections }
         fragment_pattern = r"\.\.\.\s+on\s+(\w+)\s*{"
@@ -261,7 +261,7 @@ class GraphQLParser:
 
         return field, selection_end + 1
 
-    def _parse_arguments(self, args_str: str) -> Dict[str, Any]:
+    def _parse_arguments(self, args_str: str) -> dict[str, Any]:
         """Parse field arguments."""
         arguments = {}
 
@@ -327,7 +327,7 @@ class GraphQLParser:
 
         return -1
 
-    def extract_all_fields(self, operation: GraphQLOperation) -> Set[str]:
+    def extract_all_fields(self, operation: GraphQLOperation) -> set[str]:
         """Extract all field names from an operation.
 
         Args:
@@ -338,7 +338,7 @@ class GraphQLParser:
         """
         fields = set()
 
-        def collect_fields(selections: List[GraphQLField]) -> None:
+        def collect_fields(selections: list[GraphQLField]) -> None:
             for selection in selections:
                 fields.add(selection.name)
                 if selection.selections:
@@ -347,7 +347,7 @@ class GraphQLParser:
         collect_fields(operation.selections)
         return fields
 
-    def extract_field_paths(self, operation: GraphQLOperation) -> List[str]:
+    def extract_field_paths(self, operation: GraphQLOperation) -> list[str]:
         """Extract all field paths from an operation.
 
         Args:
@@ -359,7 +359,7 @@ class GraphQLParser:
         paths = []
 
         def collect_paths(
-            selections: List[GraphQLField], parent_path: str = ""
+            selections: list[GraphQLField], parent_path: str = ""
         ) -> None:
             for selection in selections:
                 current_path = (

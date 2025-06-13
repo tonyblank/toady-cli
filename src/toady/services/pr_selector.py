@@ -1,6 +1,6 @@
 """Interactive pull request selection interface."""
 
-from typing import List, Optional
+from typing import Optional
 
 import click
 
@@ -26,7 +26,7 @@ class PRSelector:
         self.output_format = output_format
         self.is_json_mode = output_format == "json"
 
-    def select_pr(self, pull_requests: List[PullRequest]) -> Optional[int]:
+    def select_pr(self, pull_requests: list[PullRequest]) -> Optional[int]:
         """Select a PR from the given list through interactive interface.
 
         Args:
@@ -60,7 +60,7 @@ class PRSelector:
         return self._show_pr_selection_menu(pull_requests)
 
     def _show_pr_selection_menu(
-        self, pull_requests: List[PullRequest]
+        self, pull_requests: list[PullRequest]
     ) -> Optional[int]:
         """Display interactive PR selection menu.
 
@@ -84,7 +84,7 @@ class PRSelector:
         # Get user selection
         return self._prompt_for_selection(pull_requests)
 
-    def _display_pr_list(self, pull_requests: List[PullRequest]) -> None:
+    def _display_pr_list(self, pull_requests: list[PullRequest]) -> None:
         """Display formatted list of pull requests.
 
         Args:
@@ -128,7 +128,7 @@ class PRSelector:
             )
             click.echo(err=self.is_json_mode)
 
-    def _prompt_for_selection(self, pull_requests: List[PullRequest]) -> Optional[int]:
+    def _prompt_for_selection(self, pull_requests: list[PullRequest]) -> Optional[int]:
         """Prompt user for PR selection with validation.
 
         Args:

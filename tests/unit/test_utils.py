@@ -1,7 +1,7 @@
 """Unit tests for utility functions."""
 
-import json
 from datetime import datetime
+import json
 from unittest.mock import patch
 
 import click

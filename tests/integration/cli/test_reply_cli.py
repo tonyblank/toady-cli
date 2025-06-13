@@ -455,8 +455,8 @@ class TestReplyCLI:
 
         for body, expected_error in test_cases:
             result = runner.invoke(cli, ["reply", "--id", "123456789", "--body", body])
-            assert result.exit_code == 2, f"Should fail for body: {repr(body)}"
-            assert expected_error in result.output, f"Expected error for {repr(body)}"
+            assert result.exit_code == 2, f"Should fail for body: {body!r}"
+            assert expected_error in result.output, f"Expected error for {body!r}"
 
     @patch("toady.commands.reply.ReplyService")
     def test_reply_with_verbose_mode_pretty(

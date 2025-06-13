@@ -5,9 +5,9 @@ and utilities for translating technical errors into user-friendly messages
 with helpful guidance for resolution.
 """
 
-import sys
 from enum import IntEnum
-from typing import Any, Dict, List, Optional
+import sys
+from typing import Any, Optional
 
 from .exceptions import (
     CommandExecutionError,
@@ -312,9 +312,7 @@ class ErrorMessageFormatter:
             return message
 
         # For unexpected errors, use the generic template
-        return (
-            ErrorMessageTemplates.GENERIC_ERROR + f"\n\n🔍 Error details: {str(error)}"
-        )
+        return ErrorMessageTemplates.GENERIC_ERROR + f"\n\n🔍 Error details: {error!s}"
 
     @staticmethod
     def get_exit_code(error: Exception) -> int:
@@ -385,8 +383,8 @@ def handle_error(error: Exception, show_traceback: bool = False) -> None:
 
 def create_user_friendly_error(
     message: str,
-    suggestions: Optional[List[str]] = None,
-    context: Optional[Dict[str, Any]] = None,
+    suggestions: Optional[list[str]] = None,
+    context: Optional[dict[str, Any]] = None,
 ) -> str:
     """Create a user-friendly error message.
 

@@ -4,9 +4,9 @@ These tests work against the real GitHub API and require proper
 authentication via the gh CLI.
 """
 
+from pathlib import Path
 import subprocess
 import tempfile
-from pathlib import Path
 
 import pytest
 

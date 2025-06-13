@@ -1,12 +1,12 @@
 """Shared pytest fixtures and configuration."""
 
-import tempfile
 from datetime import datetime
 from pathlib import Path
+import tempfile
 from unittest.mock import MagicMock, Mock
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.models.models import Comment, ReviewThread
 

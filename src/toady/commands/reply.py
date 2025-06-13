@@ -1,7 +1,7 @@
 """Reply command implementation."""
 
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import click
 
@@ -157,7 +157,7 @@ def validate_reply_target_id(reply_to_id: str) -> str:
         raise click.BadParameter(enhanced_msg, param_hint="--id") from e
 
 
-def _validate_reply_args(reply_to_id: str, body: str) -> Tuple[str, str]:
+def _validate_reply_args(reply_to_id: str, body: str) -> tuple[str, str]:
     """Validate reply command arguments.
 
     Args:
@@ -208,7 +208,7 @@ def _validate_reply_args(reply_to_id: str, body: str) -> Tuple[str, str]:
     return reply_to_id, body
 
 
-def _print_pretty_reply(reply_info: Dict[str, Any], verbose: bool) -> None:
+def _print_pretty_reply(reply_info: dict[str, Any], verbose: bool) -> None:
     """Print reply information in pretty format.
 
     Args:
@@ -248,8 +248,8 @@ def _print_pretty_reply(reply_info: Dict[str, Any], verbose: bool) -> None:
 
 
 def _build_json_reply(
-    id: str, reply_info: Dict[str, Any], verbose: bool
-) -> Dict[str, Any]:
+    id: str, reply_info: dict[str, Any], verbose: bool
+) -> dict[str, Any]:
     """Build JSON response for reply command.
 
     Args:
@@ -282,7 +282,7 @@ def _build_json_reply(
         "review_id",
     ]
     for field in optional_fields:
-        if field in reply_info and reply_info[field]:
+        if reply_info.get(field):
             result[field] = reply_info[field]
 
     # Include verbose flag in output to indicate extended info

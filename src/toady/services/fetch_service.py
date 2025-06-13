@@ -1,6 +1,6 @@
 """Fetch service for retrieving review threads from GitHub pull requests."""
 
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from ..models.models import PullRequest, ReviewThread
 from ..parsers.graphql_queries import (
@@ -14,8 +14,6 @@ from .pr_selector import PRSelectionResult, PRSelector
 
 class FetchServiceError(Exception):
     """Base exception for fetch service errors."""
-
-    pass
 
 
 class FetchService:
@@ -51,7 +49,7 @@ class FetchService:
         pr_number: int,
         include_resolved: bool = False,
         limit: int = 100,
-    ) -> List[ReviewThread]:
+    ) -> list[ReviewThread]:
         """Fetch review threads from a GitHub pull request.
 
         Args:
@@ -99,7 +97,7 @@ class FetchService:
             # Wrap other exceptions in FetchServiceError
             raise FetchServiceError(f"Failed to fetch review threads: {e}") from e
 
-    def _get_repository_info(self) -> Tuple[str, str]:
+    def _get_repository_info(self) -> tuple[str, str]:
         """Get the current repository owner and name.
 
         Returns:
@@ -126,7 +124,7 @@ class FetchService:
         pr_number: int,
         include_resolved: bool = False,
         limit: int = 100,
-    ) -> List[ReviewThread]:
+    ) -> list[ReviewThread]:
         """Fetch review threads from a PR in the current repository.
 
         Args:
@@ -160,7 +158,7 @@ class FetchService:
         repo: str,
         include_drafts: bool = False,
         limit: int = 100,
-    ) -> List[PullRequest]:
+    ) -> list[PullRequest]:
         """Fetch open pull requests from a GitHub repository.
 
         Args:
@@ -209,7 +207,7 @@ class FetchService:
         self,
         include_drafts: bool = False,
         limit: int = 100,
-    ) -> List[PullRequest]:
+    ) -> list[PullRequest]:
         """Fetch open pull requests from the current repository.
 
         Args:
@@ -273,18 +271,17 @@ class FetchService:
                 self.pr_selector.display_no_prs_message()
                 return PRSelectionResult(pr_number=None, cancelled=False)
 
-            elif len(pull_requests) == 1:
+            if len(pull_requests) == 1:
                 # Single PR - auto-select it
                 selected_pr = pull_requests[0]
                 self.pr_selector.display_auto_selected_pr(selected_pr)
                 return PRSelectionResult(pr_number=selected_pr.number, cancelled=False)
 
-            else:
-                # Multiple PRs - show interactive selection
-                selected_pr_number = self.pr_selector.select_pr(pull_requests)
-                if selected_pr_number is None:
-                    return PRSelectionResult(pr_number=None, cancelled=True)
-                return PRSelectionResult(pr_number=selected_pr_number, cancelled=False)
+            # Multiple PRs - show interactive selection
+            selected_pr_number = self.pr_selector.select_pr(pull_requests)
+            if selected_pr_number is None:
+                return PRSelectionResult(pr_number=None, cancelled=True)
+            return PRSelectionResult(pr_number=selected_pr_number, cancelled=False)
 
         except Exception as e:
             # Re-raise GitHub service exceptions as-is
@@ -300,7 +297,7 @@ class FetchService:
         include_drafts: bool = False,
         threads_limit: int = 100,
         prs_limit: int = 100,
-    ) -> Tuple[List[ReviewThread], Optional[int]]:
+    ) -> tuple[list[ReviewThread], Optional[int]]:
         """Fetch review threads with optional interactive PR selection.
 
         If pr_number is provided, fetches threads from that PR directly.

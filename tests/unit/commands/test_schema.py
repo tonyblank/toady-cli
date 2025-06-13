@@ -194,7 +194,7 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Failed to initialize schema validator" in result.output
+        assert "Error: Failed to initialize schema validator" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_validator_initialization_permission_error(
@@ -206,7 +206,7 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Failed to initialize schema validator" in result.output
+        assert "Error: Failed to initialize schema validator" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_validator_initialization_generic_error(
@@ -218,7 +218,9 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Error: Configuration error initializing schema validator" in result.output
+        assert (
+            "Error: Configuration error initializing schema validator" in result.output
+        )
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_schema_fetch_connection_error(self, mock_validator_class, runner):
@@ -371,7 +373,9 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Error: Configuration error initializing schema validator" in result.output
+        assert (
+            "Error: Configuration error initializing schema validator" in result.output
+        )
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_schema_validation_error_from_fetch(
@@ -461,7 +465,7 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["schema", "fetch"])
 
         assert result.exit_code == 1
-        assert "Failed to initialize schema validator" in result.output
+        assert "Error: Failed to initialize schema validator" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_fetch_network_error(self, mock_validator_class, runner):
@@ -527,7 +531,9 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["schema", "fetch"])
 
         assert result.exit_code == 1
-        assert "Error: Configuration error initializing schema validator" in result.output
+        assert (
+            "Error: Configuration error initializing schema validator" in result.output
+        )
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_fetch_schema_validation_error_from_fetch(
@@ -649,7 +655,7 @@ class TestCheckCommand:
         result = runner.invoke(cli, ["schema", "check", "query { viewer { login } }"])
 
         assert result.exit_code == 1
-        assert "Failed to initialize schema validator" in result.output
+        assert "Error: Failed to initialize schema validator" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_check_validation_error(self, mock_validator_class, runner):
@@ -701,7 +707,9 @@ class TestCheckCommand:
         result = runner.invoke(cli, ["schema", "check", "query { viewer { login } }"])
 
         assert result.exit_code == 1
-        assert "Error: Configuration error initializing schema validator" in result.output
+        assert (
+            "Error: Configuration error initializing schema validator" in result.output
+        )
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_check_schema_validation_error_from_validate(

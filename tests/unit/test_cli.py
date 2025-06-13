@@ -9,8 +9,8 @@ import os
 from unittest.mock import Mock, patch
 
 import click
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady import __version__
 from toady.cli import cli, main
@@ -253,8 +253,9 @@ class TestMainEntryPoint:
         test_error = ValueError("Unexpected error")
         mock_cli.side_effect = test_error
 
-        with patch.dict(os.environ, {"TOADY_DEBUG": "1"}), pytest.raises(
-            ValueError, match="Unexpected error"
+        with (
+            patch.dict(os.environ, {"TOADY_DEBUG": "1"}),
+            pytest.raises(ValueError, match="Unexpected error"),
         ):
             main()
 
@@ -423,9 +424,7 @@ class TestCLIMainBehavior:
     @patch.dict("os.environ", {"TOADY_DEBUG": "1"})
     @patch("toady.cli.cli")
     @patch("toady.cli.handle_error")
-    def test_main_debug_environment_access(
-        self, mock_handle_error, mock_cli
-    ):
+    def test_main_debug_environment_access(self, mock_handle_error, mock_cli):
         """Test that main() correctly accesses debug environment variable."""
         test_error = ToadyError("Test error")
         mock_cli.side_effect = test_error

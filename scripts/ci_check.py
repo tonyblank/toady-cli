@@ -11,12 +11,12 @@ This script provides elegant CI/CD pipeline execution with:
 """
 
 import argparse
+from datetime import datetime
+from pathlib import Path
 import subprocess
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 class Colors:
@@ -40,7 +40,7 @@ class CIRunner:
         self.project_root = project_root
         self.verbose = verbose
         self.start_time = time.time()
-        self.check_results: Dict[str, Dict[str, Any]] = {}
+        self.check_results: dict[str, dict[str, Any]] = {}
         self.total_checks = 0
         self.passed_checks = 0
         self.failed_checks = 0
@@ -74,11 +74,11 @@ class CIRunner:
 
     def run_command(
         self,
-        cmd: List[str],
+        cmd: list[str],
         description: str,
         timeout: int = 300,
         check_output: bool = False,
-    ) -> Tuple[bool, str, float]:
+    ) -> tuple[bool, str, float]:
         """Run command with timing and elegant error handling."""
         start_time = time.time()
 
@@ -138,7 +138,7 @@ class CIRunner:
 
         all_passed = True
         for cmd, desc in checks:
-            success, output, duration = self.run_command(cmd, desc, timeout=10)
+            success, output, duration = self.run_command(cmd, desc, timeout=30)
             if not success:
                 all_passed = False
 

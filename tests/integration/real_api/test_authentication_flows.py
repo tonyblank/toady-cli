@@ -7,10 +7,10 @@ permission boundaries, and error conditions related to access control.
 import os
 import subprocess
 import tempfile
-from typing import Any, Dict
+from typing import Any
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 from toady.services.github_service import GitHubService
@@ -54,7 +54,7 @@ class TestAuthenticationFlows:
 
     def test_repository_access_permissions(
         self,
-        test_repository_info: Dict[str, Any],
+        test_repository_info: dict[str, Any],
         integration_cli_runner: CliRunner,
         rate_limit_aware_delay,
     ):
@@ -93,8 +93,8 @@ class TestAuthenticationFlows:
 
     def test_pr_access_with_current_permissions(
         self,
-        verify_test_pr_exists: Dict[str, Any],
-        test_repository_info: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        test_repository_info: dict[str, Any],
         integration_cli_runner: CliRunner,
     ):
         """Test accessing PR data with current user permissions."""
@@ -128,7 +128,7 @@ class TestAuthenticationFlows:
     def test_rate_limit_status_and_handling(
         self,
         github_service_real: GitHubService,
-        integration_test_config: Dict[str, Any],
+        integration_test_config: dict[str, Any],
     ):
         """Test rate limit status checking and handling."""
         try:
@@ -209,7 +209,7 @@ class TestAuthenticationFlows:
     def test_unauthenticated_behavior_simulation(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Simulate unauthenticated behavior by temporarily removing auth."""
         verify_test_pr_exists["number"]
@@ -228,11 +228,10 @@ class TestAuthenticationFlows:
 
             # For now, just verify that our commands handle auth errors gracefully
             # This would need to be expanded with actual auth manipulation
-            pass
 
     def test_cross_organization_access_patterns(
         self,
-        test_repository_info: Dict[str, Any],
+        test_repository_info: dict[str, Any],
         integration_cli_runner: CliRunner,
     ):
         """Test access patterns across different organizations (if applicable)."""
@@ -279,8 +278,8 @@ class TestAuthenticationFlows:
 
     def test_permission_boundary_validation(
         self,
-        verify_test_pr_exists: Dict[str, Any],
-        test_repository_info: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        test_repository_info: dict[str, Any],
         integration_cli_runner: CliRunner,
     ):
         """Test operations at the boundary of user permissions."""
@@ -384,7 +383,7 @@ class TestAuthenticationErrorHandling:
     def test_graceful_handling_of_auth_errors(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Test that authentication errors are handled gracefully."""
         verify_test_pr_exists["number"]
@@ -443,7 +442,7 @@ class TestAuthenticationErrorHandling:
     def test_network_authentication_resilience(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         api_retry_helper,
     ):
         """Test authentication resilience under network conditions."""

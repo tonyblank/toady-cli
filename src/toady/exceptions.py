@@ -5,7 +5,7 @@ providing a centralized hierarchy for error handling and reporting.
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class ErrorSeverity(Enum):
@@ -81,8 +81,8 @@ class ToadyError(Exception):
         message: str,
         error_code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        context: Optional[Dict[str, Any]] = None,
-        suggestions: Optional[List[str]] = None,
+        context: Optional[dict[str, Any]] = None,
+        suggestions: Optional[list[str]] = None,
     ) -> None:
         """Initialize a ToadyError.
 
@@ -104,7 +104,7 @@ class ToadyError(Exception):
         """Return a string representation of the error."""
         return f"[{self.error_code.name}] {self.message}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert the error to a dictionary representation.
 
         Returns:

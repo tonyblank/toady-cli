@@ -7,10 +7,10 @@ testing the integration between fetch, reply, and resolve commands.
 import json
 import subprocess
 import time
-from typing import Any, Dict
+from typing import Any
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 
@@ -24,8 +24,8 @@ class TestEndToEndWorkflows:
     def test_complete_review_cycle_workflow(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
-        test_repository_info: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        test_repository_info: dict[str, Any],
         rate_limit_aware_delay,
         performance_monitor,
         integration_test_cleanup,
@@ -208,8 +208,8 @@ class TestEndToEndWorkflows:
     def test_bulk_thread_resolution_workflow(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
-        test_repository_info: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        test_repository_info: dict[str, Any],
         rate_limit_aware_delay,
         performance_monitor,
         skip_if_slow,
@@ -270,8 +270,8 @@ class TestEndToEndWorkflows:
     def test_error_recovery_workflow(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
-        test_repository_info: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
+        test_repository_info: dict[str, Any],
         rate_limit_aware_delay,
     ):
         """Test error recovery in workflows (invalid IDs, network issues, etc.)."""
@@ -315,7 +315,7 @@ class TestEndToEndWorkflows:
     def test_interactive_workflow_with_multiple_prs(
         self,
         integration_cli_runner: CliRunner,
-        test_repository_info: Dict[str, Any],
+        test_repository_info: dict[str, Any],
         rate_limit_aware_delay,
         skip_if_slow,
     ):
@@ -348,7 +348,7 @@ class TestEndToEndWorkflows:
     def test_format_consistency_across_workflow(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
     ):
         """Test that output formats are consistent across all commands in a workflow."""
@@ -420,7 +420,7 @@ class TestWorkflowEdgeCases:
     def test_workflow_with_empty_pr(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
     ):
         """Test workflow behavior with a PR that has no review comments."""
         pr_number = verify_test_pr_exists["number"]
@@ -441,7 +441,7 @@ class TestWorkflowEdgeCases:
     def test_workflow_state_persistence(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
     ):
         """Test that workflow state changes persist across multiple commands."""
@@ -476,7 +476,7 @@ class TestWorkflowEdgeCases:
     def test_concurrent_workflow_operations(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         rate_limit_aware_delay,
         skip_if_slow,
     ):

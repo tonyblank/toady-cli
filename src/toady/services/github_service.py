@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # GraphQL mutation constants
 REPLY_THREAD_MUTATION = """
@@ -98,37 +98,25 @@ mutation UnresolveReviewThread($threadId: ID!) {
 class GitHubServiceError(Exception):
     """Base exception for GitHub service errors."""
 
-    pass
-
 
 class GitHubCLINotFoundError(GitHubServiceError):
     """Raised when gh CLI is not found or not installed."""
-
-    pass
 
 
 class GitHubAuthenticationError(GitHubServiceError):
     """Raised when gh CLI authentication fails."""
 
-    pass
-
 
 class GitHubAPIError(GitHubServiceError):
     """Raised when GitHub API calls fail."""
-
-    pass
 
 
 class GitHubTimeoutError(GitHubServiceError):
     """Raised when GitHub CLI commands timeout."""
 
-    pass
-
 
 class GitHubRateLimitError(GitHubServiceError):
     """Raised when GitHub API rate limit is exceeded."""
-
-    pass
 
 
 class GitHubService:
@@ -242,7 +230,7 @@ class GitHubService:
 
         return current_parts >= min_parts
 
-    def run_gh_command(self, args: List[str], timeout: Optional[int] = None) -> Any:
+    def run_gh_command(self, args: list[str], timeout: Optional[int] = None) -> Any:
         """Run a gh CLI command with error handling and timeout support.
 
         Args:
@@ -312,7 +300,7 @@ class GitHubService:
                 "gh CLI is not installed or not accessible"
             ) from e
 
-    def get_json_output(self, args: List[str]) -> Any:
+    def get_json_output(self, args: list[str]) -> Any:
         """Run a gh CLI command and parse JSON output.
 
         Args:
@@ -352,8 +340,8 @@ class GitHubService:
             return None
 
     def execute_graphql_query(
-        self, query: str, variables: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, query: str, variables: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """Execute a GraphQL query using gh CLI.
 
         Args:
@@ -396,7 +384,7 @@ class GitHubService:
         except json.JSONDecodeError as e:
             raise GitHubAPIError(f"Failed to parse GraphQL response: {e}") from e
 
-    def get_repo_info_from_url(self, repo_url: str) -> Tuple[str, str]:
+    def get_repo_info_from_url(self, repo_url: str) -> tuple[str, str]:
         """Extract owner and repository name from a GitHub URL.
 
         Args:
@@ -482,7 +470,7 @@ class GitHubService:
 
     def post_reply(
         self, comment_id: str, body: str, review_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Post a reply to a review comment or thread.
 
         Args:
@@ -517,26 +505,25 @@ class GitHubService:
 
             variables = {"threadId": comment_id, "body": body}
             return self.execute_graphql_query(REPLY_THREAD_MUTATION, variables)
-        else:
-            # Use comment reply mutation for numeric/node IDs needing review context
-            from ..validators.node_id_validation import validate_comment_id
+        # Use comment reply mutation for numeric/node IDs needing review context
+        from ..validators.node_id_validation import validate_comment_id
 
-            validate_comment_id(comment_id)
+        validate_comment_id(comment_id)
 
-            # If review_id is not provided, try to fetch it for node IDs
-            if not review_id and not comment_id.isdigit():
-                review_id = self._get_review_id_for_comment(comment_id)
+        # If review_id is not provided, try to fetch it for node IDs
+        if not review_id and not comment_id.isdigit():
+            review_id = self._get_review_id_for_comment(comment_id)
 
-            if not review_id:
-                raise ValueError(
-                    "Review ID is required for comment replies. "
-                    "Could not determine review ID from comment."
-                )
+        if not review_id:
+            raise ValueError(
+                "Review ID is required for comment replies. "
+                "Could not determine review ID from comment."
+            )
 
-            variables = {"reviewId": review_id, "commentId": comment_id, "body": body}
-            return self.execute_graphql_query(REPLY_COMMENT_MUTATION, variables)
+        variables = {"reviewId": review_id, "commentId": comment_id, "body": body}
+        return self.execute_graphql_query(REPLY_COMMENT_MUTATION, variables)
 
-    def resolve_thread(self, thread_id: str, undo: bool = False) -> Dict[str, Any]:
+    def resolve_thread(self, thread_id: str, undo: bool = False) -> dict[str, Any]:
         """Resolve or unresolve a review thread.
 
         Args:
@@ -582,11 +569,10 @@ class GitHubService:
         # Comment IDs start with IC_, PRRC_, RP_
         if comment_id.startswith(("PRT_", "PRRT_", "RT_")):
             return "thread_reply"
-        elif comment_id.startswith(("IC_", "PRRC_", "RP_")):
+        if comment_id.startswith(("IC_", "PRRC_", "RP_")):
             return "comment_reply"
-        else:
-            # Default to comment reply for unknown formats
-            return "comment_reply"
+        # Default to comment reply for unknown formats
+        return "comment_reply"
 
     def _get_review_id_for_comment(self, comment_id: str) -> Optional[str]:
         """Get the review ID associated with a comment node ID.
@@ -644,7 +630,7 @@ class GitHubService:
 
     def fetch_open_pull_requests(
         self, owner: str, repo: str, include_drafts: bool = False, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch open pull requests from a repository.
 
         Args:
@@ -688,7 +674,7 @@ class GitHubService:
                 raise GitHubAPIError("Repository not found or no access")
 
             pull_requests_data = repository_data.get("pullRequests", {})
-            pr_nodes: List[Dict[str, Any]] = pull_requests_data.get("nodes", [])
+            pr_nodes: list[dict[str, Any]] = pull_requests_data.get("nodes", [])
 
             # Filter out drafts if not included
             if query_builder.should_filter_drafts():

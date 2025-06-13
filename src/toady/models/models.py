@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..exceptions import ValidationError, create_validation_error
 from ..utils import parse_datetime
@@ -31,7 +31,7 @@ def _parse_datetime(date_str: str) -> datetime:
             field_name="date_str",
             invalid_value=date_str,
             expected_format="ISO datetime string",
-            message=f"Failed to parse datetime: {str(e)}",
+            message=f"Failed to parse datetime: {e!s}",
         ) from e
 
 
@@ -62,7 +62,7 @@ class ReviewThread:
     updated_at: datetime
     status: str
     author: str
-    comments: List["Comment"] = field(default_factory=list)
+    comments: list["Comment"] = field(default_factory=list)
     file_path: Optional[str] = None
     line: Optional[int] = None
     original_line: Optional[int] = None
@@ -192,10 +192,10 @@ class ReviewThread:
                 field_name="ReviewThread",
                 invalid_value="validation failure",
                 expected_format="valid ReviewThread object",
-                message=f"Unexpected error during ReviewThread validation: {str(e)}",
+                message=f"Unexpected error during ReviewThread validation: {e!s}",
             ) from e
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert the ReviewThread to a dictionary for serialization.
 
         Returns:
@@ -222,7 +222,7 @@ class ReviewThread:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ReviewThread":
+    def from_dict(cls, data: dict[str, Any]) -> "ReviewThread":
         """Create a ReviewThread from a dictionary.
 
         Args:
@@ -464,10 +464,10 @@ class Comment:
                 field_name="Comment",
                 invalid_value="validation failure",
                 expected_format="valid Comment object",
-                message=f"Unexpected error during Comment validation: {str(e)}",
+                message=f"Unexpected error during Comment validation: {e!s}",
             ) from e
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert the Comment to a dictionary for serialization.
 
         Returns:
@@ -495,11 +495,11 @@ class Comment:
                 field_name="Comment",
                 invalid_value="serialization failure",
                 expected_format="serializable Comment object",
-                message=f"Failed to serialize Comment to dictionary: {str(e)}",
+                message=f"Failed to serialize Comment to dictionary: {e!s}",
             ) from e
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Comment":
+    def from_dict(cls, data: dict[str, Any]) -> "Comment":
         """Create a Comment from a dictionary.
 
         Args:
@@ -551,7 +551,7 @@ class Comment:
                     field_name="created_at",
                     invalid_value=data.get("created_at", "missing"),
                     expected_format="ISO datetime string",
-                    message=f"Invalid date format for created_at: {str(err)}",
+                    message=f"Invalid date format for created_at: {err!s}",
                 ) from err
 
             try:
@@ -561,7 +561,7 @@ class Comment:
                     field_name="updated_at",
                     invalid_value=data.get("updated_at", "missing"),
                     expected_format="ISO datetime string",
-                    message=f"Invalid date format for updated_at: {str(err)}",
+                    message=f"Invalid date format for updated_at: {err!s}",
                 ) from err
 
             # Create instance with proper error handling
@@ -587,7 +587,7 @@ class Comment:
                     field_name="Comment",
                     invalid_value="construction failure",
                     expected_format="valid Comment object",
-                    message=f"Failed to create Comment from dictionary: {str(e)}",
+                    message=f"Failed to create Comment from dictionary: {e!s}",
                 ) from e
 
         except ValidationError:
@@ -598,7 +598,7 @@ class Comment:
                 field_name="data",
                 invalid_value=str(type(data)),
                 expected_format="valid dictionary for Comment creation",
-                message=f"Unexpected error creating Comment from dictionary: {str(e)}",
+                message=f"Unexpected error creating Comment from dictionary: {e!s}",
             ) from e
 
     def __str__(self) -> str:
@@ -799,10 +799,10 @@ class PullRequest:
                 field_name="PullRequest",
                 invalid_value="validation failure",
                 expected_format="valid PullRequest object",
-                message=f"Unexpected error during PullRequest validation: {str(e)}",
+                message=f"Unexpected error during PullRequest validation: {e!s}",
             ) from e
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert the PullRequest to a dictionary for serialization.
 
         Returns:
@@ -823,7 +823,7 @@ class PullRequest:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PullRequest":
+    def from_dict(cls, data: dict[str, Any]) -> "PullRequest":
         """Create a PullRequest from a dictionary.
 
         Args:

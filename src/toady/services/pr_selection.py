@@ -1,6 +1,6 @@
 """Pull request selection logic for automatic detection and user selection."""
 
-from typing import List, NoReturn, Optional, Union
+from typing import NoReturn, Optional, Union
 
 import click
 
@@ -11,18 +11,15 @@ from ..models.models import PullRequest
 class PRSelectionError(Exception):
     """Exception raised when PR selection fails."""
 
-    pass
-
 
 class PRSelector:
     """Handles pull request selection logic for different scenarios."""
 
     def __init__(self) -> None:
         """Initialize the PR selector."""
-        pass
 
     def select_pull_request(
-        self, pull_requests: List[PullRequest], allow_multiple: bool = True
+        self, pull_requests: list[PullRequest], allow_multiple: bool = True
     ) -> Union[int, None]:
         """Select a pull request from the available options.
 
@@ -57,12 +54,11 @@ class PRSelector:
         # Scenario 3: Multiple open PRs
         if allow_multiple:
             return self._handle_multiple_prs(pull_requests)
-        else:
-            # If not allowing multiple selection, treat as error
-            raise PRSelectionError(
-                f"Found {len(pull_requests)} open pull requests, but multiple "
-                "selection is not allowed in this context"
-            )
+        # If not allowing multiple selection, treat as error
+        raise PRSelectionError(
+            f"Found {len(pull_requests)} open pull requests, but multiple "
+            "selection is not allowed in this context"
+        )
 
     def _handle_no_prs(self) -> NoReturn:
         """Handle the case when no open PRs are found.
@@ -91,7 +87,7 @@ class PRSelector:
         )
         return pull_request.number
 
-    def _handle_multiple_prs(self, pull_requests: List[PullRequest]) -> Optional[int]:
+    def _handle_multiple_prs(self, pull_requests: list[PullRequest]) -> Optional[int]:
         """Handle the case when multiple open PRs are found.
 
         Args:
@@ -173,10 +169,10 @@ class PRSelector:
         except Exception as e:
             if isinstance(e, PRSelectionError):
                 raise
-            raise PRSelectionError(f"Selection failed: {str(e)}") from e
+            raise PRSelectionError(f"Selection failed: {e!s}") from e
 
     def validate_pr_exists(
-        self, pr_number: int, pull_requests: List[PullRequest]
+        self, pr_number: int, pull_requests: list[PullRequest]
     ) -> bool:
         """Validate that a specific PR number exists in the list.
 

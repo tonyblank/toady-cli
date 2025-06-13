@@ -6,10 +6,10 @@ interactions, including response times, memory usage, and scalability.
 
 import json
 import time
-from typing import Any, Dict
+from typing import Any
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 
@@ -29,7 +29,7 @@ class TestPerformanceBenchmarks:
     def test_fetch_performance_baseline(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
     ):
         """Establish performance baseline for fetch operations."""
@@ -89,7 +89,7 @@ class TestPerformanceBenchmarks:
     def test_memory_usage_patterns(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         skip_if_slow,
     ):
         """Monitor memory usage patterns during operations."""
@@ -141,7 +141,7 @@ class TestPerformanceBenchmarks:
     def test_large_pr_performance(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
         skip_if_slow,
     ):
@@ -201,7 +201,7 @@ class TestPerformanceBenchmarks:
     def test_concurrent_performance_impact(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
         skip_if_slow,
     ):
@@ -258,7 +258,7 @@ class TestPerformanceBenchmarks:
     def test_cache_performance_impact(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
         temp_cache_dir,
     ):
@@ -315,7 +315,7 @@ class TestPerformanceBenchmarks:
     def test_network_latency_impact(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
         network_simulation,
     ):
@@ -371,7 +371,7 @@ class TestScalabilityPatterns:
     def test_thread_count_scaling(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
     ):
         """Test performance scaling with different thread counts."""
@@ -441,7 +441,7 @@ class TestScalabilityPatterns:
     def test_data_processing_efficiency(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         performance_monitor,
     ):
         """Test efficiency of data processing operations."""
@@ -490,7 +490,7 @@ class TestScalabilityPatterns:
     def test_resource_utilization_patterns(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         skip_if_slow,
     ):
         """Test CPU and memory utilization patterns."""
@@ -557,7 +557,7 @@ class TestScalabilityPatterns:
     def test_long_running_stability(
         self,
         integration_cli_runner: CliRunner,
-        verify_test_pr_exists: Dict[str, Any],
+        verify_test_pr_exists: dict[str, Any],
         skip_if_slow,
     ):
         """Test stability over extended operation periods."""

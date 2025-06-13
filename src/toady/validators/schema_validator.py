@@ -5,13 +5,13 @@ against the live GitHub API schema, ensuring compatibility and catching
 breaking changes early.
 """
 
+from datetime import datetime, timedelta
 import hashlib
 import json
 import logging
-import subprocess
-from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+import subprocess
+from typing import Any, Optional
 
 from ..parsers.graphql_parser import GraphQLField, GraphQLParser
 from ..services.github_service import GitHubService
@@ -25,8 +25,8 @@ class SchemaValidationError(Exception):
     def __init__(
         self,
         message: str,
-        errors: Optional[List[Dict[str, Any]]] = None,
-        suggestions: Optional[List[str]] = None,
+        errors: Optional[list[dict[str, Any]]] = None,
+        suggestions: Optional[list[str]] = None,
     ):
         """Initialize schema validation error.
 
@@ -75,8 +75,8 @@ class GitHubSchemaValidator:
         """
         self.cache_dir = cache_dir or Path.home() / ".toady" / "cache"
         self.cache_ttl = cache_ttl
-        self._schema: Optional[Dict[str, Any]] = None
-        self._type_map: Optional[Dict[str, Any]] = None
+        self._schema: Optional[dict[str, Any]] = None
+        self._type_map: Optional[dict[str, Any]] = None
         self._github_service = GitHubService()
 
     def _get_cache_path(self) -> Path:
@@ -103,7 +103,7 @@ class GitHubSchemaValidator:
         except (json.JSONDecodeError, KeyError, ValueError):
             return False
 
-    def _load_cached_schema(self) -> Optional[Dict[str, Any]]:
+    def _load_cached_schema(self) -> Optional[dict[str, Any]]:
         """Load schema from cache if valid."""
         if not self._is_cache_valid():
             return None
@@ -120,7 +120,7 @@ class GitHubSchemaValidator:
             logger.warning("Failed to load cached schema")
             return None
 
-    def _save_schema_to_cache(self, schema: Dict[str, Any]) -> None:
+    def _save_schema_to_cache(self, schema: dict[str, Any]) -> None:
         """Save schema to cache with metadata."""
         cache_path = self._get_cache_path()
         metadata_path = self._get_cache_metadata_path()
@@ -139,7 +139,7 @@ class GitHubSchemaValidator:
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
 
-    def fetch_schema(self, force_refresh: bool = False) -> Dict[str, Any]:
+    def fetch_schema(self, force_refresh: bool = False) -> dict[str, Any]:
         """Fetch the GitHub GraphQL schema.
 
         Args:
@@ -182,8 +182,7 @@ class GitHubSchemaValidator:
 
                 logger.info("Successfully fetched GitHub schema")
                 return schema
-            else:
-                raise SchemaValidationError("Schema data is not a dictionary")
+            raise SchemaValidationError("Schema data is not a dictionary")
 
         except subprocess.CalledProcessError as e:
             raise SchemaValidationError(f"Failed to fetch GitHub schema: {e}") from e
@@ -202,7 +201,7 @@ class GitHubSchemaValidator:
             if type_def.get("name"):
                 self._type_map[type_def["name"]] = type_def
 
-    def get_type(self, type_name: str) -> Optional[Dict[str, Any]]:
+    def get_type(self, type_name: str) -> Optional[dict[str, Any]]:
         """Get a type definition by name.
 
         Args:
@@ -216,7 +215,7 @@ class GitHubSchemaValidator:
 
         return self._type_map.get(type_name) if self._type_map else None
 
-    def validate_query(self, query: str) -> List[Dict[str, Any]]:
+    def validate_query(self, query: str) -> list[dict[str, Any]]:
         """Validate a GraphQL query against the schema.
 
         Args:
@@ -248,7 +247,7 @@ class GitHubSchemaValidator:
             errors.append(
                 {
                     "type": "parse_error",
-                    "message": f"Failed to parse query: {str(e)}",
+                    "message": f"Failed to parse query: {e!s}",
                 }
             )
             return errors
@@ -274,10 +273,10 @@ class GitHubSchemaValidator:
 
     def _validate_selections(
         self,
-        selections: List[GraphQLField],
-        parent_type: Dict[str, Any],
-        errors: List[Dict[str, Any]],
-        type_path: List[str],
+        selections: list[GraphQLField],
+        parent_type: dict[str, Any],
+        errors: list[dict[str, Any]],
+        type_path: list[str],
     ) -> None:
         """Validate field selections against a type.
 
@@ -366,9 +365,9 @@ class GitHubSchemaValidator:
     def _validate_arguments(
         self,
         field: GraphQLField,
-        field_def: Dict[str, Any],
-        errors: List[Dict[str, Any]],
-        type_path: List[str],
+        field_def: dict[str, Any],
+        errors: list[dict[str, Any]],
+        type_path: list[str],
     ) -> None:
         """Validate field arguments against schema.
 
@@ -409,7 +408,7 @@ class GitHubSchemaValidator:
                     }
                 )
 
-    def _resolve_field_type(self, type_ref: Optional[Dict[str, Any]]) -> Optional[str]:
+    def _resolve_field_type(self, type_ref: Optional[dict[str, Any]]) -> Optional[str]:
         """Resolve the actual type name from a type reference.
 
         Args:
@@ -427,7 +426,7 @@ class GitHubSchemaValidator:
 
         return type_ref.get("name") if type_ref else None
 
-    def _is_required_type(self, type_ref: Optional[Dict[str, Any]]) -> bool:
+    def _is_required_type(self, type_ref: Optional[dict[str, Any]]) -> bool:
         """Check if a type is required (NON_NULL).
 
         Args:
@@ -438,7 +437,7 @@ class GitHubSchemaValidator:
         """
         return bool(type_ref and type_ref.get("kind") == "NON_NULL")
 
-    def check_deprecations(self, query: str) -> List[Dict[str, Any]]:
+    def check_deprecations(self, query: str) -> list[dict[str, Any]]:
         """Check for deprecated fields in a query.
 
         Args:
@@ -450,7 +449,7 @@ class GitHubSchemaValidator:
         if not self._schema:
             self.fetch_schema()
 
-        warnings: List[Dict[str, Any]] = []
+        warnings: list[dict[str, Any]] = []
 
         # TODO: Implement deprecation checking by parsing query
         # and checking each field against schema
@@ -473,7 +472,7 @@ class GitHubSchemaValidator:
         schema_str = json.dumps(self._schema, sort_keys=True)
         return hashlib.sha256(schema_str.encode()).hexdigest()[:12]
 
-    def get_field_suggestions(self, type_name: str, field_name: str) -> List[str]:
+    def get_field_suggestions(self, type_name: str, field_name: str) -> list[str]:
         """Get suggestions for a field name on a type.
 
         Args:
@@ -498,7 +497,7 @@ class GitHubSchemaValidator:
 
         return suggestions[:5]  # Limit to top 5 suggestions
 
-    def validate_mutations(self) -> Dict[str, List[Dict[str, Any]]]:
+    def validate_mutations(self) -> dict[str, list[dict[str, Any]]]:
         """Validate all mutations defined in the codebase.
 
         Returns:
@@ -534,7 +533,7 @@ class GitHubSchemaValidator:
 
         return errors
 
-    def validate_queries(self) -> Dict[str, List[Dict[str, Any]]]:
+    def validate_queries(self) -> dict[str, list[dict[str, Any]]]:
         """Validate all queries defined in the codebase.
 
         Returns:
@@ -555,13 +554,13 @@ class GitHubSchemaValidator:
 
         return errors
 
-    def generate_compatibility_report(self) -> Dict[str, Any]:
+    def generate_compatibility_report(self) -> dict[str, Any]:
         """Generate a comprehensive compatibility report.
 
         Returns:
             Report containing validation results and recommendations
         """
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "schema_version": self.get_schema_version(),
             "queries": self.validate_queries(),
@@ -571,7 +570,7 @@ class GitHubSchemaValidator:
         }
 
         # Add recommendations based on errors
-        all_errors: List[Dict[str, Any]] = []
+        all_errors: list[dict[str, Any]] = []
         queries = report.get("queries", {})
         mutations = report.get("mutations", {})
         if isinstance(queries, dict):

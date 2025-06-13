@@ -1,7 +1,7 @@
 """Utility functions for the toady package."""
 
-import json
 from datetime import datetime
+import json
 
 import click
 
@@ -59,7 +59,7 @@ def parse_datetime(date_str: str) -> datetime:
                 field_name="date_str",
                 invalid_value=original_date_str,
                 expected_format="valid ISO datetime string",
-                message=f"Failed to process timezone in datetime string: {str(e)}",
+                message=f"Failed to process timezone in datetime string: {e!s}",
             ) from e
 
         # Try parsing with different formats
@@ -73,7 +73,7 @@ def parse_datetime(date_str: str) -> datetime:
             try:
                 return datetime.strptime(date_str, fmt)
             except ValueError as e:
-                parsing_errors.append(f"Format '{fmt}': {str(e)}")
+                parsing_errors.append(f"Format '{fmt}': {e!s}")
                 continue
 
         # If we get here, all formats failed
@@ -98,7 +98,7 @@ def parse_datetime(date_str: str) -> datetime:
             field_name="date_str",
             invalid_value=str(date_str) if "date_str" in locals() else "unknown",
             expected_format="valid ISO datetime string",
-            message=f"Unexpected error parsing datetime: {str(e)}",
+            message=f"Unexpected error parsing datetime: {e!s}",
         ) from e
 
 

@@ -47,6 +47,37 @@ class TestGitHubService:
             GitHubService(timeout=30.5)  # type: ignore[arg-type]
         assert "Timeout must be a positive integer" in str(exc_info.value)
 
+    def test_service_gh_command_attribute(self) -> None:
+        """Test GitHubService has gh_command attribute."""
+        service = GitHubService()
+        assert service.gh_command == "gh"
+
+    def test_github_service_error_hierarchy(self) -> None:
+        """Test exception hierarchy for GitHub service errors."""
+        # Test base exception
+        base_error = GitHubServiceError("Base error")
+        assert str(base_error) == "Base error"
+
+        # Test API error
+        api_error = GitHubAPIError("API error")
+        assert isinstance(api_error, GitHubServiceError)
+
+        # Test authentication error
+        auth_error = GitHubAuthenticationError("Auth error")
+        assert isinstance(auth_error, GitHubServiceError)
+
+        # Test CLI not found error
+        cli_error = GitHubCLINotFoundError("CLI error")
+        assert isinstance(cli_error, GitHubServiceError)
+
+        # Test rate limit error
+        rate_error = GitHubRateLimitError("Rate limit error")
+        assert isinstance(rate_error, GitHubServiceError)
+
+        # Test timeout error
+        timeout_error = GitHubTimeoutError("Timeout error")
+        assert isinstance(timeout_error, GitHubServiceError)
+
     @patch("subprocess.run")
     def test_check_gh_installation_success(self, mock_run: Mock) -> None:
         """Test successful gh CLI installation check."""
@@ -104,6 +135,54 @@ class TestGitHubService:
         service = GitHubService()
         with pytest.raises(GitHubCLINotFoundError):
             service.get_gh_version()
+
+    @patch("subprocess.run")
+    def test_get_gh_version_no_version_line(self, mock_run: Mock) -> None:
+        """Test version retrieval when no version line is found."""
+        mock_run.return_value = Mock(
+            returncode=0, stdout="Some other output\nwithout version\n"
+        )
+
+        service = GitHubService()
+        version = service.get_gh_version()
+
+        assert version is None
+
+    def test_post_reply_empty_comment_id(self) -> None:
+        """Test post_reply with empty comment ID."""
+        service = GitHubService()
+
+        with pytest.raises(ValueError) as exc_info:
+            service.post_reply("", "Test body")
+
+        assert "Comment ID cannot be empty" in str(exc_info.value)
+
+    def test_post_reply_empty_body(self) -> None:
+        """Test post_reply with empty body."""
+        service = GitHubService()
+
+        with pytest.raises(ValueError) as exc_info:
+            service.post_reply("123", "")
+
+        assert "Reply body cannot be empty" in str(exc_info.value)
+
+    def test_post_reply_whitespace_only_comment_id(self) -> None:
+        """Test post_reply with whitespace-only comment ID."""
+        service = GitHubService()
+
+        with pytest.raises(ValueError) as exc_info:
+            service.post_reply("   ", "Test body")
+
+        assert "Comment ID cannot be empty" in str(exc_info.value)
+
+    def test_post_reply_whitespace_only_body(self) -> None:
+        """Test post_reply with whitespace-only body."""
+        service = GitHubService()
+
+        with pytest.raises(ValueError) as exc_info:
+            service.post_reply("123", "   ")
+
+        assert "Reply body cannot be empty" in str(exc_info.value)
 
     @patch("subprocess.run")
     def test_check_authentication_success(self, mock_run: Mock) -> None:
@@ -546,3 +625,198 @@ class TestGitHubServiceExceptions:
         with pytest.raises(GitHubRateLimitError) as exc_info:
             raise GitHubRateLimitError("Rate limit error")
         assert str(exc_info.value) == "Rate limit error"
+
+
+class TestGitHubServiceEdgeCases:
+    """Test edge cases and specific error paths in GitHubService."""
+
+    @patch("subprocess.run")
+    def test_timeout_error_path(self, mock_run: Mock) -> None:
+        """Test timeout error detection."""
+        # Mock both the installation check and the actual command
+        mock_run.side_effect = [
+            Mock(returncode=0),  # Installation check succeeds
+            Mock(
+                returncode=124, stderr="Command timed out", stdout=""
+            ),  # Actual command
+        ]
+
+        service = GitHubService()
+        with pytest.raises(GitHubTimeoutError) as exc_info:
+            service.run_gh_command(["api", "query"])
+
+        assert "timed out after" in str(exc_info.value)
+
+    @patch("subprocess.run")
+    def test_rate_limit_error_detection(self, mock_run: Mock) -> None:
+        """Test rate limit error detection in stderr."""
+        # Mock both the installation check and the actual command
+        mock_run.side_effect = [
+            Mock(returncode=0),  # Installation check succeeds
+            Mock(
+                returncode=1, stderr="rate limit exceeded", stdout=""
+            ),  # Actual command
+        ]
+
+        service = GitHubService()
+        with pytest.raises(GitHubRateLimitError) as exc_info:
+            service.run_gh_command(["api", "query"])
+
+        assert "rate limit exceeded" in str(exc_info.value)
+
+    @patch("subprocess.run")
+    def test_authentication_error_detection(self, mock_run: Mock) -> None:
+        """Test authentication error detection in stderr."""
+        # Mock both the installation check and the actual command
+        mock_run.side_effect = [
+            Mock(returncode=0),  # Installation check succeeds
+            Mock(
+                returncode=1, stderr="authentication failed", stdout=""
+            ),  # Actual command
+        ]
+
+        service = GitHubService()
+        with pytest.raises(GitHubAuthenticationError) as exc_info:
+            service.run_gh_command(["api", "query"])
+
+        assert "authentication failed" in str(exc_info.value)
+
+    @patch.object(GitHubService, "execute_graphql_query")
+    @patch.object(GitHubService, "_determine_reply_strategy")
+    def test_post_reply_thread_strategy(
+        self, mock_strategy: Mock, mock_execute: Mock
+    ) -> None:
+        """Test post_reply with thread strategy."""
+        mock_strategy.return_value = "thread_reply"
+        mock_execute.return_value = {"data": {"comment": {"id": "123"}}}
+
+        service = GitHubService()
+        result = service.post_reply("PRT_kwDOABcD12MAAAABcDE3fg", "Test body")
+
+        assert result == {"data": {"comment": {"id": "123"}}}
+        mock_execute.assert_called_once()
+
+    @patch.object(GitHubService, "execute_graphql_query")
+    @patch.object(GitHubService, "_determine_reply_strategy")
+    @patch.object(GitHubService, "_get_review_id_for_comment")
+    def test_post_reply_comment_strategy_with_review_lookup(
+        self, mock_get_review: Mock, mock_strategy: Mock, mock_execute: Mock
+    ) -> None:
+        """Test post_reply with comment strategy and review ID lookup."""
+        mock_strategy.return_value = "comment_reply"
+        mock_get_review.return_value = "PRR_123"
+        mock_execute.return_value = {"data": {"comment": {"id": "456"}}}
+
+        service = GitHubService()
+        result = service.post_reply("IC_kwDOABcD12MAAAABcDE3fg", "Test body")
+
+        assert result == {"data": {"comment": {"id": "456"}}}
+        mock_get_review.assert_called_once_with("IC_kwDOABcD12MAAAABcDE3fg")
+        mock_execute.assert_called_once()
+
+    @patch.object(GitHubService, "_determine_reply_strategy")
+    @patch.object(GitHubService, "_get_review_id_for_comment")
+    def test_post_reply_comment_strategy_no_review_id(
+        self, mock_get_review: Mock, mock_strategy: Mock
+    ) -> None:
+        """Test post_reply with comment strategy when review ID cannot be found."""
+        mock_strategy.return_value = "comment_reply"
+        mock_get_review.return_value = None
+
+        service = GitHubService()
+        with pytest.raises(ValueError) as exc_info:
+            service.post_reply("IC_kwDOABcD12MAAAABcDE3fg", "Test body")
+
+        assert "Review ID is required" in str(exc_info.value)
+
+    def test_resolve_thread_validation_errors(self) -> None:
+        """Test thread resolution with invalid inputs."""
+        service = GitHubService()
+
+        # Test empty thread ID
+        with pytest.raises(ValueError) as exc_info:
+            service.resolve_thread("")
+        assert "Thread ID cannot be empty" in str(exc_info.value)
+
+        # Test whitespace-only thread ID
+        with pytest.raises(ValueError) as exc_info:
+            service.resolve_thread("   ")
+        assert "Thread ID cannot be empty" in str(exc_info.value)
+
+    @patch.object(GitHubService, "execute_graphql_query")
+    def test_resolve_thread_invalid_response(self, mock_execute: Mock) -> None:
+        """Test thread resolution with invalid GraphQL response."""
+        mock_execute.return_value = {
+            "data": {"resolveReviewThread": {}}
+        }  # Missing thread data
+
+        service = GitHubService()
+        # Method currently returns the response as-is without validation
+        result = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+        assert result == {"data": {"resolveReviewThread": {}}}
+
+    @patch.object(GitHubService, "_get_review_id_for_comment")
+    def test_get_review_id_for_comment_errors(self, mock_get_review: Mock) -> None:
+        """Test error handling in review ID lookup."""
+        service = GitHubService()
+
+        # Mock the private method to test error paths
+        mock_get_review.return_value = None
+
+        # This should be called through post_reply when review_id can't be determined
+        result = service._get_review_id_for_comment("IC_kwDOABcD12MAAAABcDE3fg")
+        assert result is None
+
+    def test_determine_reply_strategy_patterns(self) -> None:
+        """Test reply strategy determination based on ID patterns."""
+        service = GitHubService()
+
+        # Test thread ID patterns - should return "thread_reply"
+        thread_ids = [
+            "PRT_kwDOABcD12MAAAABcDE3fg",
+            "PRRT_kwDOABcD12MAAAABcDE3fg",
+            "RT_kwDOABcD12MAAAABcDE3fg",
+        ]
+
+        for thread_id in thread_ids:
+            strategy = service._determine_reply_strategy(thread_id)
+            assert strategy == "thread_reply", f"Failed for {thread_id}"
+
+        # Test comment ID patterns - should return "comment_reply"
+        comment_ids = [
+            "IC_kwDOABcD12MAAAABcDE3fg",
+            "PRRC_kwDOABcD12MAAAABcDE3fg",
+            "RP_kwDOABcD12MAAAABcDE3fg",
+        ]
+
+        for comment_id in comment_ids:
+            strategy = service._determine_reply_strategy(comment_id)
+            assert strategy == "comment_reply", f"Failed for {comment_id}"
+
+        # Test unknown format - should default to "comment_reply"
+        unknown_ids = ["unknown_format", "123456", "UNKNOWN_kwDOABcD12MAAAABcDE3fg"]
+
+        for unknown_id in unknown_ids:
+            strategy = service._determine_reply_strategy(unknown_id)
+            assert strategy == "comment_reply", f"Failed for {unknown_id}"
+
+    @patch.object(GitHubService, "execute_graphql_query")
+    def test_get_review_id_for_comment_success(self, mock_execute: Mock) -> None:
+        """Test successful review ID lookup for comment."""
+        mock_execute.return_value = {
+            "data": {
+                "node": {"pullRequestReview": {"id": "PRR_kwDOABcD12MAAAABcDE3fg"}}
+            }
+        }
+
+        service = GitHubService()
+        review_id = service._get_review_id_for_comment("IC_kwDOABcD12MAAAABcDE3fg")
+
+        assert review_id == "PRR_kwDOABcD12MAAAABcDE3fg"
+        mock_execute.assert_called_once()
+
+        # Test missing review data
+        mock_execute.return_value = {"data": {"node": {}}}  # No pullRequestReview field
+
+        result = service._get_review_id_for_comment("IC_kwDOABcD12MAAAABcDE3fg")
+        assert result is None

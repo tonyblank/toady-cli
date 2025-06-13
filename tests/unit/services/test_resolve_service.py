@@ -798,3 +798,101 @@ class TestResolveServiceURLConsistency:
         assert "pullRequest" in UNRESOLVE_THREAD_MUTATION
         assert "number" in UNRESOLVE_THREAD_MUTATION
         assert "nameWithOwner" in UNRESOLVE_THREAD_MUTATION
+
+
+class TestResolveServiceErrorCoverage:
+    """Test error cases for ResolveService to improve coverage."""
+
+    def test_resolve_thread_generic_exception_during_mutation(self) -> None:
+        """Test handling of generic exception during GraphQL mutation."""
+        mock_github_service = Mock(spec=GitHubService)
+        # Make execute_graphql_query raise a generic exception (not GitHubAPIError)
+        mock_github_service.execute_graphql_query.side_effect = RuntimeError(
+            "Random error"
+        )
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(GitHubAPIError, match="Failed to execute resolve mutation"):
+            service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    def test_resolve_thread_response_structure_error(self) -> None:
+        """Test handling of KeyError/TypeError in response structure."""
+        mock_github_service = Mock(spec=GitHubService)
+        # Return a response that will cause KeyError when accessing fields
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "resolveReviewThread": {
+                    # Missing 'thread' key - will cause KeyError in thread_data access
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(ResolveServiceError, match="No thread data returned"):
+            service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    def test_resolve_thread_unexpected_exception(self) -> None:
+        """Test handling of unexpected exception during resolution."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Make the service methods raise an unexpected exception
+        def raise_unexpected(*args, **kwargs):
+            raise ValueError("Unexpected error during processing")
+
+        mock_github_service.execute_graphql_query.side_effect = raise_unexpected
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(GitHubAPIError, match="Failed to execute resolve mutation"):
+            service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    def test_unresolve_thread_generic_exception_during_mutation(self) -> None:
+        """Test handling of generic exception during unresolve GraphQL mutation."""
+        mock_github_service = Mock(spec=GitHubService)
+        # Make execute_graphql_query raise a generic exception (not GitHubAPIError)
+        mock_github_service.execute_graphql_query.side_effect = RuntimeError(
+            "Random error"
+        )
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(
+            GitHubAPIError, match="Failed to execute unresolve mutation"
+        ):
+            service.unresolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    def test_unresolve_thread_response_structure_error(self) -> None:
+        """Test handling of response structure error in unresolve."""
+        mock_github_service = Mock(spec=GitHubService)
+        # Return a response that will cause KeyError when accessing fields
+        mock_github_service.execute_graphql_query.return_value = {
+            "data": {
+                "unresolveReviewThread": {
+                    # Missing 'thread' key - will cause error
+                }
+            }
+        }
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(ResolveServiceError, match="No thread data returned"):
+            service.unresolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
+
+    def test_unresolve_thread_unexpected_exception(self) -> None:
+        """Test handling of unexpected exception during unresolve."""
+        mock_github_service = Mock(spec=GitHubService)
+
+        # Make the service methods raise an unexpected exception
+        def raise_unexpected(*args, **kwargs):
+            raise ValueError("Unexpected error during processing")
+
+        mock_github_service.execute_graphql_query.side_effect = raise_unexpected
+
+        service = ResolveService(mock_github_service)
+
+        with pytest.raises(
+            GitHubAPIError, match="Failed to execute unresolve mutation"
+        ):
+            service.unresolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")

@@ -1,9 +1,9 @@
 """Schema command implementation."""
 
 import json
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+import sys
+from typing import Any, Optional
 
 import click
 
@@ -62,13 +62,13 @@ def validate(cache_dir: Optional[Path], force_refresh: bool, output: str) -> Non
             validator = GitHubSchemaValidator(cache_dir=cache_dir)
         except (OSError, PermissionError) as e:
             raise FileOperationError(
-                message=f"Failed to initialize schema validator: {str(e)}",
+                message=f"Failed to initialize schema validator: {e!s}",
                 file_path=str(cache_dir) if cache_dir else "default cache directory",
                 operation="initialize",
             ) from e
         except Exception as e:
             raise ConfigurationError(
-                message=f"Configuration error initializing schema validator: {str(e)}",
+                message=f"Configuration error initializing schema validator: {e!s}",
             ) from e
 
         # Fetch schema with enhanced error handling
@@ -77,12 +77,12 @@ def validate(cache_dir: Optional[Path], force_refresh: bool, output: str) -> Non
             validator.fetch_schema(force_refresh=force_refresh)
         except (ConnectionError, TimeoutError) as e:
             raise NetworkError(
-                message=f"Network error fetching GitHub schema: {str(e)}",
+                message=f"Network error fetching GitHub schema: {e!s}",
                 url="https://api.github.com/graphql",
             ) from e
         except (OSError, PermissionError) as e:
             raise FileOperationError(
-                message=f"File operation error during schema fetch: {str(e)}",
+                message=f"File operation error during schema fetch: {e!s}",
                 file_path=str(cache_dir) if cache_dir else "default cache directory",
                 operation="write",
             ) from e
@@ -93,7 +93,7 @@ def validate(cache_dir: Optional[Path], force_refresh: bool, output: str) -> Non
             report = validator.generate_compatibility_report()
         except Exception as e:
             raise ToadyError(
-                message=f"Failed to generate compatibility report: {str(e)}",
+                message=f"Failed to generate compatibility report: {e!s}",
             ) from e
 
         # Output results with error handling
@@ -104,7 +104,7 @@ def validate(cache_dir: Optional[Path], force_refresh: bool, output: str) -> Non
                 _display_summary_report(report)
         except (TypeError, ValueError) as e:
             raise ToadyError(
-                message=f"Failed to format output: {str(e)}",
+                message=f"Failed to format output: {e!s}",
             ) from e
 
         # Set exit code based on critical errors
@@ -113,7 +113,7 @@ def validate(cache_dir: Optional[Path], force_refresh: bool, output: str) -> Non
             sys.exit(1 if has_critical_errors else 0)
         except Exception as e:
             raise ToadyError(
-                message=f"Failed to analyze report for critical errors: {str(e)}",
+                message=f"Failed to analyze report for critical errors: {e!s}",
             ) from e
 
     except SchemaValidationError as e:
@@ -166,13 +166,13 @@ def fetch(cache_dir: Optional[Path], force_refresh: bool) -> None:
             validator = GitHubSchemaValidator(cache_dir=cache_dir)
         except (OSError, PermissionError) as e:
             raise FileOperationError(
-                message=f"Failed to initialize schema validator: {str(e)}",
+                message=f"Failed to initialize schema validator: {e!s}",
                 file_path=str(cache_dir) if cache_dir else "default cache directory",
                 operation="initialize",
             ) from e
         except Exception as e:
             raise ConfigurationError(
-                message=f"Configuration error initializing schema validator: {str(e)}",
+                message=f"Configuration error initializing schema validator: {e!s}",
             ) from e
 
         # Fetch schema with enhanced error handling
@@ -181,12 +181,12 @@ def fetch(cache_dir: Optional[Path], force_refresh: bool) -> None:
             schema = validator.fetch_schema(force_refresh=force_refresh)
         except (ConnectionError, TimeoutError) as e:
             raise NetworkError(
-                message=f"Network error fetching GitHub schema: {str(e)}",
+                message=f"Network error fetching GitHub schema: {e!s}",
                 url="https://api.github.com/graphql",
             ) from e
         except (OSError, PermissionError) as e:
             raise FileOperationError(
-                message=f"File operation error during schema fetch: {str(e)}",
+                message=f"File operation error during schema fetch: {e!s}",
                 file_path=str(cache_dir) if cache_dir else "default cache directory",
                 operation="write",
             ) from e
@@ -262,13 +262,13 @@ def check(query: str, cache_dir: Optional[Path], output: str) -> None:
             validator = GitHubSchemaValidator(cache_dir=cache_dir)
         except (OSError, PermissionError) as e:
             raise FileOperationError(
-                message=f"Failed to initialize schema validator: {str(e)}",
+                message=f"Failed to initialize schema validator: {e!s}",
                 file_path=str(cache_dir) if cache_dir else "default cache directory",
                 operation="initialize",
             ) from e
         except Exception as e:
             raise ConfigurationError(
-                message=f"Configuration error initializing schema validator: {str(e)}",
+                message=f"Configuration error initializing schema validator: {e!s}",
             ) from e
 
         # Validate query with error handling
@@ -277,7 +277,7 @@ def check(query: str, cache_dir: Optional[Path], output: str) -> None:
             errors = validator.validate_query(query)
         except Exception as e:
             raise ToadyError(
-                message=f"Failed to validate query: {str(e)}",
+                message=f"Failed to validate query: {e!s}",
                 context={"query_length": len(query), "query_preview": query[:100]},
             ) from e
 
@@ -289,7 +289,7 @@ def check(query: str, cache_dir: Optional[Path], output: str) -> None:
                 _display_query_validation_results(errors)
         except (TypeError, ValueError) as e:
             raise ToadyError(
-                message=f"Failed to format validation results: {str(e)}",
+                message=f"Failed to format validation results: {e!s}",
             ) from e
 
         # Set exit code based on critical errors
@@ -298,7 +298,7 @@ def check(query: str, cache_dir: Optional[Path], output: str) -> None:
             sys.exit(1 if critical_errors else 0)
         except Exception as e:
             raise ToadyError(
-                message=f"Failed to analyze validation errors: {str(e)}",
+                message=f"Failed to analyze validation errors: {e!s}",
             ) from e
 
     except SchemaValidationError as e:
@@ -319,7 +319,7 @@ def check(query: str, cache_dir: Optional[Path], output: str) -> None:
         sys.exit(1)
 
 
-def _display_summary_report(report: Dict[str, Any]) -> None:
+def _display_summary_report(report: dict[str, Any]) -> None:
     """Display a human-readable summary of the validation report.
 
     Raises:
@@ -345,7 +345,7 @@ def _display_summary_report(report: Dict[str, Any]) -> None:
 
     except Exception as e:
         raise ToadyError(
-            message=f"Failed to display summary report header: {str(e)}",
+            message=f"Failed to display summary report header: {e!s}",
             context={
                 "report_keys": (
                     list(report.keys()) if isinstance(report, dict) else "not_dict"
@@ -401,7 +401,7 @@ def _display_summary_report(report: Dict[str, Any]) -> None:
     click.echo("\n" + "=" * 60)
 
 
-def _display_query_validation_results(errors: List[Dict[str, Any]]) -> None:
+def _display_query_validation_results(errors: list[dict[str, Any]]) -> None:
     """Display validation results for a single query.
 
     Raises:
@@ -436,7 +436,7 @@ def _display_query_validation_results(errors: List[Dict[str, Any]]) -> None:
 
     except Exception as e:
         raise ToadyError(
-            message=f"Failed to process validation results: {str(e)}",
+            message=f"Failed to process validation results: {e!s}",
             context={
                 "errors_count": len(errors) if isinstance(errors, list) else "not_list"
             },
@@ -459,7 +459,7 @@ def _display_query_validation_results(errors: List[Dict[str, Any]]) -> None:
                 click.echo(f"    Path: {warning['path']}")
 
 
-def _has_critical_errors(report: Dict[str, Any]) -> bool:
+def _has_critical_errors(report: dict[str, Any]) -> bool:
     """Check if the report contains any critical errors.
 
     Raises:
@@ -500,7 +500,7 @@ def _has_critical_errors(report: Dict[str, Any]) -> bool:
 
     except Exception as e:
         raise ToadyError(
-            message=f"Failed to analyze report for critical errors: {str(e)}",
+            message=f"Failed to analyze report for critical errors: {e!s}",
             context={
                 "report_keys": (
                     list(report.keys()) if isinstance(report, dict) else "not_dict"
