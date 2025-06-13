@@ -57,21 +57,30 @@ make install-dev
 ### Fetch Unresolved Review Threads
 
 ```bash
-# Get unresolved threads as JSON (default)
+# Auto-detect PR (recommended)
+toady fetch
+
+# Get unresolved threads from specific PR
 toady fetch --pr 123
 
 # Get human-readable output
-toady fetch --pr 123 --pretty
+toady fetch --format pretty
+
+# Include resolved threads
+toady fetch --resolved
 ```
 
 ### Reply to a Review Comment
 
 ```bash
-# Reply to a review thread (recommended for submitted reviews)
-toady reply --comment-id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the feedback! Fixed in latest commit."
+# Reply to a review thread (recommended)
+toady reply --id PRRT_kwDOO3WQIc5Rv3_r --body "Thanks for the feedback! Fixed in latest commit."
 
 # Reply using numeric ID (legacy)
-toady reply --comment-id 12345678 --body "Fixed!"
+toady reply --id 12345678 --body "Fixed!"
+
+# Get help with ID types
+toady reply --help-ids
 ```
 
 ### Resolve/Unresolve Review Threads
@@ -103,11 +112,14 @@ toady fetch --pr 123
 ### Schema Validation
 
 ```bash
-# Validate GraphQL queries against GitHub's schema
+# Validate all GraphQL queries against GitHub's schema
 toady schema validate
 
-# Get detailed compatibility report
-toady schema report
+# Validate a specific GraphQL query
+toady schema check "query { ... }"
+
+# Fetch and cache GitHub's GraphQL schema
+toady schema fetch
 ```
 
 ## 🛠️ Development
@@ -130,26 +142,38 @@ Toady CLI follows a modular architecture with clear separation of concerns:
 ```
 src/toady/
 ├── cli.py                    # Main CLI entry point and command registration
+├── command_utils.py          # CLI command utilities and helpers
+├── error_handling.py         # Error handling and exception management
+├── exceptions.py             # Custom exception hierarchy
+├── utils.py                  # General utilities
 ├── commands/                 # Modular command implementations
 │   ├── fetch.py             # Fetch command logic
 │   ├── reply.py             # Reply command logic
 │   ├── resolve.py           # Resolve command logic
 │   └── schema.py            # Schema validation commands
-├── github_service.py         # Core GitHub API interactions
-├── fetch_service.py          # Fetch-specific business logic
-├── reply_service.py          # Reply-specific business logic
-├── resolve_service.py        # Resolution-specific business logic
-├── schema_validator.py       # GraphQL schema validation
-├── formatters.py             # Output formatting (JSON/pretty)
-├── format_interfaces.py      # Formatter interfaces and base classes
-├── json_formatter.py         # JSON-specific formatting
-├── models.py                 # Data models for GitHub entities
-├── graphql_parser.py         # GraphQL query parsing
-├── graphql_queries.py        # GraphQL query definitions
-├── node_id_validation.py     # GitHub node ID validation
-├── parsers.py                # Data parsing utilities
-├── utils.py                  # General utilities
-└── exceptions.py             # Custom exception hierarchy
+├── services/                 # Business logic services
+│   ├── github_service.py    # Core GitHub API interactions
+│   ├── fetch_service.py     # Fetch-specific business logic
+│   ├── reply_service.py     # Reply-specific business logic
+│   ├── resolve_service.py   # Resolution-specific business logic
+│   ├── pr_selection.py      # PR selection logic
+│   └── pr_selector.py       # PR selector utilities
+├── formatters/              # Output formatting modules
+│   ├── formatters.py        # Main formatter logic
+│   ├── format_interfaces.py # Formatter interfaces and base classes
+│   ├── format_selection.py  # Format selection utilities
+│   ├── json_formatter.py    # JSON-specific formatting
+│   └── pretty_formatter.py  # Pretty output formatting
+├── models/                  # Data models
+│   └── models.py           # Data models for GitHub entities
+├── parsers/                 # Data parsing modules
+│   ├── graphql_parser.py   # GraphQL query parsing
+│   ├── graphql_queries.py  # GraphQL query definitions
+│   └── parsers.py          # Data parsing utilities
+└── validators/              # Validation modules
+    ├── node_id_validation.py # GitHub node ID validation
+    ├── schema_validator.py   # GraphQL schema validation
+    └── validation.py         # General validation utilities
 ```
 
 ### 🧪 Testing
@@ -256,7 +280,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For more detailed documentation, visit our [GitHub Wiki](https://github.com/tonyblank/toady-cli/wiki).
 
-## 🛮️ Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Authentication Issues
 
