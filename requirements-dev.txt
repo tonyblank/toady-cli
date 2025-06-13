@@ -1,26 +1,8 @@
-# Include base requirements
+# DEPRECATED: Use pyproject.toml for dependency management
+# Install development dependencies with: pip install -e ".[dev]"
+# 
+# This file is kept for backwards compatibility but should not be used.
+# All development dependencies are now defined in pyproject.toml
+
+# Include base requirements for compatibility
 -r requirements.txt
-
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-mock>=3.11.0
-psutil>=5.9.0  # For performance and memory testing
-python-dotenv>=1.1.0  # Environment variable loading
-
-# Code quality
-black>=23.0.0
-ruff>=0.1.0
-mypy>=1.5.0
-types-click>=7.1.0
-
-# Pre-commit hooks
-pre-commit>=3.4.0
-
-# Build and release
-build>=1.0.0
-twine>=4.0.0
-tox>=4.0.0
-
-# TOML parsing for older Python versions
-tomli>=2.0.0;python_version<'3.11'
