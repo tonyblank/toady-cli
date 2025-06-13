@@ -1,7 +1,7 @@
 """Tests for the formatter interfaces and base classes."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -21,9 +21,9 @@ class MockFormatter(BaseFormatter):
 
     def __init__(self, **options: Any) -> None:
         super().__init__(**options)
-        self.format_calls: List[str] = []
+        self.format_calls: list[str] = []
 
-    def format_threads(self, threads: List[ReviewThread]) -> str:
+    def format_threads(self, threads: list[ReviewThread]) -> str:
         self.format_calls.append("format_threads")
         return f"MockFormatter: {len(threads)} threads"
 
@@ -31,7 +31,7 @@ class MockFormatter(BaseFormatter):
         self.format_calls.append("format_object")
         return f"MockFormatter: object {type(obj).__name__}"
 
-    def format_array(self, items: List[Any]) -> str:
+    def format_array(self, items: list[Any]) -> str:
         self.format_calls.append("format_array")
         return f"MockFormatter: array of {len(items)} items"
 
@@ -39,7 +39,7 @@ class MockFormatter(BaseFormatter):
         self.format_calls.append("format_primitive")
         return f"MockFormatter: primitive {value}"
 
-    def format_error(self, error: Dict[str, Any]) -> str:
+    def format_error(self, error: dict[str, Any]) -> str:
         self.format_calls.append("format_error")
         return f"MockFormatter: error {error.get('message', 'unknown')}"
 

@@ -6,7 +6,7 @@ and customization options.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from ..models.models import Comment, ReviewThread
 from .format_interfaces import BaseFormatter, FormatterError, FormatterOptions
@@ -32,7 +32,7 @@ class JSONFormatter(BaseFormatter):
         self.formatter_options = options or FormatterOptions(**kwargs)
 
         # Extract JSON-specific options
-        self.json_options: Dict[str, Any] = {
+        self.json_options: dict[str, Any] = {
             "indent": self.formatter_options.indent,
             "sort_keys": self.formatter_options.sort_keys,
             "ensure_ascii": self.formatter_options.ensure_ascii,
@@ -41,7 +41,7 @@ class JSONFormatter(BaseFormatter):
         if self.formatter_options.separators:
             self.json_options["separators"] = self.formatter_options.separators
 
-    def format_threads(self, threads: List[ReviewThread]) -> str:
+    def format_threads(self, threads: list[ReviewThread]) -> str:
         """Format a list of review threads as JSON.
 
         Args:
@@ -70,7 +70,7 @@ class JSONFormatter(BaseFormatter):
                 except Exception as e:
                     thread_id = getattr(thread, "thread_id", "unknown")
                     raise FormatterError(
-                        f"Failed to serialize thread {thread_id}: {str(e)}",
+                        f"Failed to serialize thread {thread_id}: {e!s}",
                         original_error=e,
                     ) from e
 
@@ -80,10 +80,10 @@ class JSONFormatter(BaseFormatter):
             if isinstance(e, FormatterError):
                 raise
             raise FormatterError(
-                f"Failed to format threads as JSON: {str(e)}", original_error=e
+                f"Failed to format threads as JSON: {e!s}", original_error=e
             ) from e
 
-    def format_comments(self, comments: List[Comment]) -> str:
+    def format_comments(self, comments: list[Comment]) -> str:
         """Format a list of comments as JSON.
 
         Args:
@@ -112,7 +112,7 @@ class JSONFormatter(BaseFormatter):
                 except Exception as e:
                     comment_id = getattr(comment, "comment_id", "unknown")
                     raise FormatterError(
-                        f"Failed to serialize comment {comment_id}: {str(e)}",
+                        f"Failed to serialize comment {comment_id}: {e!s}",
                         original_error=e,
                     ) from e
 
@@ -122,7 +122,7 @@ class JSONFormatter(BaseFormatter):
             if isinstance(e, FormatterError):
                 raise
             raise FormatterError(
-                f"Failed to format comments as JSON: {str(e)}", original_error=e
+                f"Failed to format comments as JSON: {e!s}", original_error=e
             ) from e
 
     def format_object(self, obj: Any) -> str:
@@ -142,10 +142,10 @@ class JSONFormatter(BaseFormatter):
             return json.dumps(serializable_obj, **self.json_options)
         except Exception as e:
             raise FormatterError(
-                f"Failed to format object as JSON: {str(e)}", original_error=e
+                f"Failed to format object as JSON: {e!s}", original_error=e
             ) from e
 
-    def format_array(self, items: List[Any]) -> str:
+    def format_array(self, items: list[Any]) -> str:
         """Format an array of items as JSON.
 
         Args:
@@ -173,7 +173,7 @@ class JSONFormatter(BaseFormatter):
                     serializable_items.append(serializable_item)
                 except Exception as e:
                     raise FormatterError(
-                        f"Failed to serialize array item at index {i}: {str(e)}",
+                        f"Failed to serialize array item at index {i}: {e!s}",
                         original_error=e,
                     ) from e
 
@@ -183,10 +183,10 @@ class JSONFormatter(BaseFormatter):
             if isinstance(e, FormatterError):
                 raise
             raise FormatterError(
-                f"Failed to format array as JSON: {str(e)}", original_error=e
+                f"Failed to format array as JSON: {e!s}", original_error=e
             ) from e
 
-    def format_primitive(self, value: Union[str, int, float, bool, None]) -> str:
+    def format_primitive(self, value: Union[str, float, bool, None]) -> str:
         """Format a primitive value as JSON.
 
         Args:
@@ -202,10 +202,10 @@ class JSONFormatter(BaseFormatter):
             return json.dumps(value, **self.json_options)
         except Exception as e:
             raise FormatterError(
-                f"Failed to format primitive value as JSON: {str(e)}", original_error=e
+                f"Failed to format primitive value as JSON: {e!s}", original_error=e
             ) from e
 
-    def format_error(self, error: Dict[str, Any]) -> str:
+    def format_error(self, error: dict[str, Any]) -> str:
         """Format an error object as JSON.
 
         Args:
@@ -228,11 +228,11 @@ class JSONFormatter(BaseFormatter):
             return json.dumps(error_dict, **self.json_options)
         except Exception as e:
             raise FormatterError(
-                f"Failed to format error as JSON: {str(e)}", original_error=e
+                f"Failed to format error as JSON: {e!s}", original_error=e
             ) from e
 
     def format_success_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a success message as JSON.
 
@@ -251,7 +251,7 @@ class JSONFormatter(BaseFormatter):
         return self.format_object(success_data)
 
     def format_warning_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a warning message as JSON.
 
@@ -270,7 +270,7 @@ class JSONFormatter(BaseFormatter):
         return self.format_object(warning_data)
 
     def format_reply_result(
-        self, reply_info: Dict[str, Any], verbose: bool = False
+        self, reply_info: dict[str, Any], verbose: bool = False
     ) -> str:
         """Format reply command result as JSON.
 
@@ -302,7 +302,7 @@ class JSONFormatter(BaseFormatter):
         ]
 
         for field in optional_fields:
-            if field in reply_info and reply_info[field]:
+            if reply_info.get(field):
                 result[field] = reply_info[field]
 
         # Include verbose flag in output to indicate extended info
@@ -311,7 +311,7 @@ class JSONFormatter(BaseFormatter):
 
         return self.format_object(result)
 
-    def format_resolve_result(self, resolve_info: Dict[str, Any]) -> str:
+    def format_resolve_result(self, resolve_info: dict[str, Any]) -> str:
         """Format resolve command result as JSON.
 
         Args:
@@ -352,7 +352,7 @@ class JSONFormatter(BaseFormatter):
                 return obj.to_dict()
             except Exception:
                 # Fallback to string representation
-                return f"<{type(obj).__name__}: {str(obj)}>"
+                return f"<{type(obj).__name__}: {obj!s}>"
 
         # Handle dictionaries
         if isinstance(obj, dict):
@@ -389,7 +389,7 @@ class JSONFormatter(BaseFormatter):
 default_json_formatter = JSONFormatter()
 
 
-def format_threads_json(threads: List[ReviewThread]) -> str:
+def format_threads_json(threads: list[ReviewThread]) -> str:
     """Convenience function for formatting threads as JSON.
 
     Args:
@@ -401,7 +401,7 @@ def format_threads_json(threads: List[ReviewThread]) -> str:
     return default_json_formatter.format_threads(threads)
 
 
-def format_comments_json(comments: List[Comment]) -> str:
+def format_comments_json(comments: list[Comment]) -> str:
     """Convenience function for formatting comments as JSON.
 
     Args:

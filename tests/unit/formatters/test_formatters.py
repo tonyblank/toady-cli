@@ -1,8 +1,10 @@
 """Tests for the formatters module."""
 
-import json
 from datetime import datetime
+import json
 from unittest.mock import patch
+
+import pytest
 
 from toady.formatters.formatters import (
     JSONFormatter,
@@ -13,6 +15,8 @@ from toady.formatters.formatters import (
 from toady.models.models import Comment, ReviewThread
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestJSONFormatter:
     """Test the JSONFormatter class."""
 
@@ -99,6 +103,8 @@ class TestJSONFormatter:
             assert field in thread_data, f"Missing field: {field}"
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestPrettyFormatter:
     """Test the PrettyFormatter class."""
 
@@ -248,6 +254,8 @@ class TestPrettyFormatter:
         assert "🔄 Updated: 2024-01-15 10:30:00" in result
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestOutputFormatter:
     """Test the OutputFormatter class."""
 
@@ -290,6 +298,8 @@ class TestOutputFormatter:
         assert "📝 ID: RT_456" in result
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestFormatFetchOutput:
     """Test the format_fetch_output function."""
 
@@ -378,6 +388,8 @@ class TestFormatFetchOutput:
         assert "📝 Found 1 unresolved threads" in calls[2]
 
 
+@pytest.mark.formatter
+@pytest.mark.unit
 class TestFormatterIntegration:
     """Integration tests for formatter functionality."""
 
@@ -477,3 +489,160 @@ class TestFormatterIntegration:
         assert thread_data["thread_id"] in pretty_result
         assert thread_data["title"] in pretty_result
         assert thread_data["author"] in pretty_result
+
+
+@pytest.mark.formatter
+@pytest.mark.unit
+class TestPrettyFormatterFileContext:
+    """Test PrettyFormatter file context functionality."""
+
+    def test_wrap_text_empty_string(self) -> None:
+        """Test wrap_text with empty string."""
+        result = PrettyFormatter._wrap_text("", width=80, indent="  ")
+        assert result == ""
+
+    def test_format_file_context_no_file_path(self) -> None:
+        """Test file context formatting when no file path is present."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            # No file_path set
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert result == ""
+
+    def test_format_file_context_with_file_path_only(self) -> None:
+        """Test file context with only file path."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+
+    def test_format_file_context_with_line_info(self) -> None:
+        """Test file context with line information."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+            line=42,
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+        assert "📍 Line: 42" in result
+
+    def test_format_file_context_with_line_range(self) -> None:
+        """Test file context with line range."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+            line=45,
+            start_line=42,
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+        assert "📍 Lines: 42-45" in result
+
+    def test_format_file_context_with_diff_side_left(self) -> None:
+        """Test file context with LEFT diff side."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+            diff_side="LEFT",
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+        assert "◀️ Side: LEFT" in result
+
+    def test_format_file_context_with_diff_side_right(self) -> None:
+        """Test file context with RIGHT diff side."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+            diff_side="RIGHT",
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+        assert "▶️ Side: RIGHT" in result
+
+    def test_format_file_context_outdated(self) -> None:
+        """Test file context with outdated flag."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/main.py",
+            is_outdated=True,
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/main.py" in result
+        assert "⚠️ Outdated" in result
+
+    def test_format_file_context_all_attributes(self) -> None:
+        """Test file context with all attributes present."""
+        thread = ReviewThread(
+            thread_id="RT_123",
+            title="Test thread",
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            status="UNRESOLVED",
+            author="user",
+            comments=[],
+            file_path="src/components/Button.tsx",
+            line=67,
+            start_line=65,
+            diff_side="RIGHT",
+            is_outdated=True,
+        )
+
+        result = PrettyFormatter._format_file_context(thread)
+        assert "📁 File: src/components/Button.tsx" in result
+        assert "📍 Lines: 65-67" in result
+        assert "▶️ Side: RIGHT" in result
+        assert "⚠️ Outdated" in result

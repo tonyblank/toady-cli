@@ -4,10 +4,13 @@ import json
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner
+import pytest
 
 from toady.cli import cli
 
 
+@pytest.mark.integration
+@pytest.mark.cli
 class TestFetchCLI:
     """Test the fetch command CLI integration."""
 
@@ -378,11 +381,18 @@ class TestFetchCLI:
         )
         mock_service_class.return_value = mock_service
 
-        # Test pretty mode
+        # Test pretty mode without debug (no error details shown)
         result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
         assert result.exit_code == 1
         assert "❌ An unexpected error occurred" in result.output
-        assert "internal error" in result.output
+        assert "internal error" not in result.output
+
+        # Test pretty mode with debug (error details shown)
+        with patch.dict("os.environ", {"TOADY_DEBUG": "1"}):
+            result = runner.invoke(cli, ["fetch", "--pr", "123", "--pretty"])
+            assert result.exit_code == 1
+            assert "❌ An unexpected error occurred" in result.output
+            assert "internal error" in result.output
 
         # Test JSON mode
         result = runner.invoke(cli, ["fetch", "--pr", "123"])

@@ -1,7 +1,7 @@
 """Tests for data models."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -9,6 +9,8 @@ from toady.exceptions import ValidationError
 from toady.models.models import Comment, PullRequest, ReviewThread, _parse_datetime
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestReviewThread:
     """Test the ReviewThread dataclass."""
 
@@ -203,7 +205,7 @@ class TestReviewThread:
 
     def test_from_dict_missing_required_field(self) -> None:
         """Test deserialization with missing required fields."""
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "title": "Test Review",
             "created_at": "2024-01-01T12:00:00",
             "updated_at": "2024-01-02T13:00:00",
@@ -489,6 +491,8 @@ class TestReviewThread:
             _parse_datetime("not a date")
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestComment:
     """Test the Comment dataclass."""
 
@@ -769,6 +773,8 @@ class TestComment:
             Comment.from_dict(data)
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestReviewThreadEdgeCases:
     """Additional edge case tests for ReviewThread."""
 
@@ -968,6 +974,8 @@ class TestReviewThreadEdgeCases:
         assert thread.comments[999].comment_id == "C_999"
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestCommentEdgeCases:
     """Additional edge case tests for Comment."""
 
@@ -1125,6 +1133,8 @@ class TestCommentEdgeCases:
         assert comment.thread_id == special_chars
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestSerializationRoundTrips:
     """Test serialization and deserialization round-trips."""
 
@@ -1273,6 +1283,9 @@ class TestSerializationRoundTrips:
             assert obj.comments[1].comment_id == f"C_{i}_2"
 
 
+@pytest.mark.model
+@pytest.mark.unit
+@pytest.mark.slow
 class TestPerformanceAndLargeData:
     """Test performance with large datasets."""
 
@@ -1346,6 +1359,8 @@ class TestPerformanceAndLargeData:
         assert reconstructed.comments[9999].comment_id == "C_9999"
 
 
+@pytest.mark.model
+@pytest.mark.unit
 class TestPullRequest:
     """Test the PullRequest dataclass."""
 
@@ -1721,3 +1736,54 @@ class TestPullRequest:
         assert reconstructed.url == original.url
         assert reconstructed.review_thread_count == original.review_thread_count
         assert reconstructed.node_id == original.node_id
+
+
+@pytest.mark.model
+@pytest.mark.unit
+class TestTypeValidationEdgeCases:
+    """Test type validation edge cases for better coverage."""
+
+    def test_review_thread_invalid_thread_id_type(self) -> None:
+        """Test ReviewThread with invalid thread_id type."""
+        with pytest.raises(ValidationError, match="thread_id must be a string"):
+            ReviewThread(
+                thread_id=123,  # type: ignore  # Invalid: not a string
+                title="Test",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                status="UNRESOLVED",
+                author="user",
+                comments=[],
+            )
+
+    def test_review_thread_invalid_title_type(self) -> None:
+        """Test ReviewThread with invalid title type."""
+        with pytest.raises(ValidationError, match="title must be a string"):
+            ReviewThread(
+                thread_id="RT_123",
+                title=456,  # type: ignore  # Invalid: not a string
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                status="UNRESOLVED",
+                author="user",
+                comments=[],
+            )
+
+    def test_review_thread_invalid_status_type(self) -> None:
+        """Test ReviewThread with invalid status type."""
+        with pytest.raises(ValidationError, match="status must be a string"):
+            ReviewThread(
+                thread_id="RT_123",
+                title="Test",
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                status=789,  # type: ignore  # Invalid: not a string
+                author="user",
+                comments=[],
+            )
+
+    def test_parse_datetime_validation_error_edge_case(self) -> None:
+        """Test _parse_datetime with edge case exception handling."""
+        # Test with an exception that doesn't have error_code attribute
+        with pytest.raises(ValidationError, match="Unable to parse datetime"):
+            _parse_datetime("completely-invalid-format")

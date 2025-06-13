@@ -1,9 +1,9 @@
 """Tests for GraphQL schema validation functionality."""
 
-import json
-import tempfile
 from datetime import datetime, timedelta
+import json
 from pathlib import Path
+import tempfile
 from unittest.mock import Mock
 
 import pytest
@@ -642,3 +642,83 @@ class TestGitHubSchemaValidator:
 
         # None
         assert validator._is_required_type(None) is False
+
+
+class TestSchemaValidatorEdgeCases:
+    """Test edge cases for schema validator to improve coverage."""
+
+    def test_is_cache_valid_json_decode_error(self, tmp_path):
+        """Test cache validation with invalid JSON in metadata."""
+        cache_dir = tmp_path / ".toady"
+        cache_dir.mkdir()
+
+        # Create invalid JSON metadata file
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
+        metadata_file.write_text("invalid json content")
+
+        validator = GitHubSchemaValidator(cache_dir=cache_dir)
+        assert validator._is_cache_valid() is False
+
+    def test_is_cache_valid_key_error(self, tmp_path):
+        """Test cache validation with missing timestamp key."""
+        cache_dir = tmp_path / ".toady"
+        cache_dir.mkdir()
+
+        # Create metadata file without timestamp key
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
+        metadata_file.write_text('{"some_other_key": "value"}')
+
+        validator = GitHubSchemaValidator(cache_dir=cache_dir)
+        assert validator._is_cache_valid() is False
+
+    def test_is_cache_valid_value_error(self, tmp_path):
+        """Test cache validation with invalid timestamp format."""
+        cache_dir = tmp_path / ".toady"
+        cache_dir.mkdir()
+
+        # Create metadata file with invalid timestamp format
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
+        metadata_file.write_text('{"timestamp": "invalid-timestamp-format"}')
+
+        validator = GitHubSchemaValidator(cache_dir=cache_dir)
+        assert validator._is_cache_valid() is False
+
+    def test_load_cached_schema_not_exists(self, tmp_path):
+        """Test loading cached schema when file doesn't exist."""
+        cache_dir = tmp_path / ".toady"
+        cache_dir.mkdir()
+
+        validator = GitHubSchemaValidator(cache_dir=cache_dir)
+        # Create valid metadata but no schema file
+        metadata_file = cache_dir / "schema_metadata.json"
+        metadata_file.write_text(f'{{"timestamp": "{datetime.now().isoformat()}"}}')
+
+        result = validator._load_cached_schema()
+        assert result is None
+
+    def test_load_cached_schema_invalid_json(self, tmp_path):
+        """Test loading cached schema with invalid JSON."""
+        cache_dir = tmp_path / ".toady"
+        cache_dir.mkdir()
+
+        # Create valid metadata
+        metadata_file = cache_dir / "schema_metadata.json"
+        metadata_file.write_text(f'{{"timestamp": "{datetime.now().isoformat()}"}}')
+
+        # Create invalid JSON schema file
+        schema_file = cache_dir / "github_schema.json"
+        schema_file.write_text("invalid json content")
+
+        validator = GitHubSchemaValidator(cache_dir=cache_dir)
+
+        from unittest.mock import patch
+
+        with patch.object(validator, "_is_cache_valid", return_value=True):
+            result = validator._load_cached_schema()
+            assert result is None

@@ -2,7 +2,7 @@
 
 import base64
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 def _validate_cursor(cursor: str) -> bool:
@@ -21,7 +21,7 @@ def _validate_cursor(cursor: str) -> bool:
         ValueError: If the cursor is invalid or potentially unsafe
     """
     if not cursor:
-        return False
+        raise ValueError("Cursor cannot be empty")
 
     # Additional length check to prevent excessively long cursors (check first)
     if len(cursor) > 1000:
@@ -38,7 +38,7 @@ def _validate_cursor(cursor: str) -> bool:
     try:
         base64.b64decode(cursor, validate=True)
     except Exception as e:
-        raise ValueError(f"Invalid Base64 cursor: {str(e)}") from e
+        raise ValueError(f"Invalid Base64 cursor: {e!s}") from e
 
     return True
 
@@ -163,7 +163,7 @@ class ReviewThreadQueryBuilder:
 
         return query.strip()
 
-    def build_variables(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+    def build_variables(self, owner: str, repo: str, pr_number: int) -> dict[str, Any]:
         """Build the GraphQL query variables.
 
         Args:
@@ -278,7 +278,7 @@ def create_paginated_query(limit: int = 100, after_cursor: Optional[str] = None)
 
 def create_paginated_query_variables(
     owner: str, repo: str, pr_number: int, after_cursor: Optional[str] = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create variables for the paginated GraphQL query.
 
     Args:
@@ -388,7 +388,7 @@ class PullRequestQueryBuilder:
         """
         return query.strip()
 
-    def build_variables(self, owner: str, repo: str) -> Dict[str, Any]:
+    def build_variables(self, owner: str, repo: str) -> dict[str, Any]:
         """Build the GraphQL query variables.
 
         Args:

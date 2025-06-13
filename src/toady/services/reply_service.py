@@ -1,8 +1,8 @@
 """Reply service for posting comments to GitHub pull request reviews."""
 
-import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+import json
+from typing import Any, Optional
 
 from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 
@@ -10,13 +10,9 @@ from .github_service import GitHubAPIError, GitHubService, GitHubServiceError
 class ReplyServiceError(GitHubServiceError):
     """Base exception for reply service errors."""
 
-    pass
-
 
 class CommentNotFoundError(ReplyServiceError):
     """Raised when the specified comment cannot be found."""
-
-    pass
 
 
 @dataclass
@@ -42,7 +38,7 @@ class ReplyService:
 
     def post_reply(
         self, request: ReplyRequest, fetch_context: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Post a reply to a pull request review comment using GraphQL mutations.
 
         This method now uses GraphQL mutations instead of REST API calls for better
@@ -139,7 +135,7 @@ class ReplyService:
             raise ReplyServiceError(f"Failed to post reply: {e}") from e
 
     def _handle_graphql_errors(
-        self, errors: List[Dict[str, Any]], comment_id: str
+        self, errors: list[dict[str, Any]], comment_id: str
     ) -> None:
         """Handle GraphQL errors and raise appropriate exceptions.
 
@@ -167,12 +163,12 @@ class ReplyService:
 
     def _build_reply_info_from_graphql(
         self,
-        comment_data: Dict[str, Any],
+        comment_data: dict[str, Any],
         request: ReplyRequest,
         fetch_context: bool,
         owner: str,
         repo: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build reply information dictionary from GraphQL response data.
 
         Args:
@@ -211,7 +207,7 @@ class ReplyService:
 
     def _post_reply_fallback_rest(
         self, request: ReplyRequest, fetch_context: bool, owner: str, repo: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Fallback to REST API for posting replies.
 
         This method uses the original REST API approach for backward compatibility.
@@ -277,7 +273,7 @@ class ReplyService:
                     f"Comment {request.comment_id} not found"
                 ) from e
             # Check if it's a "review already submitted" error
-            elif "review has already been submitted" in str(e).lower():
+            if "review has already been submitted" in str(e).lower():
                 raise ReplyServiceError(
                     f"Cannot reply to comment {request.comment_id} because the review "
                     f"has already been submitted. Try using the thread ID instead, or "
@@ -345,7 +341,7 @@ class ReplyService:
                 raise CommentNotFoundError(f"Comment {comment_id} not found") from e
             raise ReplyServiceError(f"Failed to get review ID: {e}") from e
 
-    def _get_repository_info(self) -> Tuple[str, str]:
+    def _get_repository_info(self) -> tuple[str, str]:
         """Get the current repository owner and name.
 
         Returns:
@@ -398,7 +394,7 @@ class ReplyService:
 
     def _get_parent_comment_info(
         self, owner: str, repo: str, comment_id: str
-    ) -> Optional[Dict[str, str]]:
+    ) -> Optional[dict[str, str]]:
         """Get information about the parent comment for additional context.
 
         Args:
@@ -455,7 +451,7 @@ class ReplyService:
 
     def _get_pr_info(
         self, owner: str, repo: str, pr_number: str
-    ) -> Optional[Dict[str, str]]:
+    ) -> Optional[dict[str, str]]:
         """Get basic PR information.
 
         Args:

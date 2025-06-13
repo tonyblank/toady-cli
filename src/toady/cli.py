@@ -114,9 +114,8 @@ def main() -> None:
         if debug:
             # In debug mode, show the full traceback
             raise
-        else:
-            # In normal mode, show a user-friendly message
-            handle_error(e, show_traceback=False)
+        # In normal mode, show a user-friendly message
+        handle_error(e, show_traceback=False)
 
 
 if __name__ == "__main__":

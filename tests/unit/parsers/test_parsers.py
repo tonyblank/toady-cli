@@ -1,7 +1,7 @@
 """Tests for the parsers module."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -363,7 +363,7 @@ class TestResponseValidator:
 
     def test_validate_graphql_response_valid(self) -> None:
         """Test validation of valid GraphQL response."""
-        response: Dict[str, Any] = {
+        response: dict[str, Any] = {
             "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
         }
 
@@ -377,7 +377,7 @@ class TestResponseValidator:
 
     def test_validate_graphql_response_missing_data(self) -> None:
         """Test validation fails when data field is missing."""
-        response: Dict[str, Any] = {"errors": []}
+        response: dict[str, Any] = {"errors": []}
 
         with pytest.raises(ValidationError) as exc_info:
             ResponseValidator.validate_graphql_response(response)
@@ -767,7 +767,7 @@ class TestResponseValidatorPRs:
 
     def test_validate_graphql_prs_response_success(self) -> None:
         """Test successful validation of PR GraphQL response."""
-        response: Dict[str, Any] = {
+        response: dict[str, Any] = {
             "data": {"repository": {"pullRequests": {"nodes": []}}}
         }
 
@@ -775,7 +775,7 @@ class TestResponseValidatorPRs:
 
     def test_validate_graphql_prs_response_missing_data(self) -> None:
         """Test validation fails for missing data field."""
-        response: Dict[str, Any] = {"errors": []}
+        response: dict[str, Any] = {"errors": []}
 
         with pytest.raises(ValidationError, match="Response missing 'data' field"):
             ResponseValidator.validate_graphql_prs_response(response)
@@ -824,3 +824,176 @@ class TestResponseValidatorPRs:
             ValidationError, match="Pull request data must be a dictionary"
         ):
             ResponseValidator.validate_pull_request_data("not a dict")  # type: ignore
+
+
+class TestGraphQLResponseParserErrorCases:
+    """Test error cases for GraphQLResponseParser to improve coverage."""
+
+    def test_parse_review_threads_nodes_not_list(self) -> None:
+        """Test parsing when reviewThreads.nodes is not a list."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {"nodes": "not a list"}  # Should be a list
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError, match="reviewThreads.nodes must be a list"):
+            parser.parse_review_threads_response(response)
+
+    def test_parse_review_threads_thread_parsing_error(self) -> None:
+        """Test error handling when individual thread parsing fails."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {
+                                    # Invalid thread data - missing required fields
+                                    "id": "RT_invalid",
+                                    # Missing isResolved, comments, etc.
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValidationError, match="Failed to parse thread at index 0"):
+            parser.parse_review_threads_response(response)
+
+    def test_parse_review_threads_key_error(self) -> None:
+        """Test handling of KeyError in response parsing."""
+        parser = GraphQLResponseParser()
+
+        response = {
+            "data": {
+                "repository": {
+                    # Missing pullRequest key
+                }
+            }
+        }
+
+        with pytest.raises(
+            ValidationError, match="Missing 'pullRequest' in repository data"
+        ):
+            parser.parse_review_threads_response(response)
+
+    def test_parse_review_threads_type_error(self) -> None:
+        """Test handling of TypeError in response parsing."""
+        parser = GraphQLResponseParser()
+
+        # Response that will cause TypeError when accessing fields
+        response = {
+            "data": {
+                "repository": {
+                    "pullRequest": None  # Will cause AttributeError/TypeError
+                }
+            }
+        }
+
+        with pytest.raises(
+            ValidationError, match="Pull request not found \\(null value\\)"
+        ):
+            parser.parse_review_threads_response(response)
+
+    def test_parse_single_comment_validation_error(self) -> None:
+        """Test handling validation error in single comment parsing."""
+        parser = GraphQLResponseParser()
+
+        # Comment data missing required fields
+        comment_data = {
+            # Missing id, body, createdAt, updatedAt
+        }
+
+        with pytest.raises(ValidationError):
+            parser._parse_single_comment(comment_data, "RT_test")
+
+    def test_extract_title_empty_comment(self) -> None:
+        """Test extracting title from empty comment."""
+        parser = GraphQLResponseParser()
+
+        title = parser._extract_title_from_comment("")
+        assert title == "Empty comment"
+
+    def test_extract_title_whitespace_only(self) -> None:
+        """Test extracting title from whitespace-only comment."""
+        parser = GraphQLResponseParser()
+
+        title = parser._extract_title_from_comment("   \n\t   ")
+        assert title == "Empty comment"
+
+
+class TestParserAdditionalCoverage:
+    """Additional tests to improve parser coverage."""
+
+    def test_parse_datetime_validation_errors(self) -> None:
+        """Test datetime parsing validation errors."""
+        from toady.utils import parse_datetime
+
+        # Test various invalid datetime formats
+        invalid_dates = [
+            "not-a-date",
+            "2024-13-45T25:99:99Z",  # Invalid date values
+            "2024/01/15 10:30:00",  # Wrong format
+            "",  # Empty string
+        ]
+
+        for invalid_date in invalid_dates:
+            with pytest.raises(ValidationError):
+                parse_datetime(invalid_date)
+
+    def test_parse_comment_missing_required_fields_comprehensive(self) -> None:
+        """Test comment parsing with comprehensive missing field scenarios."""
+        parser = GraphQLResponseParser()
+
+        # Test missing body field
+        comment_no_body = {
+            "id": "IC_test",
+            "createdAt": "2024-01-15T10:30:00Z",
+            "updatedAt": "2024-01-15T10:30:00Z",
+            "author": {"login": "testuser"},
+        }
+
+        with pytest.raises(ValidationError, match="content cannot be empty"):
+            parser._parse_single_comment(comment_no_body, "RT_test")
+
+        # Test missing author field - should default to "unknown"
+        comment_no_author = {
+            "id": "IC_test",
+            "body": "Test comment",
+            "createdAt": "2024-01-15T10:30:00Z",
+            "updatedAt": "2024-01-15T10:30:00Z",
+        }
+
+        result = parser._parse_single_comment(comment_no_author, "RT_test")
+        assert result.author == "unknown"
+
+    def test_response_validation_edge_cases(self) -> None:
+        """Test additional response validation edge cases."""
+        # Test non-dictionary responses
+        with pytest.raises(ValidationError, match="must be a dictionary"):
+            ResponseValidator.validate_graphql_response(None)  # type: ignore
+
+        with pytest.raises(ValidationError, match="must be a dictionary"):
+            ResponseValidator.validate_graphql_response([])  # type: ignore
+
+        # Test responses with errors field
+        response_with_errors = {
+            "errors": [{"message": "Some GraphQL error"}],
+            "data": None,
+        }
+
+        with pytest.raises(
+            ValidationError, match="Response 'data' field must be a dictionary"
+        ):
+            ResponseValidator.validate_graphql_response(response_with_errors)

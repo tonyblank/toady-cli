@@ -16,6 +16,8 @@ from toady.validators.node_id_validation import (
 )
 
 
+@pytest.mark.validator
+@pytest.mark.unit
 class TestGitHubEntityType:
     """Test the GitHubEntityType enumeration."""
 
@@ -41,6 +43,8 @@ class TestGitHubEntityType:
         assert len(values) == len(set(values))
 
 
+@pytest.mark.validator
+@pytest.mark.unit
 class TestNodeIDValidator:
     """Test the NodeIDValidator class."""
 
@@ -284,6 +288,8 @@ class TestNodeIDValidator:
         assert "IC_kwDOABcD12MAAAABcDE3fg" in message
 
 
+@pytest.mark.validator
+@pytest.mark.unit
 class TestPreConfiguredValidators:
     """Test pre-configured validator factory functions."""
 

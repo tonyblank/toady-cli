@@ -130,10 +130,18 @@ class TestErrorMessageFormatter:
     def test_format_unexpected_error(self):
         """Test formatting of unexpected error."""
         error = ValueError("Unexpected error")
-        formatted = ErrorMessageFormatter.format_error(error)
 
+        # Test without debug mode – explicitly disable the flag
+        with patch.dict("os.environ", {}, clear=True):
+            formatted = ErrorMessageFormatter.format_error(error)
         assert "❌ An unexpected error occurred" in formatted
-        assert "Error details: Unexpected error" in formatted
+        assert "Error details: Unexpected error" not in formatted
+
+        # Test with debug mode enabled
+        with patch.dict("os.environ", {"TOADY_DEBUG": "1"}):
+            formatted_debug = ErrorMessageFormatter.format_error(error)
+            assert "❌ An unexpected error occurred" in formatted_debug
+            assert "Error details: Unexpected error" in formatted_debug
 
     def test_get_exit_code_github_errors(self):
         """Test exit code mapping for GitHub errors."""

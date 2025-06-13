@@ -1,6 +1,6 @@
 """Interactive pull request selection interface."""
 
-from typing import List, Optional
+from typing import Optional
 
 import click
 
@@ -15,11 +15,18 @@ class PRSelector:
     with formatted display and navigation controls.
     """
 
-    def __init__(self) -> None:
-        """Initialize the PR selector."""
-        self.formatter = PrettyFormatter()
+    def __init__(self, output_format: str = "pretty") -> None:
+        """Initialize the PR selector.
 
-    def select_pr(self, pull_requests: List[PullRequest]) -> Optional[int]:
+        Args:
+            output_format: Output format ("json" or "pretty"). Controls whether
+                           interactive messages are displayed or suppressed.
+        """
+        self.formatter = PrettyFormatter()
+        self.output_format = output_format
+        self.is_json_mode = output_format == "json"
+
+    def select_pr(self, pull_requests: list[PullRequest]) -> Optional[int]:
         """Select a PR from the given list through interactive interface.
 
         Args:
@@ -38,11 +45,22 @@ class PRSelector:
             # Auto-select single PR
             return pull_requests[0].number
 
-        # Multiple PRs - show interactive selection
+        # Multiple PRs
+        if self.is_json_mode:
+            # In JSON mode, we can't do interactive selection
+            # Send error message to stderr and return None
+            click.echo(
+                "Error: Multiple PRs found but interactive selection not available "
+                "in JSON mode. Please specify --pr option.",
+                err=True,
+            )
+            return None
+
+        # Show interactive selection (pretty mode only)
         return self._show_pr_selection_menu(pull_requests)
 
     def _show_pr_selection_menu(
-        self, pull_requests: List[PullRequest]
+        self, pull_requests: list[PullRequest]
     ) -> Optional[int]:
         """Display interactive PR selection menu.
 
@@ -53,11 +71,12 @@ class PRSelector:
             Selected PR number, or None if cancelled
         """
         # Display header
-        click.echo()
+        # In JSON mode, send to stderr to avoid polluting JSON output
+        click.echo(err=self.is_json_mode)
         plural = "s" if len(pull_requests) != 1 else ""
         header = f"📋 Found {len(pull_requests)} open pull request{plural}"
-        click.echo(click.style(header, bold=True, fg="cyan"))
-        click.echo()
+        click.echo(click.style(header, bold=True, fg="cyan"), err=self.is_json_mode)
+        click.echo(err=self.is_json_mode)
 
         # Display PR list with formatting
         self._display_pr_list(pull_requests)
@@ -65,7 +84,7 @@ class PRSelector:
         # Get user selection
         return self._prompt_for_selection(pull_requests)
 
-    def _display_pr_list(self, pull_requests: List[PullRequest]) -> None:
+    def _display_pr_list(self, pull_requests: list[PullRequest]) -> None:
         """Display formatted list of pull requests.
 
         Args:
@@ -98,11 +117,18 @@ class PRSelector:
                 thread_info = thread_count
 
             # Combine all components
-            click.echo(f"  {number_style} {pr_number} {title}{draft_indicator}")
-            click.echo(f"      {author_info} • {branch_info}{thread_info}")
-            click.echo()
+            # In JSON mode, send to stderr to avoid polluting JSON output
+            click.echo(
+                f"  {number_style} {pr_number} {title}{draft_indicator}",
+                err=self.is_json_mode,
+            )
+            click.echo(
+                f"      {author_info} • {branch_info}{thread_info}",
+                err=self.is_json_mode,
+            )
+            click.echo(err=self.is_json_mode)
 
-    def _prompt_for_selection(self, pull_requests: List[PullRequest]) -> Optional[int]:
+    def _prompt_for_selection(self, pull_requests: list[PullRequest]) -> Optional[int]:
         """Prompt user for PR selection with validation.
 
         Args:
@@ -177,6 +203,11 @@ class PRSelector:
 
     def display_no_prs_message(self) -> None:
         """Display message when no open PRs are found."""
+        # In JSON mode, completely suppress output to avoid compatibility issues
+        if self.is_json_mode:
+            return
+
+        # Pretty mode - show the message
         click.echo()
         message = "📝 No open pull requests found in this repository."
         click.echo(click.style(message, fg="yellow", bold=True))
@@ -193,6 +224,11 @@ class PRSelector:
         Args:
             pr: The automatically selected pull request
         """
+        # In JSON mode, completely suppress output to avoid compatibility issues
+        if self.is_json_mode:
+            return
+
+        # Pretty mode - show the selection message
         click.echo()
         header = "🎯 Auto-selected the only open pull request:"
         click.echo(click.style(header, fg="green", bold=True))

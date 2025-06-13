@@ -12,11 +12,11 @@ This script provides advanced testing capabilities including:
 
 import argparse
 import json
+from pathlib import Path
 import subprocess
 import sys
 import time
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 class TestConfig:
@@ -109,7 +109,7 @@ class TestConfig:
         ]
         return subprocess.call(cmd)
 
-    def analyze_test_suite(self) -> Dict[str, Any]:
+    def analyze_test_suite(self) -> dict[str, Any]:
         """Analyze test suite structure and metrics."""
         print("📊 Analyzing test suite...")
 
@@ -217,7 +217,7 @@ class TestConfig:
         except Exception:
             return "unknown"
 
-    def _print_analysis_summary(self, analysis: Dict[str, Any]) -> None:
+    def _print_analysis_summary(self, analysis: dict[str, Any]) -> None:
         """Print analysis summary to console."""
         print("\n" + "=" * 60)
         print("🧪 TEST SUITE ANALYSIS SUMMARY")

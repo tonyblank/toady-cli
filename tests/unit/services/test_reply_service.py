@@ -247,6 +247,227 @@ class TestReplyService:
 
         assert exists is False
 
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_node_id_success(self, mock_get_repo_info: Mock) -> None:
+        """Test successful reply posting with node ID."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_response = {
+            "data": {
+                "addPullRequestReviewThreadReply": {
+                    "comment": {
+                        "id": "MDEyOklzc3VlQ29tbWVudDEyMzQ1Njc4OQ==",
+                        "body": "Test reply body",
+                        "author": {"login": "testuser"},
+                        "createdAt": "2023-01-01T12:00:00Z",
+                        "url": "https://github.com/owner/repo/pull/1#discussion_r123456789",
+                    }
+                }
+            }
+        }
+        mock_github_service.post_reply.return_value = mock_response
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        result = service.post_reply(request)
+
+        assert result is not None
+        mock_github_service.post_reply.assert_called_once()
+
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_numeric_id_fallback(self, mock_get_repo_info: Mock) -> None:
+        """Test reply posting with numeric ID falls back to REST."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        service = ReplyService(mock_github_service)
+
+        # Mock the fallback method
+        service._post_reply_fallback_rest = Mock(return_value={"id": "123456789"})
+
+        request = ReplyRequest("123456789", "Test reply body")
+        result = service.post_reply(request)
+
+        service._post_reply_fallback_rest.assert_called_once()
+        assert result == {"id": "123456789"}
+
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_graphql_errors(self, mock_get_repo_info: Mock) -> None:
+        """Test GraphQL error handling in post_reply."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_response = {"errors": [{"message": "Comment not found"}]}
+        mock_github_service.post_reply.return_value = mock_response
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        with pytest.raises(CommentNotFoundError):
+            service.post_reply(request)
+
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_no_comment_data(self, mock_get_repo_info: Mock) -> None:
+        """Test post_reply when no comment data is returned."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_response = {"data": {"addPullRequestReviewThreadReply": {}}}
+        mock_github_service.post_reply.return_value = mock_response
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        with pytest.raises(ReplyServiceError) as exc_info:
+            service.post_reply(request)
+
+        assert "No comment data returned" in str(exc_info.value)
+
+    def test_post_reply_invalid_comment_id(self) -> None:
+        """Test post_reply with invalid comment ID raises ValueError."""
+        mock_github_service = Mock(spec=GitHubService)
+        service = ReplyService(mock_github_service)
+
+        # Mock _get_repository_info to succeed, but make github_service.post_reply fail
+        with patch.object(
+            service, "_get_repository_info", return_value=("owner", "repo")
+        ):
+            # Mock post_reply to raise ValueError for invalid format
+            mock_github_service.post_reply.side_effect = ValueError("Invalid format")
+
+            request = ReplyRequest("invalid_node_id", "Test reply body")
+
+            with pytest.raises(ReplyServiceError) as exc_info:
+                service.post_reply(request)
+
+            assert "Invalid comment ID" in str(exc_info.value)
+
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_github_api_error(self, mock_get_repo_info: Mock) -> None:
+        """Test post_reply with GitHubAPIError."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.post_reply.side_effect = GitHubAPIError("API error")
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        with pytest.raises(ReplyServiceError) as exc_info:
+            service.post_reply(request)
+
+        assert "Failed to post reply" in str(exc_info.value)
+
+    @patch.object(ReplyService, "_get_repository_info")
+    def test_post_reply_github_api_not_found_error(
+        self, mock_get_repo_info: Mock
+    ) -> None:
+        """Test post_reply with GitHubAPIError for not found."""
+        mock_get_repo_info.return_value = ("owner", "repo")
+
+        mock_github_service = Mock(spec=GitHubService)
+        mock_github_service.post_reply.side_effect = GitHubAPIError("Comment not found")
+
+        service = ReplyService(mock_github_service)
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        with pytest.raises(CommentNotFoundError):
+            service.post_reply(request)
+
+    def test_handle_graphql_errors_not_found(self) -> None:
+        """Test _handle_graphql_errors with not found error."""
+        service = ReplyService()
+        errors = [{"message": "Comment not found"}]
+
+        with pytest.raises(CommentNotFoundError):
+            service._handle_graphql_errors(errors, "123")
+
+    def test_handle_graphql_errors_does_not_exist(self) -> None:
+        """Test _handle_graphql_errors with does not exist error."""
+        service = ReplyService()
+        errors = [{"message": "Resource does not exist"}]
+
+        with pytest.raises(CommentNotFoundError):
+            service._handle_graphql_errors(errors, "123")
+
+    def test_handle_graphql_errors_generic(self) -> None:
+        """Test _handle_graphql_errors with generic error."""
+        service = ReplyService()
+        errors = [{"message": "Generic error"}, {"message": "Another error"}]
+
+        with pytest.raises(ReplyServiceError) as exc_info:
+            service._handle_graphql_errors(errors, "123")
+
+        assert "Generic error; Another error" in str(exc_info.value)
+
+    def test_handle_graphql_errors_no_message(self) -> None:
+        """Test _handle_graphql_errors with error without message."""
+        service = ReplyService()
+        errors = [{"type": "UNKNOWN", "path": ["field"]}]
+
+        with pytest.raises(ReplyServiceError) as exc_info:
+            service._handle_graphql_errors(errors, "123")
+
+        # Should use str representation of error dict
+        assert "type" in str(exc_info.value)
+
+    def test_build_reply_info_from_graphql_with_context(self) -> None:
+        """Test _build_reply_info_from_graphql with fetch_context=True."""
+        mock_github_service = Mock(spec=GitHubService)
+        service = ReplyService(mock_github_service)
+
+        # Mock the context fetching method
+        service._get_parent_comment_info = Mock(return_value={"parent": "context"})
+
+        comment_data = {
+            "id": "MDEyOklzc3VlQ29tbWVudDEyMzQ1Njc4OQ==",
+            "body": "Test reply",
+            "author": {"login": "testuser"},
+            "createdAt": "2023-01-01T12:00:00Z",
+            "url": "https://github.com/owner/repo/pull/1#discussion_r123456789",
+        }
+
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        result = service._build_reply_info_from_graphql(
+            comment_data, request, fetch_context=True, owner="owner", repo="repo"
+        )
+
+        service._get_parent_comment_info.assert_called_once()
+        assert "parent" in result
+        assert result["parent"] == "context"
+
+    def test_build_reply_info_from_graphql_without_context(self) -> None:
+        """Test _build_reply_info_from_graphql with fetch_context=False."""
+        mock_github_service = Mock(spec=GitHubService)
+        service = ReplyService(mock_github_service)
+
+        comment_data = {
+            "id": "MDEyOklzc3VlQ29tbWVudDEyMzQ1Njc4OQ==",
+            "body": "Test reply",
+            "author": {"login": "testuser"},
+            "createdAt": "2023-01-01T12:00:00Z",
+            "url": "https://github.com/owner/repo/pull/1#discussion_r123456789",
+        }
+
+        request = ReplyRequest("RC_kwDOABCDEF4AaAaA", "Test reply body")
+
+        result = service._build_reply_info_from_graphql(
+            comment_data, request, fetch_context=False, owner="owner", repo="repo"
+        )
+
+        # Check the actual keys returned by the method
+        assert "reply_id" in result
+        assert "reply_url" in result
+        assert "comment_id" in result
+        assert "created_at" in result
+        assert "author" in result
+        assert "body_preview" in result
+        assert result["comment_id"] == "RC_kwDOABCDEF4AaAaA"
+        assert result["author"] == "testuser"
+
     def test_validate_comment_exists_invalid_response(self) -> None:
         """Test comment validation with invalid JSON response."""
         mock_github_service = Mock(spec=GitHubService)

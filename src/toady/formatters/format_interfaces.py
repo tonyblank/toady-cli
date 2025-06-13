@@ -6,7 +6,7 @@ pretty-print, tables, etc.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from ..models.models import Comment, ReviewThread
 
@@ -19,7 +19,7 @@ class IFormatter(ABC):
     """
 
     @abstractmethod
-    def format_threads(self, threads: List[ReviewThread]) -> str:
+    def format_threads(self, threads: list[ReviewThread]) -> str:
         """Format a list of review threads.
 
         Args:
@@ -28,10 +28,9 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the threads.
         """
-        pass
 
     @abstractmethod
-    def format_comments(self, comments: List[Comment]) -> str:
+    def format_comments(self, comments: list[Comment]) -> str:
         """Format a list of comments.
 
         Args:
@@ -40,7 +39,6 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the comments.
         """
-        pass
 
     @abstractmethod
     def format_object(self, obj: Any) -> str:
@@ -52,10 +50,9 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the object.
         """
-        pass
 
     @abstractmethod
-    def format_array(self, items: List[Any]) -> str:
+    def format_array(self, items: list[Any]) -> str:
         """Format an array of items.
 
         Args:
@@ -64,10 +61,9 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the array.
         """
-        pass
 
     @abstractmethod
-    def format_primitive(self, value: Union[str, int, float, bool, None]) -> str:
+    def format_primitive(self, value: Union[str, float, bool, None]) -> str:
         """Format a primitive value.
 
         Args:
@@ -76,10 +72,9 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the value.
         """
-        pass
 
     @abstractmethod
-    def format_error(self, error: Dict[str, Any]) -> str:
+    def format_error(self, error: dict[str, Any]) -> str:
         """Format an error object.
 
         Args:
@@ -88,10 +83,9 @@ class IFormatter(ABC):
         Returns:
             Formatted string representation of the error.
         """
-        pass
 
     def format_success_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a success message.
 
@@ -109,7 +103,7 @@ class IFormatter(ABC):
         return self.format_object({"success": True, "message": message})
 
     def format_warning_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a warning message.
 
@@ -151,23 +145,25 @@ class BaseFormatter(IFormatter):
         Returns:
             Serializable representation of the object.
         """
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
-        elif isinstance(obj, (list, tuple)):
-            return [self._safe_serialize(item) for item in obj]
-        elif isinstance(obj, dict):
-            return {key: self._safe_serialize(value) for key, value in obj.items()}
-        elif hasattr(obj, "__dict__"):
-            return self._safe_serialize(obj.__dict__)
-        else:
-            # For primitive types and other serializable objects
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
             try:
-                import json
-
-                json.dumps(obj)  # Test if it's JSON serializable
-                return obj
-            except (TypeError, ValueError):
+                return obj.to_dict()
+            except Exception:
                 return str(obj)
+        if isinstance(obj, (list, tuple)):
+            return [self._safe_serialize(item) for item in obj]
+        if isinstance(obj, dict):
+            return {key: self._safe_serialize(value) for key, value in obj.items()}
+        if hasattr(obj, "__dict__"):
+            return self._safe_serialize(obj.__dict__)
+        # For primitive types and other serializable objects
+        try:
+            import json
+
+            json.dumps(obj)  # Test if it's JSON serializable
+            return obj
+        except (TypeError, ValueError):
+            return str(obj)
 
     def _handle_empty_data(
         self, data: Any, empty_message: str = "No data available."
@@ -187,7 +183,7 @@ class BaseFormatter(IFormatter):
             return empty_message
         return None
 
-    def format_comments(self, comments: List[Comment]) -> str:
+    def format_comments(self, comments: list[Comment]) -> str:
         """Default implementation for formatting comments.
 
         Args:
@@ -200,7 +196,7 @@ class BaseFormatter(IFormatter):
         return self.format_array([comment.to_dict() for comment in comments])
 
     def format_success_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a success message (implementation in base class)."""
         success_data = {"success": True, "message": message}
@@ -209,7 +205,7 @@ class BaseFormatter(IFormatter):
         return self.format_object(success_data)
 
     def format_warning_message(
-        self, message: str, details: Optional[Dict[str, Any]] = None
+        self, message: str, details: Optional[dict[str, Any]] = None
     ) -> str:
         """Format a warning message (implementation in base class)."""
         warning_data = {"warning": True, "message": message}
@@ -242,7 +238,7 @@ class FormatterOptions:
         indent: int = 2,
         sort_keys: bool = False,
         ensure_ascii: bool = False,
-        separators: Optional[Tuple[str, str]] = None,
+        separators: Optional[tuple[str, str]] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize formatter options.
@@ -260,7 +256,7 @@ class FormatterOptions:
         self.separators = separators
         self.extra_options = kwargs
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert options to dictionary.
 
         Returns:
@@ -278,7 +274,7 @@ class FormatterOptions:
 class FormatterFactory:
     """Factory for creating formatter instances."""
 
-    _formatters: Dict[str, type] = {}
+    _formatters: dict[str, type] = {}
 
     @classmethod
     def register(cls, name: str, formatter_class: type) -> None:
@@ -316,11 +312,11 @@ class FormatterFactory:
             return formatter_instance  # type: ignore[no-any-return]
         except Exception as e:
             raise FormatterError(
-                f"Failed to create formatter '{name}': {str(e)}", original_error=e
+                f"Failed to create formatter '{name}': {e!s}", original_error=e
             ) from e
 
     @classmethod
-    def list_formatters(cls) -> List[str]:
+    def list_formatters(cls) -> list[str]:
         """List available formatter names.
 
         Returns:

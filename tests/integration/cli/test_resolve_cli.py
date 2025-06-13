@@ -1,7 +1,7 @@
 """Integration tests for the resolve CLI command."""
 
-import json
 from datetime import datetime
+import json
 from unittest.mock import Mock, patch
 
 from click.testing import CliRunner

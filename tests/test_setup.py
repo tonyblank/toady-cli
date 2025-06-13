@@ -29,7 +29,6 @@ class TestProjectStructure:
         assert (root / "LICENSE").exists()
         assert (root / ".gitignore").exists()
         assert (root / "requirements.txt").exists()
-        assert (root / "requirements-dev.txt").exists()
         assert (root / "Makefile").exists()
         assert (root / "CHANGELOG.md").exists()
 

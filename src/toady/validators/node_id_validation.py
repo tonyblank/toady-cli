@@ -5,9 +5,9 @@ GitHub node IDs are base64-encoded strings with specific prefixes that identify
 the entity type.
 """
 
-import re
 from enum import Enum
-from typing import List, Optional, Set
+import re
+from typing import Optional
 
 
 class GitHubEntityType(Enum):
@@ -66,7 +66,7 @@ class NodeIDValidator:
 
     REVIEW_TYPES = {GitHubEntityType.PULL_REQUEST_REVIEW}
 
-    def __init__(self, allowed_types: Optional[Set[GitHubEntityType]] = None):
+    def __init__(self, allowed_types: Optional[set[GitHubEntityType]] = None):
         """Initialize validator with optional allowed entity types.
 
         Args:
@@ -77,7 +77,7 @@ class NodeIDValidator:
         )
         self._prefix_to_type = {entity.value: entity for entity in GitHubEntityType}
 
-    def get_allowed_prefixes(self) -> List[str]:
+    def get_allowed_prefixes(self) -> list[str]:
         """Get list of allowed node ID prefixes based on allowed types.
 
         Returns:

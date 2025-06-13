@@ -11,12 +11,12 @@ This script provides elegant CI/CD pipeline execution with:
 """
 
 import argparse
+from datetime import datetime
+from pathlib import Path
 import subprocess
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 class Colors:
@@ -40,7 +40,7 @@ class CIRunner:
         self.project_root = project_root
         self.verbose = verbose
         self.start_time = time.time()
-        self.check_results: Dict[str, Dict[str, Any]] = {}
+        self.check_results: dict[str, dict[str, Any]] = {}
         self.total_checks = 0
         self.passed_checks = 0
         self.failed_checks = 0
@@ -74,11 +74,11 @@ class CIRunner:
 
     def run_command(
         self,
-        cmd: List[str],
+        cmd: list[str],
         description: str,
         timeout: int = 300,
         check_output: bool = False,
-    ) -> Tuple[bool, str, float]:
+    ) -> tuple[bool, str, float]:
         """Run command with timing and elegant error handling."""
         start_time = time.time()
 
@@ -138,7 +138,7 @@ class CIRunner:
 
         all_passed = True
         for cmd, desc in checks:
-            success, output, duration = self.run_command(cmd, desc, timeout=10)
+            success, output, duration = self.run_command(cmd, desc, timeout=30)
             if not success:
                 all_passed = False
 
@@ -205,7 +205,7 @@ class CIRunner:
                 "--cov-report=xml:coverage.xml",
                 "--cov-report=term-missing",
             ],
-            "Test suite execution",
+            "Test suite execution (1132 tests - this may take several minutes)",
             timeout=600,  # 10 minutes for full test suite
             check_output=True,
         )
@@ -230,6 +230,40 @@ class CIRunner:
 
         if success:
             self.print_info(coverage_info)
+
+        return success
+
+    def check_trailing_whitespace(self) -> bool:
+        """Check for trailing whitespace."""
+        self.print_step("WHITESPACE", "Checking trailing whitespace")
+
+        success, output, duration = self.run_command(
+            ["pre-commit", "run", "trailing-whitespace", "--all-files"],
+            "Trailing whitespace check",
+        )
+
+        self.check_results["trailing_whitespace"] = {
+            "passed": success,
+            "duration": duration,
+            "output": output,
+        }
+
+        return success
+
+    def check_end_of_files(self) -> bool:
+        """Check for proper end of files."""
+        self.print_step("EOF", "Checking end of files")
+
+        success, output, duration = self.run_command(
+            ["pre-commit", "run", "end-of-file-fixer", "--all-files"],
+            "End of file check",
+        )
+
+        self.check_results["end_of_files"] = {
+            "passed": success,
+            "duration": duration,
+            "output": output,
+        }
 
         return success
 
@@ -363,6 +397,8 @@ class CIRunner:
             ("Code Formatting", self.check_code_formatting),
             ("Code Linting", self.check_linting),
             ("Type Checking", self.check_type_hints),
+            ("Trailing Whitespace", self.check_trailing_whitespace),
+            ("End of Files", self.check_end_of_files),
         ]
 
         self.total_checks = len(pipeline_steps)

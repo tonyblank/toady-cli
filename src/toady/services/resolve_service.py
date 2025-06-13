@@ -1,7 +1,7 @@
 """Service for resolving and unresolving review threads via GitHub GraphQL API."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..exceptions import (
     GitHubAPIError,
@@ -31,7 +31,7 @@ class ResolveService:
         """
         self.github_service = github_service or GitHubService()
 
-    def resolve_thread(self, thread_id: str) -> Dict[str, Any]:
+    def resolve_thread(self, thread_id: str) -> dict[str, Any]:
         """Resolve a review thread.
 
         Args:
@@ -56,7 +56,7 @@ class ResolveService:
                     field_name="thread_id",
                     invalid_value=thread_id,
                     expected_format="valid GitHub thread ID",
-                    message=f"Invalid thread ID format: {str(e)}",
+                    message=f"Invalid thread ID format: {e!s}",
                 ) from e
 
             # Execute GraphQL mutation with error handling
@@ -69,7 +69,7 @@ class ResolveService:
                 raise
             except Exception as e:
                 raise create_github_error(
-                    message=f"Failed to execute resolve mutation: {str(e)}",
+                    message=f"Failed to execute resolve mutation: {e!s}",
                     api_endpoint="GraphQL resolve mutation",
                 ) from e
 
@@ -104,7 +104,7 @@ class ResolveService:
             except (KeyError, TypeError, AttributeError) as e:
                 raise ResolveServiceError(
                     message=(
-                        "Invalid response structure from resolve mutation: " f"{str(e)}"
+                        "Invalid response structure from resolve mutation: " f"{e!s}"
                     ),
                     context={
                         "thread_id": thread_id,
@@ -129,11 +129,11 @@ class ResolveService:
         except Exception as e:
             # Wrap any unexpected errors
             raise ResolveServiceError(
-                message=f"Unexpected error during thread resolution: {str(e)}",
+                message=f"Unexpected error during thread resolution: {e!s}",
                 context={"thread_id": thread_id, "action": "resolve"},
             ) from e
 
-    def unresolve_thread(self, thread_id: str) -> Dict[str, Any]:
+    def unresolve_thread(self, thread_id: str) -> dict[str, Any]:
         """Unresolve a review thread.
 
         Args:
@@ -158,7 +158,7 @@ class ResolveService:
                     field_name="thread_id",
                     invalid_value=thread_id,
                     expected_format="valid GitHub thread ID",
-                    message=f"Invalid thread ID format: {str(e)}",
+                    message=f"Invalid thread ID format: {e!s}",
                 ) from e
 
             # Execute GraphQL mutation with error handling
@@ -171,7 +171,7 @@ class ResolveService:
                 raise
             except Exception as e:
                 raise create_github_error(
-                    message=f"Failed to execute unresolve mutation: {str(e)}",
+                    message=f"Failed to execute unresolve mutation: {e!s}",
                     api_endpoint="GraphQL unresolve mutation",
                 ) from e
 
@@ -206,8 +206,7 @@ class ResolveService:
             except (KeyError, TypeError, AttributeError) as e:
                 raise ResolveServiceError(
                     message=(
-                        "Invalid response structure from unresolve mutation: "
-                        f"{str(e)}"
+                        "Invalid response structure from unresolve mutation: " f"{e!s}"
                     ),
                     context={
                         "thread_id": thread_id,
@@ -232,12 +231,12 @@ class ResolveService:
         except Exception as e:
             # Wrap any unexpected errors
             raise ResolveServiceError(
-                message=f"Unexpected error during thread unresolution: {str(e)}",
+                message=f"Unexpected error during thread unresolution: {e!s}",
                 context={"thread_id": thread_id, "action": "unresolve"},
             ) from e
 
     def _handle_graphql_errors(
-        self, errors: List[Dict[str, Any]], thread_id: str, action: str
+        self, errors: list[dict[str, Any]], thread_id: str, action: str
     ) -> None:
         """Handle GraphQL errors and raise appropriate exceptions.
 
@@ -267,7 +266,7 @@ class ResolveService:
                     if not isinstance(error, dict):
                         # mypy: disable-error-code=unreachable
                         error_messages.append(
-                            f"Invalid error format at index {i}: {str(error)}"
+                            f"Invalid error format at index {i}: {error!s}"
                         )
                         continue
 
@@ -284,7 +283,7 @@ class ResolveService:
                             message=f"Thread {thread_id} not found",
                             thread_id=thread_id,
                         )
-                    elif (
+                    if (
                         "permission" in message_lower
                         or "forbidden" in message_lower
                         or "not accessible" in message_lower
@@ -297,17 +296,14 @@ class ResolveService:
                             ),
                             thread_id=thread_id,
                         )
-                    else:
-                        # If we get here, it's a generic error message
-                        error_messages.append(message)
+                    # If we get here, it's a generic error message
+                    error_messages.append(message)
                 except (ThreadNotFoundError, ThreadPermissionError):
                     # Re-raise these immediately
                     raise
                 except Exception as e:
                     # Continue processing other errors
-                    error_messages.append(
-                        f"Error processing GraphQL error {i}: {str(e)}"
-                    )
+                    error_messages.append(f"Error processing GraphQL error {i}: {e!s}")
 
             # If we get here, it's a generic GraphQL error
             combined_message = (
@@ -328,7 +324,7 @@ class ResolveService:
         except Exception as e:
             # Wrap any unexpected errors in error handling
             raise ResolveServiceError(
-                message=f"Error processing GraphQL errors during {action}: {str(e)}",
+                message=f"Error processing GraphQL errors during {action}: {e!s}",
                 context={"thread_id": thread_id, "action": action},
             ) from e
 
@@ -425,7 +421,7 @@ class ResolveService:
                 raise
             except Exception as e:
                 raise create_github_error(
-                    message=f"Failed to execute thread validation query: {str(e)}",
+                    message=f"Failed to execute thread validation query: {e!s}",
                     api_endpoint="GraphQL node validation",
                 ) from e
 
@@ -517,7 +513,7 @@ class ResolveService:
                 raise ResolveServiceError(
                     message=(
                         "Failed to validate thread existence due to unexpected "
-                        f"response structure: {str(e)}"
+                        f"response structure: {e!s}"
                     ),
                     context={
                         "thread_id": thread_id,
@@ -543,7 +539,7 @@ class ResolveService:
             raise ResolveServiceError(
                 message=(
                     "Failed to validate thread existence due to unexpected "
-                    f"error: {str(e)}"
+                    f"error: {e!s}"
                 ),
                 context={
                     "thread_id": thread_id,
@@ -553,7 +549,7 @@ class ResolveService:
                 },
             ) from e
 
-    def _get_thread_url(self, thread_data: Dict[str, Any], thread_id: str) -> str:
+    def _get_thread_url(self, thread_data: dict[str, Any], thread_id: str) -> str:
         """Extract thread URL from GraphQL response with intelligent fallback.
 
         Args:

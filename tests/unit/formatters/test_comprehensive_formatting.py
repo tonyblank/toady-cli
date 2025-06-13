@@ -15,11 +15,11 @@ and edge cases to ensure robust behavior across different scenarios including:
 - Table formatting edge cases
 """
 
+from datetime import datetime
 import json
 import os
 import sys
 import time
-from datetime import datetime
 from unittest.mock import patch
 
 import pytest

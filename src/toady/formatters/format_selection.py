@@ -5,7 +5,7 @@ including Click options, validation, and formatter instantiation.
 """
 
 import os
-from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 import click
 
@@ -102,7 +102,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 class FormatSelectionError(Exception):
     """Exception raised when format selection fails."""
 
-    def __init__(self, message: str, available_formats: Optional[List[str]] = None):
+    def __init__(self, message: str, available_formats: Optional[list[str]] = None):
         """Initialize format selection error.
 
         Args:
@@ -227,7 +227,7 @@ def create_format_option(**kwargs: Any) -> Callable[[F], F]:
     }
     default_kwargs.update(kwargs)
 
-    return cast(Callable[[F], F], click.option("--format", **default_kwargs))  # type: ignore[call-overload]
+    return cast("Callable[[F], F]", click.option("--format", **default_kwargs))  # type: ignore[call-overload]
 
 
 def create_legacy_pretty_option(**kwargs: Any) -> Callable[[F], F]:
@@ -248,7 +248,7 @@ def create_legacy_pretty_option(**kwargs: Any) -> Callable[[F], F]:
     }
     default_kwargs.update(kwargs)
 
-    return cast(Callable[[F], F], click.option("--pretty", **default_kwargs))  # type: ignore[call-overload]
+    return cast("Callable[[F], F]", click.option("--pretty", **default_kwargs))  # type: ignore[call-overload]
 
 
 # Format-specific output functions
@@ -299,7 +299,7 @@ def format_object_output(obj: Any, format_name: str) -> None:
 
 
 def format_success_message(
-    message: str, format_name: str, details: Optional[Dict[str, Any]] = None
+    message: str, format_name: str, details: Optional[dict[str, Any]] = None
 ) -> None:
     """Format and output a success message.
 
@@ -322,7 +322,7 @@ def format_success_message(
         click.echo(output)
 
 
-def format_error_message(error: Dict[str, Any], format_name: str) -> None:
+def format_error_message(error: dict[str, Any], format_name: str) -> None:
     """Format and output an error message.
 
     Args:

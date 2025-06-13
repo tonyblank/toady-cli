@@ -7,7 +7,6 @@ import pytest
 from toady.exceptions import ValidationError
 from toady.validators.validation import (
     ResolveOptions,
-    check_reply_content_warnings,
     validate_boolean_flag,
     validate_choice,
     validate_comment_id,
@@ -20,6 +19,7 @@ from toady.validators.validation import (
     validate_pr_number,
     validate_reply_body,
     validate_reply_command_args,
+    validate_reply_content_warnings,
     validate_resolve_command_args,
     validate_thread_id,
     validate_url,
@@ -586,36 +586,36 @@ class TestCheckReplyContentWarnings:
 
     def test_no_warnings(self):
         """Test content with no warnings."""
-        warnings = check_reply_content_warnings("This is a normal reply")
+        warnings = validate_reply_content_warnings("This is a normal reply")
         assert warnings == []
 
     def test_mention_warning(self):
         """Test mention warning."""
-        warnings = check_reply_content_warnings("@user this is a mention")
+        warnings = validate_reply_content_warnings("@user this is a mention")
         assert len(warnings) == 1
         assert "mention users" in warnings[0]
 
     def test_repetitive_content_warning(self):
         """Test repetitive content warning."""
-        warnings = check_reply_content_warnings("aaaaaaaaaaaaaaaa")
+        warnings = validate_reply_content_warnings("aaaaaaaaaaaaaaaa")
         assert len(warnings) == 1
         assert "repetitive content" in warnings[0]
 
     def test_all_caps_warning(self):
         """Test all caps warning."""
-        warnings = check_reply_content_warnings("THIS IS ALL CAPS CONTENT")
+        warnings = validate_reply_content_warnings("THIS IS ALL CAPS CONTENT")
         assert len(warnings) == 1
         assert "ALL CAPS" in warnings[0]
 
     def test_excessive_punctuation_warning(self):
         """Test excessive punctuation warning."""
-        warnings = check_reply_content_warnings("What?!?!?! Why?!?!?!")
+        warnings = validate_reply_content_warnings("What?!?!?! Why?!?!?!")
         assert len(warnings) == 1
         assert "excessive punctuation" in warnings[0]
 
     def test_multiple_warnings(self):
         """Test content with multiple warnings."""
-        warnings = check_reply_content_warnings("@USER WHAT?!?!?! WHY?!?!?!")
+        warnings = validate_reply_content_warnings("@USER WHAT?!?!?! WHY?!?!?!")
         assert len(warnings) == 3  # mention, all caps, excessive punctuation
 
 

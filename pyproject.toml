@@ -21,7 +21,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -30,46 +29,61 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
     "Environment :: Console",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
-    "click>=8.1.0",
-    "rich>=13.0.0",  # For pretty output formatting
-    "typing-extensions>=4.0.0;python_version<'3.10'",
+    "click>=8.1.7",
+    "rich>=13.9.0",  # For pretty output formatting
+    "rich-click>=1.8.0",  # Enhanced click with rich formatting
+    "typing-extensions>=4.12.0;python_version<'3.11'",
 ]
 
 [project.optional-dependencies]
+# Development dependencies - latest versions as of Dec 2024
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.0",
-    "pytest-xdist>=3.3.0",
-    "pytest-timeout>=2.1.0",
-    "pytest-benchmark>=4.0.0",
-    "pytest-html>=3.2.0",
-    "pytest-json-report>=1.5.0",
-    "pytest-clarity>=1.0.1",
-    "pytest-sugar>=0.9.7",
-    "pytest-emoji>=0.2.0",
-    "pytest-randomly>=3.12.0",
-    "pytest-memorywatch>=0.6.0",
-    "pytest-profiling>=1.7.0",
-    "pytest-deadfixtures>=2.2.1",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.4.0",
-    "tox>=4.0.0",
-    "build>=1.0.0",
-    "twine>=4.0.0",
-    "tomli>=2.0.0;python_version<'3.11'",
-    "coverage[toml]>=7.3.0",
+    # Testing framework
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.0",  # Parallel test execution
+    "pytest-timeout>=2.3.1",  # Test timeouts
+
+    # Code quality
+    "black>=24.8.0",
+    "ruff>=0.8.0",  # Much faster than flake8/isort
+    "mypy>=1.13.0",
+    "pre-commit>=4.0.0",
+
+    # Type stubs
+    "types-click>=7.1.8",
+    "types-psutil>=6.1.0",
+
+    # Build and publish
+    "build>=1.2.0",
+    "twine>=6.0.0",
+
+    # Development utilities
+    "python-dotenv>=1.0.1",
+    "psutil>=6.1.0",
+
+    # Documentation (optional)
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
 ]
+
+# Separate test dependencies for CI efficiency
 test = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.0",
-    "pytest-xdist>=3.3.0",
-    "pytest-timeout>=2.1.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.0",
+    "python-dotenv>=1.0.1",
+]
+
+# Documentation dependencies
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocs-click>=0.8.1",
 ]
 
 [project.urls]
@@ -89,35 +103,69 @@ toady = ["py.typed"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py39"
 line-length = 88
+extend-exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "htmlcov",
+    "build",
+    "dist",
+]
 
 [tool.ruff.lint]
+# Enable core linting rules (focused on critical issues)
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "B",    # flake8-bugbear
-    "C4",   # flake8-comprehensions
-    "UP",   # pyupgrade
-    "ARG",  # flake8-unused-arguments
-    "SIM",  # flake8-simplify
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear (critical bugs)
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade (basic Python version compatibility)
 ]
-ignore = []
+
+ignore = [
+    "FBT001",  # Boolean positional arg in function definition
+    "FBT002",  # Boolean default positional argument in function definition
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "EM101",   # Exception must not use a string literal
+    "EM102",   # Exception must not use an f-string literal
+    "G004",    # Logging statement uses f-string
+    "COM812",  # Missing trailing comma (conflicts with formatter)
+    "ISC001",  # Implicitly concatenated string literals (conflicts with formatter)
+]
+
 fixable = ["ALL"]
 unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ARG001", "ARG002"]
+"tests/*" = [
+    "ARG001",   # Unused function argument
+    "ARG002",   # Unused method argument
+    "S101",     # Use of assert detected
+    "PLR2004",  # Magic value used in comparison
+    "SLF001",   # Private member accessed
+    "FBT",      # Boolean trap
+]
 "src/toady/cli.py" = ["ARG001"]  # Ignore unused arguments in CLI stubs
+"conftest.py" = ["ARG001"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["toady"]
+force-sort-within-sections = true
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -132,24 +180,22 @@ warn_unreachable = true
 strict_equality = true
 
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "8.0"
 addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
     "--color=yes",
     "--tb=short",
-    "--maxfail=1",
-    "--durations=10",
-    "--durations-min=1.0",
-    "--cov=toady",
+    "--cov=src/toady",  # Updated for uv/modern structure
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html:htmlcov",
     "--cov-report=xml:coverage.xml",
-    "--cov-fail-under=80",
+    "--cov-fail-under=90",  # Raised from 80% since you improved coverage
     "-p", "no:warnings",
-    "--disable-warnings",
+    "--maxfail=10",  # Stop after 10 failures
+    "--timeout=300",  # 5 minute timeout per test
 ]
 testpaths = ["tests"]
 pythonpath = ["src"]
@@ -229,7 +275,7 @@ output = "coverage.xml"
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311,py312,lint,type
+envlist = py39,py310,py311,py312,lint,type
 
 [testenv]
 deps =

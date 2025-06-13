@@ -2,7 +2,7 @@
 
 import json
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import click
 
@@ -27,7 +27,7 @@ from toady.validators.node_id_validation import validate_thread_id
 
 def _fetch_and_filter_threads(
     pr_number: int, undo: bool, pretty: bool, limit: int
-) -> List[Any]:
+) -> list[Any]:
     """Fetch and filter threads based on resolution action.
 
     Args:
@@ -62,7 +62,7 @@ def _fetch_and_filter_threads(
 
 def _handle_confirmation_prompt(
     ctx: click.Context,
-    target_threads: List[Any],
+    target_threads: list[Any],
     action: str,
     action_symbol: str,
     pr_number: int,
@@ -107,12 +107,12 @@ def _handle_confirmation_prompt(
 
 
 def _process_threads(
-    target_threads: List[Any],
+    target_threads: list[Any],
     undo: bool,
     action_present: str,
     action_symbol: str,
     pretty: bool,
-) -> Tuple[int, int, List[Dict[str, str]]]:
+) -> tuple[int, int, list[dict[str, str]]]:
     """Process threads for resolution/unresolve with error handling.
 
     Args:
@@ -173,10 +173,10 @@ def _process_threads(
 
 
 def _display_summary(
-    target_threads: List[Any],
+    target_threads: list[Any],
     succeeded: int,
     failed: int,
-    failed_threads: List[Dict[str, str]],
+    failed_threads: list[dict[str, str]],
     action: str,
     action_past: str,
     pr_number: int,
@@ -216,7 +216,7 @@ def _display_summary(
         click.echo(json.dumps(result))
 
 
-def _get_action_labels(undo: bool) -> Tuple[str, str, str, str]:
+def _get_action_labels(undo: bool) -> tuple[str, str, str, str]:
     """Get action labels for bulk operations.
 
     Args:
@@ -227,8 +227,7 @@ def _get_action_labels(undo: bool) -> Tuple[str, str, str, str]:
     """
     if undo:
         return "unresolve", "unresolved", "Unresolving", "🔓"
-    else:
-        return "resolve", "resolved", "Resolving", "🔒"
+    return "resolve", "resolved", "Resolving", "🔒"
 
 
 def _handle_empty_threads(
@@ -454,7 +453,7 @@ def _show_single_resolve_progress(thread_id: str, undo: bool, pretty: bool) -> N
 
 
 def _handle_single_resolve_success(
-    result: Dict[str, Any], undo: bool, pretty: bool
+    result: dict[str, Any], undo: bool, pretty: bool
 ) -> None:
     """Handle successful single thread resolution.
 

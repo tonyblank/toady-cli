@@ -1,6 +1,6 @@
 """Parsers for transforming GitHub API responses to model objects."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from ..exceptions import (
     ValidationError,
@@ -16,11 +16,10 @@ class GraphQLResponseParser:
 
     def __init__(self) -> None:
         """Initialize the parser."""
-        pass
 
     def parse_review_threads_response(
-        self, response: Dict[str, Any]
-    ) -> List[ReviewThread]:
+        self, response: dict[str, Any]
+    ) -> list[ReviewThread]:
         """Parse a GraphQL response containing review threads.
 
         Args:
@@ -60,7 +59,7 @@ class GraphQLResponseParser:
                         field_name=f"reviewThreads.nodes[{i}]",
                         invalid_value=thread_data.get("id", "unknown"),
                         expected_format="valid thread object",
-                        message=f"Failed to parse thread at index {i}: {str(e)}",
+                        message=f"Failed to parse thread at index {i}: {e!s}",
                     ) from e
 
             return threads
@@ -77,10 +76,10 @@ class GraphQLResponseParser:
                 field_name="response",
                 invalid_value=type(response).__name__,
                 expected_format="valid GraphQL response dictionary",
-                message=f"Response parsing failed due to type error: {str(e)}",
+                message=f"Response parsing failed due to type error: {e!s}",
             ) from e
 
-    def _parse_single_review_thread(self, thread_data: Dict[str, Any]) -> ReviewThread:
+    def _parse_single_review_thread(self, thread_data: dict[str, Any]) -> ReviewThread:
         """Parse a single review thread from GraphQL response data.
 
         Args:
@@ -127,7 +126,7 @@ class GraphQLResponseParser:
                         expected_format="valid comment object",
                         message=(
                             f"Failed to parse comment at index {i} in thread "
-                            f"{thread_id}: {str(e)}"
+                            f"{thread_id}: {e!s}"
                         ),
                     ) from e
 
@@ -146,7 +145,7 @@ class GraphQLResponseParser:
                     expected_format="list with valid comment objects",
                     message=(
                         f"Cannot extract thread metadata from comments in thread "
-                        f"{thread_id}: {str(e)}"
+                        f"{thread_id}: {e!s}"
                     ),
                 ) from e
 
@@ -191,11 +190,11 @@ class GraphQLResponseParser:
                 field_name="thread_data",
                 invalid_value=type(thread_data).__name__,
                 expected_format="valid thread data dictionary",
-                message=f"Thread parsing failed due to type error: {str(e)}",
+                message=f"Thread parsing failed due to type error: {e!s}",
             ) from e
 
     def _parse_single_comment(
-        self, comment_data: Dict[str, Any], thread_id: str
+        self, comment_data: dict[str, Any], thread_id: str
     ) -> Comment:
         """Parse a single comment from GraphQL response data.
 
@@ -230,7 +229,7 @@ class GraphQLResponseParser:
                     field_name="comment.createdAt",
                     invalid_value=comment_data.get("createdAt", "missing"),
                     expected_format="valid ISO datetime string",
-                    message=f"Failed to parse comment creation date: {str(e)}",
+                    message=f"Failed to parse comment creation date: {e!s}",
                 ) from e
 
             try:
@@ -240,7 +239,7 @@ class GraphQLResponseParser:
                     field_name="comment.updatedAt",
                     invalid_value=comment_data.get("updatedAt", "missing"),
                     expected_format="valid ISO datetime string",
-                    message=f"Failed to parse comment update date: {str(e)}",
+                    message=f"Failed to parse comment update date: {e!s}",
                 ) from e
 
             # Extract author information with fallback
@@ -306,7 +305,7 @@ class GraphQLResponseParser:
                 field_name="comment_data",
                 invalid_value=type(comment_data).__name__,
                 expected_format="valid comment data dictionary",
-                message=f"Comment parsing failed due to type error: {str(e)}",
+                message=f"Comment parsing failed due to type error: {e!s}",
             ) from e
 
     def _extract_title_from_comment(self, content: str) -> str:
@@ -328,8 +327,8 @@ class GraphQLResponseParser:
         return first_line or "Empty comment"
 
     def parse_paginated_response(
-        self, response: Dict[str, Any]
-    ) -> Tuple[List[ReviewThread], Optional[str]]:
+        self, response: dict[str, Any]
+    ) -> tuple[list[ReviewThread], Optional[str]]:
         """Parse a paginated GraphQL response for review threads.
 
         Args:
@@ -380,12 +379,12 @@ class GraphQLResponseParser:
                 field_name="response",
                 invalid_value=type(response).__name__,
                 expected_format="valid paginated GraphQL response",
-                message=f"Pagination parsing failed due to type error: {str(e)}",
+                message=f"Pagination parsing failed due to type error: {e!s}",
             ) from e
 
     def parse_pull_requests_response(
-        self, response: Dict[str, Any]
-    ) -> List[PullRequest]:
+        self, response: dict[str, Any]
+    ) -> list[PullRequest]:
         """Parse a GraphQL response containing pull requests.
 
         Args:
@@ -451,10 +450,10 @@ class GraphQLResponseParser:
                 field_name="response",
                 invalid_value=type(response).__name__,
                 expected_format="valid GraphQL pull requests response",
-                message=f"Response parsing failed due to type error: {str(e)}",
+                message=f"Response parsing failed due to type error: {e!s}",
             ) from e
 
-    def _parse_pull_request_data(self, pr_data: Dict[str, Any]) -> PullRequest:
+    def _parse_pull_request_data(self, pr_data: dict[str, Any]) -> PullRequest:
         """Parse individual pull request data into a PullRequest object.
 
         Args:
@@ -485,7 +484,7 @@ class GraphQLResponseParser:
                     field_name="createdAt",
                     invalid_value=pr_data.get("createdAt", "missing"),
                     expected_format="ISO datetime string",
-                    message=f"Invalid createdAt format: {str(e)}",
+                    message=f"Invalid createdAt format: {e!s}",
                 ) from e
 
             try:
@@ -495,7 +494,7 @@ class GraphQLResponseParser:
                     field_name="updatedAt",
                     invalid_value=pr_data.get("updatedAt", "missing"),
                     expected_format="ISO datetime string",
-                    message=f"Invalid updatedAt format: {str(e)}",
+                    message=f"Invalid updatedAt format: {e!s}",
                 ) from e
 
             # Create PullRequest object
@@ -528,7 +527,7 @@ class GraphQLResponseParser:
                 field_name="pr_data",
                 invalid_value=type(pr_data).__name__,
                 expected_format="valid pull request data dictionary",
-                message=f"Pull request parsing failed due to type error: {str(e)}",
+                message=f"Pull request parsing failed due to type error: {e!s}",
             ) from e
 
 
@@ -536,7 +535,7 @@ class ResponseValidator:
     """Validator for GitHub API response structures."""
 
     @staticmethod
-    def validate_graphql_response(response: Dict[str, Any]) -> bool:
+    def validate_graphql_response(response: dict[str, Any]) -> bool:
         """Validate that a GraphQL response has the expected structure.
 
         Args:
@@ -569,13 +568,12 @@ class ResponseValidator:
                         message=f"GraphQL API errors: {'; '.join(error_messages)}",
                         api_endpoint="GraphQL",
                     )
-                else:
-                    raise create_validation_error(
-                        field_name="data",
-                        invalid_value="missing",
-                        expected_format="data field in GraphQL response",
-                        message="Response missing 'data' field",
-                    )
+                raise create_validation_error(
+                    field_name="data",
+                    invalid_value="missing",
+                    expected_format="data field in GraphQL response",
+                    message="Response missing 'data' field",
+                )
             raise create_validation_error(
                 field_name="data",
                 invalid_value="missing",
@@ -638,7 +636,7 @@ class ResponseValidator:
         return True
 
     @staticmethod
-    def validate_graphql_prs_response(response: Dict[str, Any]) -> bool:
+    def validate_graphql_prs_response(response: dict[str, Any]) -> bool:
         """Validate GraphQL response for pull requests has expected structure.
 
         Args:
@@ -671,13 +669,12 @@ class ResponseValidator:
                         message=f"GraphQL API errors: {'; '.join(error_messages)}",
                         api_endpoint="GraphQL",
                     )
-                else:
-                    raise create_validation_error(
-                        field_name="data",
-                        invalid_value="missing",
-                        expected_format="data field in GraphQL response",
-                        message="Response missing 'data' field",
-                    )
+                raise create_validation_error(
+                    field_name="data",
+                    invalid_value="missing",
+                    expected_format="data field in GraphQL response",
+                    message="Response missing 'data' field",
+                )
             raise create_validation_error(
                 field_name="data",
                 invalid_value="missing",
@@ -723,7 +720,7 @@ class ResponseValidator:
         return True
 
     @staticmethod
-    def validate_pull_request_data(pr_data: Dict[str, Any]) -> bool:
+    def validate_pull_request_data(pr_data: dict[str, Any]) -> bool:
         """Validate that pull request data has required fields.
 
         Args:
@@ -764,7 +761,7 @@ class ResponseValidator:
         return True
 
     @staticmethod
-    def validate_review_thread_data(thread_data: Dict[str, Any]) -> bool:
+    def validate_review_thread_data(thread_data: dict[str, Any]) -> bool:
         """Validate that review thread data has required fields.
 
         Args:
@@ -815,7 +812,7 @@ class ResponseValidator:
         return True
 
     @staticmethod
-    def validate_comment_data(comment_data: Dict[str, Any]) -> bool:
+    def validate_comment_data(comment_data: dict[str, Any]) -> bool:
         """Validate that comment data has required fields.
 
         Args:
@@ -848,7 +845,7 @@ class ResponseValidator:
         return True
 
     @staticmethod
-    def validate_pull_requests_response(response: Dict[str, Any]) -> bool:
+    def validate_pull_requests_response(response: dict[str, Any]) -> bool:
         """Validate a GraphQL response has expected structure for pull requests.
 
         Args:
