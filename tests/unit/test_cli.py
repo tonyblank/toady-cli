@@ -60,9 +60,9 @@ class TestCLIGroupDefinition:
         """Test that CLI has comprehensive help documentation."""
         assert cli.help is not None
         assert "Toady - GitHub PR review management tool" in cli.help
-        assert "PREREQUISITES:" in cli.help
-        assert "CORE WORKFLOW:" in cli.help
-        assert "TROUBLESHOOTING:" in cli.help
+        assert "Prerequisites:" in cli.help
+        assert "Core workflow:" in cli.help
+        assert "Troubleshooting:" in cli.help
 
 
 class TestCLIGroupFunctionality:
@@ -373,10 +373,10 @@ class TestCLIIntegration:
             "Usage:",
             "Options:",
             "Commands:",
-            "PREREQUISITES:",
-            "CORE WORKFLOW:",
-            "AGENT-FRIENDLY USAGE:",
-            "TROUBLESHOOTING:",
+            "Prerequisites:",
+            "Core workflow:",
+            "Agent-friendly usage:",
+            "Troubleshooting:",
         ]
 
         for section in expected_sections:
