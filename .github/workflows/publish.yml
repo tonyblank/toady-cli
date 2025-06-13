@@ -57,7 +57,7 @@ jobs:
           uv run twine check dist/*
 
       - name: Publish to TestPyPI
-        if: github.event.inputs.target == 'testpypi' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'testpypi'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
