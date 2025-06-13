@@ -108,23 +108,19 @@ class TestNetworkResilience:
 
         large_response_duration = performance_monitor.stop_timing()
 
-        # Should handle large responses within reasonable time
+        # Must succeed and stay within the time budget
+        assert result.exit_code == 0, f"fetch failed:\n{result.output}"
         performance_monitor.assert_performance_threshold("large_response_fetch", 60.0)
 
-        if result.exit_code == 0:
-            try:
-                threads = json.loads(result.output)
-                assert isinstance(threads, list)
+        try:
+            threads = json.loads(result.output)
+            assert isinstance(threads, list)
 
-                # Log the size for monitoring
-                print(
-                    f"Fetched {len(threads)} threads in {large_response_duration:.2f}s"
-                )
+            # Log the size for monitoring
+            print(f"Fetched {len(threads)} threads in {large_response_duration:.2f}s")
 
-            except json.JSONDecodeError:
-                pytest.fail(
-                    f"Large response was not valid JSON: {result.output[:500]}..."
-                )
+        except json.JSONDecodeError:
+            pytest.fail(f"Large response was not valid JSON: {result.output[:500]}...")
 
     def test_concurrent_api_usage_patterns(
         self,
@@ -207,6 +203,10 @@ class TestNetworkResilience:
             rate_limit_aware_delay(0.2)
 
         print(f"Request timings: {[f'{t:.2f}s' for t in backoff_timings]}")
+
+        # Add assertions to verify backoff behavior
+        assert backoff_timings, "No timings collected"
+        assert max(backoff_timings) <= 60, "Requests stalled >60s – backoff excessive"
 
         # If we hit rate limits, later requests should potentially take longer
         # (This is implementation dependent and might not always be observable)

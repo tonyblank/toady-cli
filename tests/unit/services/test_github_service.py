@@ -755,13 +755,13 @@ class TestGitHubServiceEdgeCases:
         result = service.resolve_thread("PRT_kwDOABcD12MAAAABcDE3fg")
         assert result == {"data": {"resolveReviewThread": {}}}
 
-    @patch.object(GitHubService, "_get_review_id_for_comment")
-    def test_get_review_id_for_comment_errors(self, mock_get_review: Mock) -> None:
+    @patch.object(GitHubService, "execute_graphql_query")
+    def test_get_review_id_for_comment_errors(self, mock_execute: Mock) -> None:
         """Test error handling in review ID lookup."""
         service = GitHubService()
 
-        # Mock the private method to test error paths
-        mock_get_review.return_value = None
+        # Mock the GraphQL query to return no review field
+        mock_execute.return_value = {"data": {"node": {}}}  # No review field
 
         # This should be called through post_reply when review_id can't be determined
         result = service._get_review_id_for_comment("IC_kwDOABcD12MAAAABcDE3fg")

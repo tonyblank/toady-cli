@@ -4,9 +4,7 @@ These tests verify proper handling of GitHub authentication scenarios,
 permission boundaries, and error conditions related to access control.
 """
 
-import os
 import subprocess
-import tempfile
 from typing import Any
 
 from click.testing import CliRunner
@@ -217,17 +215,12 @@ class TestAuthenticationFlows:
         # This test is complex because we need to temporarily remove auth
         # We'll do a simple check to ensure error handling works
 
-        # Try to access a command that requires auth with invalid token
-        with tempfile.TemporaryDirectory():
-            # Set up environment that would cause auth failure
-            env = os.environ.copy()
-            env["GH_TOKEN"] = "invalid_token_for_testing"
-
-            # Note: This test is limited because gh CLI might cache auth
-            # In a real scenario, we'd need to test with truly unauthenticated state
-
-            # For now, just verify that our commands handle auth errors gracefully
-            # This would need to be expanded with actual auth manipulation
+        # Skip this test until we can properly simulate unauthenticated state
+        # The gh CLI caches auth tokens and makes it difficult to test
+        # unauthenticated scenarios without complex environment manipulation
+        pytest.skip(
+            "Unauthenticated behavior simulation requires complex gh auth manipulation"
+        )
 
     def test_cross_organization_access_patterns(
         self,

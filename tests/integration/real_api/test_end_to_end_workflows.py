@@ -97,8 +97,9 @@ class TestEndToEndWorkflows:
                 cli, ["fetch", "--pr", str(pr_number), "--format", "json"]
             )
 
+            raw_out = getattr(result, "stdout", result.output)
             assert result.exit_code == 0
-            threads_data = json.loads(result.output)
+            threads_data = json.loads(raw_out)
 
         if not threads_data:
             pytest.skip("No review threads available for end-to-end testing")

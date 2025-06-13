@@ -131,8 +131,9 @@ class TestErrorMessageFormatter:
         """Test formatting of unexpected error."""
         error = ValueError("Unexpected error")
 
-        # Test without debug mode (default)
-        formatted = ErrorMessageFormatter.format_error(error)
+        # Test without debug mode – explicitly disable the flag
+        with patch.dict("os.environ", {}, clear=True):
+            formatted = ErrorMessageFormatter.format_error(error)
         assert "❌ An unexpected error occurred" in formatted
         assert "Error details: Unexpected error" not in formatted
 
