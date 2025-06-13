@@ -1,0 +1,42 @@
+# Include license and documentation
+include LICENSE
+include README.md
+include CHANGELOG.md
+
+# Include configuration for packaging
+include pyproject.toml
+
+# Include type hints marker
+include src/toady/py.typed
+
+# Exclude development and configuration files
+exclude .env.example
+exclude .pre-commit-config.yaml
+exclude Makefile
+exclude mypy.ini
+exclude pytest.ini
+exclude requirements.txt
+exclude uv.lock
+
+# Exclude development directories
+recursive-exclude .cursor *
+recursive-exclude .roo *
+recursive-exclude .taskmaster *
+recursive-exclude tests *
+recursive-exclude scripts *
+recursive-exclude docs *
+recursive-exclude htmlcov *
+recursive-exclude build *
+recursive-exclude dist *
+
+# Exclude cache and temporary files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.orig
+global-exclude *.rej
+global-exclude *~
+global-exclude __pycache__
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude coverage.xml
+global-exclude coverage.json

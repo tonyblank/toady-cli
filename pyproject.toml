@@ -7,7 +7,8 @@ name = "toady-cli"
 version = "0.1.0"
 description = "A CLI tool for managing GitHub PR code reviews efficiently"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Tony Blank", email = "guillotine@lawnfucker.com"},
 ]
@@ -18,7 +19,6 @@ keywords = ["github", "cli", "code-review", "pull-request", "automation"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
@@ -97,6 +97,7 @@ toady = "toady.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["toady*"]
 
 [tool.setuptools.package-data]
 toady = ["py.typed"]
