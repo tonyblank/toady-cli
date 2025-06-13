@@ -54,69 +54,73 @@ def fetch(
 ) -> None:
     """Fetch review threads from a GitHub pull request.
 
-    Retrieves review threads (comments that require responses) from GitHub PRs.
-    Returns structured data containing thread IDs, comment content, authors, and
-    metadata.
+    Automatically detects and fetches review threads from GitHub PRs. When run
+    without arguments, intelligently selects the appropriate PR or prompts for
+    selection when multiple PRs exist.
 
-    BEHAVIOR:
-        • Without --pr: Shows interactive PR selection menu
-        • With --pr: Fetches from specified pull request number
-        • Default: Only unresolved threads (threads needing responses)
-        • With --resolved: Includes both resolved and unresolved threads
+    \b
+    Behavior:
+      • Default: Auto-detects PR (single PR: fetches automatically, multiple: prompts)
+      • With --pr: Fetches from specified pull request number
+      • Default: Only unresolved threads (threads needing responses)
+      • With --resolved: Includes both resolved and unresolved threads
 
-    OUTPUT STRUCTURE (JSON):
-        [
-          {
-            "thread_id": "PRRT_kwDOO3WQIc5Rv3_r",     # Use for replies/resolve
-            "comment_id": "IC_kwDOABcD12MAAAABcDE3fg", # Alternative ID
-            "body": "Please fix this issue",
-            "author": "reviewer-username",
-            "created_at": "2023-01-01T12:00:00Z",
-            "is_resolved": false,
-            "pr_number": 123,
-            "file_path": "src/main.py",
-            "line_number": 42
-          }
-        ]
+    \b
+    Output structure (JSON):
+      [
+        {
+          "thread_id": "PRRT_kwDOO3WQIc5Rv3_r",     # Use for replies/resolve
+          "comment_id": "IC_kwDOABcD12MAAAABcDE3fg", # Alternative ID
+          "body": "Please fix this issue",
+          "author": "reviewer-username",
+          "created_at": "2023-01-01T12:00:00Z",
+          "is_resolved": false,
+          "pr_number": 123,
+          "file_path": "src/main.py",
+          "line_number": 42
+        }
+      ]
 
-    AGENT USAGE PATTERNS:
-        # Get unresolved threads for processing
+    \b
+    Examples:
+      Auto-detect PR (recommended):
+        toady fetch
+
+      Human-readable output:
+        toady fetch --format pretty
+
+      Specific PR:
         toady fetch --pr 123
 
-        # Get all thread IDs for bulk operations
-        toady fetch --pr 123 | jq '.[].thread_id'
+      Include resolved threads:
+        toady fetch --resolved
 
-        # Find threads by author
-        toady fetch --pr 123 | jq '.[] | select(.author == "reviewer")'
+      Limit results:
+        toady fetch --limit 50
 
-    INTERACTIVE USAGE:
-        toady fetch --format pretty  # Human-readable output with colors
+      Pipeline with other tools:
+        toady fetch | jq '.[].thread_id' | xargs -I {} toady resolve --thread-id {}
 
-    EXAMPLES:
-        Basic fetch (JSON output):
-            toady fetch --pr 123
+    \b
+    Agent usage patterns:
+      # Get unresolved threads for processing
+      toady fetch
 
-        Human-readable output:
-            toady fetch --pr 123 --format pretty
+      # Get all thread IDs for bulk operations
+      toady fetch | jq '.[].thread_id'
 
-        Include resolved threads:
-            toady fetch --pr 123 --resolved
+      # Find threads by author
+      toady fetch | jq '.[] | select(.author == "reviewer")'
 
-        Limit results:
-            toady fetch --pr 123 --limit 50
+      # Target specific PR when multiple exist
+      toady fetch --pr 123
 
-        Interactive PR selection:
-            toady fetch
-
-        Pipeline with other tools:
-            toady fetch --pr 123 | jq '.[].thread_id' | \\
-                xargs -I {} toady resolve --thread-id {}
-
-    ERROR CODES:
-        • authentication_required: GitHub CLI not authenticated
-        • pr_not_found: Pull request doesn't exist or no access
-        • no_threads_found: PR has no review threads
-        • api_rate_limit: GitHub API rate limit exceeded
+    \b
+    Error codes:
+      • authentication_required: GitHub CLI not authenticated
+      • pr_not_found: Pull request doesn't exist or no access
+      • no_threads_found: PR has no review threads
+      • api_rate_limit: GitHub API rate limit exceeded
     """
     # Validate input parameters
     if pr_number is not None:

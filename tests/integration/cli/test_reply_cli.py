@@ -277,7 +277,7 @@ class TestReplyCLI:
         result = runner.invoke(cli, ["reply", "--help"])
         assert result.exit_code == 0
         assert "Post a reply to a specific review comment" in result.output
-        assert "EXAMPLES:" in result.output
+        assert "Examples:" in result.output
         assert "--id" in result.output
         assert "--body" in result.output
 
@@ -558,7 +558,7 @@ class TestReplyCLI:
         assert "NOT SUPPORTED:" in result.output
         assert "PRRC_kwDOABcD12MAAAABcDE3fg" in result.output
         assert "HOW TO FIND THE RIGHT ID:" in result.output
-        assert "toady fetch --pr <PR_NUMBER> --pretty" in result.output
+        assert "toady fetch --format pretty" in result.output
         assert "TROUBLESHOOTING:" in result.output
 
     def test_reply_prrc_id_error_handling(self, runner: CliRunner) -> None:
@@ -570,7 +570,7 @@ class TestReplyCLI:
         assert result.exit_code == 2
         assert "Individual comment IDs from submitted reviews (PRRC_)" in result.output
         assert "Use the thread ID instead" in result.output
-        assert "Run: toady fetch --pr <PR_NUMBER> --pretty" in result.output
+        assert "Run: toady fetch --format pretty" in result.output
         assert (
             "Look for the thread ID (starts with PRRT_, PRT_, or RT_)" in result.output
         )

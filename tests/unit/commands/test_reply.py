@@ -502,9 +502,9 @@ class TestShowIdHelp:
         assert "NOT SUPPORTED:" in captured.out
         assert "PRRC_kwDOABcD12MAAAABcDE3fg" in captured.out
         assert "HOW TO FIND THE RIGHT ID:" in captured.out
-        assert "toady fetch --pr <PR_NUMBER> --pretty" in captured.out
+        assert "toady fetch --format pretty" in captured.out
         assert "BEST PRACTICES:" in captured.out
-        assert "EXAMPLES:" in captured.out
+        assert "📚 EXAMPLES:" in captured.out
         assert "TROUBLESHOOTING:" in captured.out
         ctx.exit.assert_called_once_with(0)
 

@@ -53,7 +53,7 @@ def _show_id_help(ctx: click.Context) -> None:
 🔍 HOW TO FIND THE RIGHT ID:
 
 1. Use the fetch command:
-   toady fetch --pr <PR_NUMBER> --pretty
+   toady fetch --format pretty
 
 2. Look for:
    • "Thread ID:" for thread-level replies (recommended)
@@ -82,7 +82,7 @@ Reply with legacy numeric ID:
 🆘 TROUBLESHOOTING:
 
 If you get an error about PRRC_ IDs:
-1. Run: toady fetch --pr <PR_NUMBER> --pretty
+1. Run: toady fetch --format pretty
 2. Find the "Thread ID" for that comment
 3. Use the thread ID instead
 
@@ -124,7 +124,7 @@ def validate_reply_target_id(reply_to_id: str) -> str:
                 "Individual comment IDs from submitted reviews (PRRC_) "
                 "cannot be replied to directly.\n"
                 "\n💡 Use the thread ID instead:\n"
-                "   • Run: toady fetch --pr <PR_NUMBER> --pretty\n"
+                "   • Run: toady fetch --format pretty\n"
                 "   • Look for the thread ID (starts with PRRT_, PRT_, or RT_)\n"
                 "   • Use that thread ID with --id\n"
                 "\n📖 For more help with ID types, use: toady reply --help-ids",
@@ -145,7 +145,7 @@ def validate_reply_target_id(reply_to_id: str) -> str:
                 "   • Comment IDs: IC_, RP_ (individual comments)\n"
                 "   • Numeric IDs: 123456789 (legacy format)\n\n"
                 "🔍 To find the correct ID:\n"
-                "   • Run: toady fetch --pr <PR_NUMBER> --pretty\n"
+                "   • Run: toady fetch --format pretty\n"
                 "   • Look for 'Thread ID' or 'Comment ID' in the output\n\n"
                 "📖 For detailed ID help: toady reply --help-ids"
             )
@@ -508,68 +508,74 @@ def reply(
     Creates a new comment in response to an existing review thread or comment.
     Supports various ID formats and provides structured response data.
 
-    ID TYPES SUPPORTED:
-        • Thread IDs: PRRT_, PRT_, RT_ (recommended - most reliable)
-        • Comment IDs: IC_, RP_ (for individual comments)
-        • Numeric IDs: 123456789 (legacy GitHub comment IDs)
+    \b
+    ID types supported:
+      • Thread IDs: PRRT_, PRT_, RT_ (recommended - most reliable)
+      • Comment IDs: IC_, RP_ (for individual comments)
+      • Numeric IDs: 123456789 (legacy GitHub comment IDs)
 
-    IMPORTANT RESTRICTIONS:
-        • PRRC_ IDs (individual review comments) cannot be replied to directly
-        • For submitted reviews, always use thread IDs (PRRT_, PRT_, RT_)
-        • Use thread IDs from `toady fetch` output for best compatibility
+    \b
+    Important restrictions:
+      • PRRC_ IDs (individual review comments) cannot be replied to directly
+      • For submitted reviews, always use thread IDs (PRRT_, PRT_, RT_)
+      • Use thread IDs from 'toady fetch' output for best compatibility
 
-    OUTPUT STRUCTURE (JSON):
-        {
-          "id": "PRRT_kwDOO3WQIc5Rv3_r",     # Original target ID
-          "success": true,
-          "reply_posted": true,
-          "reply_id": "IC_kwDOABcD12MAAAABcDE3fg",  # New reply ID
-          "reply_url": "https://github.com/owner/repo/pull/123#discussion_r987654321",
-          "created_at": "2023-01-01T12:00:00Z",
-          "author": "your-username"
-        }
+    \b
+    Output structure (JSON):
+      {
+        "id": "PRRT_kwDOO3WQIc5Rv3_r",     # Original target ID
+        "success": true,
+        "reply_posted": true,
+        "reply_id": "IC_kwDOABcD12MAAAABcDE3fg",  # New reply ID
+        "reply_url": "https://github.com/owner/repo/pull/123#discussion_r987654321",
+        "created_at": "2023-01-01T12:00:00Z",
+        "author": "your-username"
+      }
 
-    AGENT USAGE PATTERNS:
-        # Standard reply to thread
-        toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Fixed in commit abc123"
+    \b
+    Examples:
+      Basic reply:
+        toady reply --id "123456789" --body "Fixed in latest commit"
 
-        # Automated responses
-        cat responses.txt | while read line; do
-          toady reply --id "$thread_id" --body "$line"
-        done
+      Reply to thread (recommended):
+        toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Thanks for the review!"
 
-        # Bulk replies with error handling
-        toady reply --id "$id" --body "$response" || echo "Failed: $id"
+      Reply with verbose output:
+        toady reply --id "IC_kwDOABcD12MAAAABcDE3fg" --body "Good catch!" --verbose
 
-    VALIDATION:
-        • Body: 3-65536 characters, non-empty after trimming
-        • ID: Must match supported format patterns
-        • Authentication: Requires GitHub CLI (`gh`) authentication
-        • Permissions: Must have write access to repository
+      Human-readable output:
+        toady reply --id "PRT_kwDOABcD12MAAAABcDE3fg" --body "Updated" --format pretty
 
-    EXAMPLES:
-        Basic reply:
-            toady reply --id "123456789" --body "Fixed in latest commit"
+      Get help with ID types:
+        toady reply --help-ids
 
-        Reply to thread (recommended):
-            toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Thanks for the review!"
+    \b
+    Agent usage patterns:
+      # Standard reply to thread
+      toady reply --id "PRRT_kwDOO3WQIc5Rv3_r" --body "Fixed in commit abc123"
 
-        Reply with verbose output:
-            toady reply --id "IC_kwDOABcD12MAAAABcDE3fg" --body "Good catch!" --verbose
+      # Automated responses
+      cat responses.txt | while read line; do
+        toady reply --id "$thread_id" --body "$line"
+      done
 
-        Human-readable output:
-            toady reply --id "PRT_kwDOABcD12MAAAABcDE3fg" \\
-                --body "Updated" --format pretty
+      # Bulk replies with error handling
+      toady reply --id "$id" --body "$response" || echo "Failed: $id"
 
-        Get help with ID types:
-            toady reply --help-ids
+    \b
+    Validation:
+      • Body: 3-65536 characters, non-empty after trimming
+      • ID: Must match supported format patterns
+      • Authentication: Requires GitHub CLI (gh) authentication
+      • Permissions: Must have write access to repository
 
-    ERROR CODES:
-        • comment_not_found: Target comment/thread doesn't exist
-        • authentication_failed: GitHub CLI not authenticated
-        • permission_denied: No write access to repository
-        • validation_error: Invalid ID format or body content
-        • rate_limit_exceeded: GitHub API rate limit hit
+    \b
+    Error codes:
+      • comment_not_found: Target comment/thread doesn't exist
+      • authentication_failed: GitHub CLI not authenticated
+      • permission_denied: No write access to repository
+      • validation_error: Invalid ID format or body content
+      • rate_limit_exceeded: GitHub API rate limit hit
     """
     # Show ID help if requested
     if help_ids:

@@ -634,18 +634,22 @@ def resolve(
     Changes the resolution status of GitHub review threads, indicating whether
     the discussion has been addressed. Essential for completing code reviews.
 
-    OPERATION MODES:
-        • Single thread: Use --thread-id to resolve/unresolve one thread
-        • Bulk operation: Use --all --pr to process all threads in a PR
-        • Unresolve: Add --undo flag to unresolve instead of resolve
+    \b
+    Operation modes:
+      • Single thread: Use --thread-id to resolve/unresolve one thread
+      • Bulk operation: Use --all --pr to process all threads in a PR
+      • Unresolve: Add --undo flag to unresolve instead of resolve
 
-    THREAD ID TYPES:
-        • Thread IDs: PRT_, PRRT_, RT_ (from `toady fetch` output)
-        • Numeric IDs: 123456789 (legacy GitHub thread IDs)
-        • Get IDs from: `toady fetch --pr <number> | jq '.[].thread_id'`
+    \b
+    Thread ID types:
+      • Thread IDs: PRT_, PRRT_, RT_ (from 'toady fetch' output)
+      • Numeric IDs: 123456789 (legacy GitHub thread IDs)
+      • Get IDs from: toady fetch | jq '.[].thread_id'
 
-    OUTPUT STRUCTURE (JSON):
-        Single thread:
+    \b
+    Output structure (JSON):
+
+      Single thread:
         {
           "thread_id": "PRRT_kwDOO3WQIc5RvXMO",
           "action": "resolve",
@@ -654,7 +658,7 @@ def resolve(
           "thread_url": "https://github.com/owner/repo/pull/123#discussion_r123456"
         }
 
-        Bulk operation:
+      Bulk operation:
         {
           "pr_number": 123,
           "action": "resolve",
@@ -665,53 +669,57 @@ def resolve(
           "failed_threads": ["RT_kwDOABcD12MAAAABcDE3fg"]
         }
 
-    AGENT USAGE PATTERNS:
-        # Resolve specific thread
+    \b
+    Examples:
+      Resolve single thread:
+        toady resolve --thread-id "123456789"
+
+      Resolve with thread node ID:
         toady resolve --thread-id "PRRT_kwDOO3WQIc5RvXMO"
 
-        # Bulk resolve with error handling
-        toady resolve --all --pr 123 --yes || echo "Some threads failed"
+      Unresolve thread:
+        toady resolve --thread-id "PRT_kwDOABcD12MAAAABcDE3fg" --undo
 
-        # Pipeline: fetch then resolve all
-        toady fetch --pr 123 | jq -r '.[].thread_id' | while read id; do
-          toady resolve --thread-id "$id"
-        done
+      Resolve all threads in PR:
+        toady resolve --all --pr 123
 
-    VALIDATION & SAFETY:
-        • Single operations: No confirmation required
-        • Bulk operations: Confirmation prompt unless --yes flag used
-        • Thread ID validation: Must match supported format patterns
-        • Permissions: Requires write access to repository
+      Bulk resolve without confirmation:
+        toady resolve --all --pr 123 --yes
 
-    EXAMPLES:
-        Resolve single thread:
-            toady resolve --thread-id "123456789"
+      Human-readable output:
+        toady resolve --thread-id "RT_kwDOABcD12MAAAABcDE3fg" --format pretty
 
-        Resolve with thread node ID:
-            toady resolve --thread-id "PRRT_kwDOO3WQIc5RvXMO"
+      Limited bulk operation:
+        toady resolve --all --pr 123 --limit 50
 
-        Unresolve thread:
-            toady resolve --thread-id "PRT_kwDOABcD12MAAAABcDE3fg" --undo
+    \b
+    Agent usage patterns:
+      # Resolve specific thread
+      toady resolve --thread-id "PRRT_kwDOO3WQIc5RvXMO"
 
-        Resolve all threads in PR:
-            toady resolve --all --pr 123
+      # Bulk resolve with error handling
+      toady resolve --all --pr 123 --yes || echo "Some threads failed"
 
-        Bulk resolve without confirmation:
-            toady resolve --all --pr 123 --yes
+      # Pipeline: fetch then resolve all
+      toady fetch | jq -r '.[].thread_id' | while read id; do
+        toady resolve --thread-id "$id"
+      done
 
-        Human-readable output:
-            toady resolve --thread-id "RT_kwDOABcD12MAAAABcDE3fg" --format pretty
+    \b
+    Validation & safety:
+      • Single operations: No confirmation required
+      • Bulk operations: Confirmation prompt unless --yes flag used
+      • Thread ID validation: Must match supported format patterns
+      • Permissions: Requires write access to repository
 
-        Limited bulk operation:
-            toady resolve --all --pr 123 --limit 50
-
-    ERROR CODES:
-        • thread_not_found: Thread ID doesn't exist or no access
-        • authentication_failed: GitHub CLI not authenticated
-        • permission_denied: No write access to repository
-        • pr_not_found: Pull request doesn't exist (for --all)
-        • validation_error: Invalid thread ID format
-        • bulk_operation_partial: Some threads failed in bulk operation
+    \b
+    Error codes:
+      • thread_not_found: Thread ID doesn't exist or no access
+      • authentication_failed: GitHub CLI not authenticated
+      • permission_denied: No write access to repository
+      • pr_not_found: Pull request doesn't exist (for --all)
+      • validation_error: Invalid thread ID format
+      • bulk_operation_partial: Some threads failed in bulk operation
     """
     # Resolve format from options
     try:

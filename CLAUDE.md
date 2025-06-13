@@ -192,6 +192,67 @@ mypy toady/
 
 This guide ensures elegant, maintainable, and well-tested development of toady-cli.
 
+## Click CLI Help Text Formatting Best Practices
+
+### Key Principles
+1. **Use `\b` for preserved formatting** - Prevents Click from rewrapping specific sections
+2. **Structure with clear sections** - Use consistent headings like "Examples:", "Options:", "Behavior:"
+3. **Provide concrete examples** - Show real command usage, not abstract descriptions
+4. **Use consistent indentation** - 2 spaces for section content, 4 spaces for nested items
+5. **Keep sections focused** - Each `\b` block should be a logical unit
+
+### Formatting Template
+```python
+@click.command()
+def example():
+    """Brief command description.
+
+    Longer explanation of what the command does and its purpose.
+
+    \b
+    Behavior:
+      • Key behavior point 1
+      • Key behavior point 2
+      • Key behavior point 3
+
+    \b
+    Examples:
+      Basic usage:
+        command --option value
+
+      Advanced usage:
+        command --option1 value1 --option2 value2
+
+    \b
+    Error codes:
+      • error_type_1: Description of when this occurs
+      • error_type_2: Description of when this occurs
+    """
+```
+
+### Key Formatting Rules
+- **Use `\b` before each major section** to preserve formatting
+- **Use bullet points (•)** for lists instead of dashes or asterisks
+- **Indent consistently**: 2 spaces for section headers, 4 spaces for content
+- **Separate code examples** with proper indentation (4-6 spaces)
+- **Use quotes consistently**: Single quotes for command names, double quotes for strings
+- **Keep lines under 80 characters** when possible for terminal compatibility
+
+### Section Order
+1. Brief description (1-2 sentences)
+2. Detailed explanation
+3. Behavior/Operation modes
+4. Examples (most important section)
+5. Agent usage patterns (for automation)
+6. Validation/Safety notes
+7. Error codes
+
+### Common Issues and Solutions
+- **Text wrapping problems**: Use `\b` before each section that needs preserved formatting
+- **Inconsistent indentation**: Use 2 spaces for headers, 4+ spaces for code blocks
+- **Poor readability**: Break large sections into smaller focused blocks with `\b`
+- **Example clarity**: Always show complete, runnable command examples
+
 ## Git Commit and PR Guidelines
 
 ### Commit Messages and PR Descriptions

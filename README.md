@@ -87,6 +87,19 @@ toady resolve --thread-id abc123def --undo
 toady resolve --all --pr 123
 ```
 
+### Smart PR Detection
+
+```bash
+# Toady automatically detects your PR context:
+# - Single PR: fetches automatically
+# - Multiple PRs: shows interactive selection
+# - No PRs: displays helpful message
+toady fetch
+
+# Override auto-detection for specific PR
+toady fetch --pr 123
+```
+
 ### Schema Validation
 
 ```bash
@@ -242,6 +255,38 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📚 Documentation
 
 For more detailed documentation, visit our [GitHub Wiki](https://github.com/tonyblank/toady-cli/wiki).
+
+## 🛮️ Troubleshooting
+
+### Authentication Issues
+
+- **Run:** `gh auth login`
+- **Verify:** `gh auth status`
+- **Ensure repo scope:** `gh auth login --scopes repo`
+
+### Common Errors
+
+- **"authentication_required":** GitHub CLI not logged in
+- **"pr_not_found":** PR doesn't exist or no repository access
+- **"rate_limit_exceeded":** Too many API calls, wait and retry
+- **"thread_not_found":** Invalid thread ID or thread was deleted
+
+### Debug Mode
+
+- **Set TOADY_DEBUG=1** or use `--debug` flag for detailed error info
+- **Use `--format pretty`** for human-readable output during testing
+
+### ID Issues
+
+- **Always use thread IDs** from `toady fetch` output
+- **Use `toady reply --help-ids`** for complete ID documentation
+- **Thread IDs** (PRRT_, PRT_, RT_) are more reliable than comment IDs
+
+### Rate Limiting
+
+- **Use `--limit` option** to reduce API calls
+- **Add delays** between operations in scripts
+- **Check limits:** `gh api rate_limit`
 
 ## 🐛 Bug Reports
 
