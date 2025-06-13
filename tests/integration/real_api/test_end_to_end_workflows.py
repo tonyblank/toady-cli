@@ -50,12 +50,13 @@ class TestEndToEndWorkflows:
 
         performance_monitor.stop_timing()
 
-        assert result.exit_code == 0, f"Fetch command failed: {result.output}"
+        raw_out = getattr(result, "stdout", result.output)
+        assert result.exit_code == 0, f"Fetch command failed: {raw_out}"
 
         try:
-            threads_data = json.loads(result.output)
+            threads_data = json.loads(raw_out)
         except json.JSONDecodeError:
-            pytest.fail(f"Invalid JSON response from fetch: {result.output}")
+            pytest.fail(f"Invalid JSON response from fetch: {raw_out}")
 
         assert isinstance(threads_data, list), "Expected list of threads"
 

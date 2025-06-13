@@ -633,12 +633,12 @@ class TestGitHubServiceEdgeCases:
     @patch("subprocess.run")
     def test_timeout_error_path(self, mock_run: Mock) -> None:
         """Test timeout error detection."""
+        import subprocess
+
         # Mock both the installation check and the actual command
         mock_run.side_effect = [
             Mock(returncode=0),  # Installation check succeeds
-            Mock(
-                returncode=124, stderr="Command timed out", stdout=""
-            ),  # Actual command
+            subprocess.TimeoutExpired(["gh", "api", "query"], 30),  # Actual command
         ]
 
         service = GitHubService()

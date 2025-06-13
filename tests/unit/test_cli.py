@@ -195,9 +195,9 @@ class TestMainEntryPoint:
         main()
         mock_cli.assert_called_once()
 
-    @patch("toady.cli.cli")
     @patch("toady.cli.handle_error")
-    def test_main_handles_toady_error(self, mock_handle_error, mock_cli):
+    @patch("toady.cli.cli")
+    def test_main_handles_toady_error(self, mock_cli, mock_handle_error):
         """Test that main() properly handles ToadyError exceptions."""
         test_error = ToadyError("Test error")
         mock_cli.side_effect = test_error
@@ -206,9 +206,9 @@ class TestMainEntryPoint:
 
         mock_handle_error.assert_called_once_with(test_error, show_traceback=False)
 
-    @patch("toady.cli.cli")
     @patch("toady.cli.handle_error")
-    def test_main_handles_toady_error_with_debug_env(self, mock_handle_error, mock_cli):
+    @patch("toady.cli.cli")
+    def test_main_handles_toady_error_with_debug_env(self, mock_cli, mock_handle_error):
         """Test that main() handles ToadyError with debug environment variable."""
         test_error = ToadyError("Test error")
         mock_cli.side_effect = test_error
@@ -218,10 +218,10 @@ class TestMainEntryPoint:
 
         mock_handle_error.assert_called_once_with(test_error, show_traceback=True)
 
-    @patch("toady.cli.cli")
     @patch("toady.cli.handle_error")
+    @patch("toady.cli.cli")
     def test_main_handles_toady_error_with_debug_env_variations(
-        self, mock_handle_error, mock_cli
+        self, mock_cli, mock_handle_error
     ):
         """Test that main() handles various debug environment variable values."""
         test_error = ToadyError("Test error")

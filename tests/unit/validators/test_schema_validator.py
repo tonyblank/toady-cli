@@ -653,7 +653,9 @@ class TestSchemaValidatorEdgeCases:
         cache_dir.mkdir()
 
         # Create invalid JSON metadata file
-        metadata_file = cache_dir / "schema_metadata.json"
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
         metadata_file.write_text("invalid json content")
 
         validator = GitHubSchemaValidator(cache_dir=cache_dir)
@@ -665,7 +667,9 @@ class TestSchemaValidatorEdgeCases:
         cache_dir.mkdir()
 
         # Create metadata file without timestamp key
-        metadata_file = cache_dir / "schema_metadata.json"
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
         metadata_file.write_text('{"some_other_key": "value"}')
 
         validator = GitHubSchemaValidator(cache_dir=cache_dir)
@@ -677,7 +681,9 @@ class TestSchemaValidatorEdgeCases:
         cache_dir.mkdir()
 
         # Create metadata file with invalid timestamp format
-        metadata_file = cache_dir / "schema_metadata.json"
+        metadata_file = GitHubSchemaValidator(
+            cache_dir=cache_dir
+        )._get_cache_metadata_path()
         metadata_file.write_text('{"timestamp": "invalid-timestamp-format"}')
 
         validator = GitHubSchemaValidator(cache_dir=cache_dir)

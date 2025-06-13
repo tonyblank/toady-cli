@@ -6,6 +6,7 @@ with helpful guidance for resolution.
 """
 
 from enum import IntEnum
+import os
 import sys
 from typing import Any, Optional
 
@@ -312,7 +313,14 @@ class ErrorMessageFormatter:
             return message
 
         # For unexpected errors, use the generic template
-        return ErrorMessageTemplates.GENERIC_ERROR + f"\n\n🔍 Error details: {error!s}"
+        message = ErrorMessageTemplates.GENERIC_ERROR
+
+        # Only show raw error details in debug mode
+        debug = os.environ.get("TOADY_DEBUG", "").lower() in ("1", "true", "yes")
+        if debug:
+            message += f"\n\n🔍 Error details: {error!s}"
+
+        return message
 
     @staticmethod
     def get_exit_code(error: Exception) -> int:

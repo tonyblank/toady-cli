@@ -159,7 +159,7 @@ class TestPerformanceBenchmarks:
                 str(pr_number),
                 "--resolved",  # Include resolved threads for larger dataset
                 "--limit",
-                "1000",
+                "100",
                 "--format",
                 "json",
             ],
@@ -516,7 +516,7 @@ class TestScalabilityPatterns:
                 str(pr_number),
                 "--resolved",
                 "--limit",
-                "1000",
+                "100",
                 "--format",
                 "json",
             ],

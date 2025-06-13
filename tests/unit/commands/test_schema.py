@@ -232,7 +232,7 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Network error fetching GitHub schema" in result.output
+        assert "Error: Network error fetching GitHub schema" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_schema_fetch_timeout_error(self, mock_validator_class, runner):
@@ -244,7 +244,7 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "Network error fetching GitHub schema" in result.output
+        assert "Error: Network error fetching GitHub schema" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_schema_fetch_file_operation_error(
@@ -258,7 +258,7 @@ class TestValidateCommand:
         result = runner.invoke(cli, ["schema", "validate"])
 
         assert result.exit_code == 1
-        assert "File operation error during schema fetch" in result.output
+        assert "Error: File operation error during schema fetch" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_validate_report_generation_error(self, mock_validator_class, runner):
@@ -477,7 +477,7 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["schema", "fetch"])
 
         assert result.exit_code == 1
-        assert "Network error fetching GitHub schema" in result.output
+        assert "Error: Network error fetching GitHub schema" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_fetch_file_operation_error(self, mock_validator_class, runner):
@@ -489,7 +489,7 @@ class TestFetchCommand:
         result = runner.invoke(cli, ["schema", "fetch"])
 
         assert result.exit_code == 1
-        assert "File operation error during schema fetch" in result.output
+        assert "Error: File operation error during schema fetch" in result.output
 
     @patch("toady.commands.schema.GitHubSchemaValidator")
     def test_fetch_version_retrieval_error(self, mock_validator_class, runner):

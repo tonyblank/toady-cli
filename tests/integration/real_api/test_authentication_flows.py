@@ -181,7 +181,7 @@ class TestAuthenticationFlows:
                 pytest.skip("Could not verify token scopes")
 
             # Parse headers to find X-OAuth-Scopes
-            headers = result.stderr
+            headers = result.stdout if result.stdout else ""
             oauth_scopes = None
 
             for line in headers.split("\n"):

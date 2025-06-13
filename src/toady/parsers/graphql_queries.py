@@ -21,7 +21,7 @@ def _validate_cursor(cursor: str) -> bool:
         ValueError: If the cursor is invalid or potentially unsafe
     """
     if not cursor:
-        return False
+        raise ValueError("Cursor cannot be empty")
 
     # Additional length check to prevent excessively long cursors (check first)
     if len(cursor) > 1000:

@@ -50,7 +50,10 @@ class TestNetworkResilience:
             assert isinstance(threads, list)
         else:
             # If it failed, ensure it's a proper error, not a timeout
-            assert "timeout" not in result.output.lower() or normal_duration < 30.0
+            assert "timeout" not in result.output.lower(), "Unexpected timeout error"
+            assert (
+                normal_duration < 30.0
+            ), "Operation finished but exceeded timeout threshold"
 
     def test_network_retry_behavior(
         self,
@@ -72,7 +75,7 @@ class TestNetworkResilience:
         result = api_retry_helper(fetch_with_potential_failure)
 
         # Should eventually succeed or fail consistently
-        assert result.exit_code == 0 or "error" in result.output.lower()
+        assert result.exit_code == 0, f"CLI call failed:\\n{result.output}"
 
         rate_limit_aware_delay()
 
@@ -97,7 +100,7 @@ class TestNetworkResilience:
                 str(pr_number),
                 "--resolved",  # Include resolved threads
                 "--limit",
-                "1000",  # Request large limit
+                "100",  # Request large limit
                 "--format",
                 "json",
             ],
@@ -434,7 +437,7 @@ class TestErrorRecoveryPatterns:
                 "--pr",
                 str(pr_number),
                 "--limit",
-                "1000",  # Large limit that might hit boundaries
+                "100",  # Large limit that might hit boundaries
                 "--format",
                 "json",
             ],

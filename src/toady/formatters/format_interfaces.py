@@ -145,8 +145,11 @@ class BaseFormatter(IFormatter):
         Returns:
             Serializable representation of the object.
         """
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
+            try:
+                return obj.to_dict()
+            except Exception:
+                return str(obj)
         if isinstance(obj, (list, tuple)):
             return [self._safe_serialize(item) for item in obj]
         if isinstance(obj, dict):
